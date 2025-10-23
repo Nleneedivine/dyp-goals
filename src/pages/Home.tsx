@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Target, Calendar, Users, Sparkles, Trophy, Clock } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
+import goalSettingGuide from "@/assets/goal-setting-guide.png";
+import timeManagement from "@/assets/time-management.png";
+import { getEventTimeDisplay } from "@/lib/utils";
 
 const Home = () => {
   return (
@@ -38,11 +41,11 @@ const Home = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
-                <span>Dec 6-8, 2025</span>
+                <span>Nov 28-30, 2025</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-secondary" />
-                <span>Virtual Event</span>
+                <span>{getEventTimeDisplay()}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-accent" />
@@ -110,6 +113,58 @@ const Home = () => {
               </div>
               <p className="text-muted-foreground">Event Highlight Video Coming Soon</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Goal Setting Framework */}
+      <section className="py-20 container mx-auto px-4">
+        <h2 className="text-4xl md:text-5xl font-bold text-center mb-12">
+          The <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">DYP Framework</span>
+        </h2>
+        <p className="text-xl text-center text-muted-foreground mb-16 max-w-3xl mx-auto">
+          Transform your visions into actionable time logs through our proven 3-step process: Vision → Goals → Time Management
+        </p>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
+          <Card className="bg-card border-border overflow-hidden hover:shadow-xl transition-shadow">
+            <CardContent className="p-0">
+              <img 
+                src={goalSettingGuide} 
+                alt="DYP Goal Setting Framework - Vision to SMART Goals" 
+                className="w-full h-auto"
+              />
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border-border overflow-hidden hover:shadow-xl transition-shadow">
+            <CardContent className="p-0">
+              <img 
+                src={timeManagement} 
+                alt="DYP Time Management System - Yearly to Hourly Planning" 
+                className="w-full h-auto"
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-16 text-center">
+          <h3 className="text-2xl font-semibold mb-6">From Vision to Daily Action</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+            {[
+              { step: "1", title: "Vision", desc: "Define your big picture" },
+              { step: "2", title: "Goals", desc: "Break into SMART chunks" },
+              { step: "3", title: "Planning", desc: "Create time logs" },
+              { step: "4", title: "Action", desc: "Execute daily" }
+            ].map((item, index) => (
+              <div key={index} className="text-center">
+                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-2xl font-bold text-primary-foreground">
+                  {item.step}
+                </div>
+                <h4 className="font-semibold text-lg mb-2">{item.title}</h4>
+                <p className="text-muted-foreground text-sm">{item.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

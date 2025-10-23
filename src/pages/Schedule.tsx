@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, Calendar as CalendarIcon, Users } from "lucide-react";
+import { getEventTimeDisplay } from "@/lib/utils";
 
 const Schedule = () => {
   const [timeLeft, setTimeLeft] = useState({
@@ -11,7 +12,7 @@ const Schedule = () => {
   });
 
   useEffect(() => {
-    const eventDate = new Date("2025-12-06T00:00:00");
+    const eventDate = new Date("2025-11-28T20:00:00+01:00"); // Nov 28, 8PM WAT
 
     const timer = setInterval(() => {
       const now = new Date();
@@ -32,38 +33,38 @@ const Schedule = () => {
 
   const schedule = [
     {
-      day: "Day 1 - Dec 6, 2025",
+      day: "Day 1 - Nov 28, 2025",
       theme: "Vision Casting",
+      time: getEventTimeDisplay(),
       sessions: [
-        { time: "9:00 AM", title: "Opening & Welcome", speaker: "DYP Team" },
-        { time: "10:00 AM", title: "Creating Your Life Vision", speaker: "Lead Coach" },
-        { time: "12:00 PM", title: "Break & Networking" },
-        { time: "1:00 PM", title: "Vision Board Workshop", speaker: "Creative Director" },
-        { time: "3:00 PM", title: "AI Coach Introduction", speaker: "Tech Team" },
+        { time: "8:00 PM", title: "Opening & Welcome", speaker: "DYP Team" },
+        { time: "8:15 PM", title: "Creating Your Life Vision", speaker: "Lead Coach" },
+        { time: "9:00 PM", title: "Vision to Goals Framework", speaker: "Strategy Coach" },
+        { time: "9:20 PM", title: "Q&A & Closing", speaker: "DYP Team" },
       ],
       color: "from-primary to-secondary",
     },
     {
-      day: "Day 2 - Dec 7, 2025",
-      theme: "Goal Setting",
+      day: "Day 2 - Nov 29, 2025",
+      theme: "Goal Setting & Planning",
+      time: getEventTimeDisplay(),
       sessions: [
-        { time: "9:00 AM", title: "SMART Goals Framework", speaker: "Lead Coach" },
-        { time: "10:30 AM", title: "Breaking Down Big Dreams", speaker: "Strategy Coach" },
-        { time: "12:00 PM", title: "Break & Reflection" },
-        { time: "1:00 PM", title: "AI Goals Analysis Workshop", speaker: "AI Coach Demo" },
-        { time: "3:00 PM", title: "Peer Accountability Groups", speaker: "Community Lead" },
+        { time: "8:00 PM", title: "SMART Goals Framework", speaker: "Lead Coach" },
+        { time: "8:30 PM", title: "Breaking Vision into Time Logs", speaker: "Time Coach" },
+        { time: "9:00 PM", title: "AI Goals Analysis Workshop", speaker: "AI Coach Demo" },
+        { time: "9:20 PM", title: "Q&A & Closing", speaker: "DYP Team" },
       ],
       color: "from-secondary to-accent",
     },
     {
-      day: "Day 3 - Dec 8, 2025",
-      theme: "Time Management",
+      day: "Day 3 - Nov 30, 2025",
+      theme: "Time Management & Action",
+      time: getEventTimeDisplay(),
       sessions: [
-        { time: "9:00 AM", title: "Time Blocking Mastery", speaker: "Productivity Coach" },
-        { time: "10:30 AM", title: "Building Daily Habits", speaker: "Habits Expert" },
-        { time: "12:00 PM", title: "Break & Q&A" },
-        { time: "1:00 PM", title: "Creating Your Action Plan", speaker: "Lead Coach" },
-        { time: "3:00 PM", title: "Closing & Next Steps", speaker: "DYP Team" },
+        { time: "8:00 PM", title: "Yearly to Hourly Planning", speaker: "Productivity Coach" },
+        { time: "8:30 PM", title: "Building Your Action Plan", speaker: "Lead Coach" },
+        { time: "9:00 PM", title: "Accountability & Next Steps", speaker: "Community Lead" },
+        { time: "9:20 PM", title: "Closing Ceremony", speaker: "DYP Team" },
       ],
       color: "from-accent to-primary",
     },
@@ -114,11 +115,17 @@ const Schedule = () => {
               style={{ animationDelay: `${dayIndex * 0.1}s` }}
             >
               <div className={`bg-gradient-to-r ${day.color} p-6`}>
-                <div className="flex items-center gap-4 text-primary-foreground">
-                  <CalendarIcon className="h-8 w-8" />
-                  <div>
-                    <h3 className="text-2xl font-bold">{day.day}</h3>
-                    <p className="text-lg opacity-90">{day.theme}</p>
+                <div className="flex items-center justify-between text-primary-foreground">
+                  <div className="flex items-center gap-4">
+                    <CalendarIcon className="h-8 w-8" />
+                    <div>
+                      <h3 className="text-2xl font-bold">{day.day}</h3>
+                      <p className="text-lg opacity-90">{day.theme}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm opacity-90">Session Time</p>
+                    <p className="font-semibold">{day.time}</p>
                   </div>
                 </div>
               </div>
@@ -156,11 +163,11 @@ const Schedule = () => {
             <CardContent className="p-8 text-center">
               <h3 className="text-2xl font-bold mb-4">Important Notes</h3>
               <ul className="text-muted-foreground space-y-2 max-w-2xl mx-auto">
-                <li>• All times are in your local timezone</li>
+                <li>• All times shown are automatically converted to your local timezone</li>
+                <li>• Event times: 8:00 PM - 9:30 PM WAT (West Africa Time)</li>
                 <li>• Sessions will be recorded and available for replay</li>
-                <li>• Live Q&A sessions with coaches after each day</li>
-                <li>• Interactive AI Goals Review available throughout the event</li>
-                <li>• Networking breaks in virtual rooms</li>
+                <li>• Interactive AI Goals Review available before, during, and after the event</li>
+                <li>• Q&A sessions after each day's content</li>
               </ul>
             </CardContent>
           </Card>
