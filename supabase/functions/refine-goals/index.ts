@@ -11,41 +11,42 @@ serve(async (req) => {
   }
 
   try {
-    const { goals } = await req.json();
+    const { originalGoals, questions, responses } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    console.log('Analyzing goals with AI...');
+    console.log('Refining goals with user responses...');
 
-    const systemPrompt = `You are the DYP AI Coach - an expert goal-setting assistant specializing in helping youth and young adults create SMART goals (Specific, Measurable, Achievable, Relevant, Time-bound).
+    const systemPrompt = `You are the DYP AI Coach - an expert at helping youth create comprehensive, actionable SMART goals.
 
-Your task is to analyze the user's goals and provide structured feedback in JSON format.
+Based on the original goals and the user's responses to your questions, create a refined, comprehensive goal plan.
 
-Return a JSON object with this exact structure:
+Return a JSON object with this structure:
 {
-  "overallScore": <number 0-100>,
-  "goals": [
+  "refinedGoals": [
     {
-      "originalGoal": "<the goal as user wrote it>",
-      "score": <number 0-100>,
-      "feedback": "<specific constructive feedback>",
-      "questions": ["<question 1>", "<question 2>", "<question 3>"],
-      "improvedVersion": "<SMART rewritten version>"
+      "title": "<goal title>",
+      "description": "<detailed SMART goal description>",
+      "actionSteps": ["<step 1>", "<step 2>", "<step 3>"],
+      "timeline": "<suggested timeline>",
+      "successMetrics": ["<metric 1>", "<metric 2>"]
     }
   ],
-  "generalAdvice": "<2-3 sentences of encouraging advice>"
+  "nextSteps": "<encouraging message about implementing these goals>"
 }
 
-IMPORTANT: 
-- Return ONLY valid JSON, no markdown, no explanations
-- Be encouraging and youth-friendly
-- Provide 2-3 specific questions per goal
-- Make improved versions actionable and inspiring`;
+Be specific, actionable, and inspiring. Focus on making goals achievable for youth and young adults.`;
 
-    const userPrompt = `Analyze these goals and return structured JSON as specified:\n\n${goals}`;
+    const userPrompt = `Original goals: ${originalGoals}
+
+Questions asked: ${JSON.stringify(questions)}
+
+User responses: ${JSON.stringify(responses)}
+
+Create comprehensive refined goals based on this information.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -77,32 +78,31 @@ IMPORTANT:
       }
       const errorText = await response.text();
       console.error('AI API error:', response.status, errorText);
-      throw new Error('AI analysis failed');
+      throw new Error('AI refinement failed');
     }
 
     const data = await response.json();
-    const analysisText = data.choices[0].message.content;
+    const refinedText = data.choices[0].message.content;
     
-    // Parse the JSON response from AI
-    let analysis;
+    // Parse the JSON response
+    let refined;
     try {
-      // Remove markdown code blocks if present
-      const cleanedText = analysisText.replace(/```json\n?|\n?```/g, '').trim();
-      analysis = JSON.parse(cleanedText);
+      const cleanedText = refinedText.replace(/```json\n?|\n?```/g, '').trim();
+      refined = JSON.parse(cleanedText);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', analysisText);
+      console.error('Failed to parse AI response:', refinedText);
       throw new Error('AI returned invalid format');
     }
 
-    console.log('Analysis complete');
+    console.log('Refinement complete');
 
     return new Response(
-      JSON.stringify({ analysis }),
+      JSON.stringify({ refined }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error in analyze-goals:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to analyze goals';
+    console.error('Error in refine-goals:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to refine goals';
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
