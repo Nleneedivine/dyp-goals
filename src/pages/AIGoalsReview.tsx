@@ -3,11 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Target, CheckCircle2, MessageCircle, Lightbulb } from "lucide-react";
+import { Loader2, Sparkles, Target, CheckCircle2, MessageCircle, Lightbulb, Download, Printer } from "lucide-react";
 import aiCoachImage from "@/assets/ai-coach.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { pdf } from "@react-pdf/renderer";
+import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
+import { PrintableGoals } from "@/components/PrintableGoals";
 
 interface GoalAnalysis {
   originalGoal: string;
@@ -39,6 +42,7 @@ const AIGoalsReview = () => {
   const [refinedGoals, setRefinedGoals] = useState<RefinedGoal[] | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
   const handleAnalyze = async () => {
@@ -158,6 +162,40 @@ const AIGoalsReview = () => {
     } finally {
       setIsRefining(false);
     }
+  };
+
+  const handleExportPDF = async () => {
+    if (!refinedGoals) return;
+
+    setIsExporting(true);
+    try {
+      const doc = <GoalsPDFDocument goals={refinedGoals} />;
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `DYP-Goals-2025-${new Date().toLocaleDateString()}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Downloaded!",
+        description: "Your goals have been exported as a PDF.",
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: "Export Failed",
+        description: "Unable to export PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -369,11 +407,40 @@ const AIGoalsReview = () => {
         {/* Refined Goals Section */}
         {refinedGoals && !isRefining && (
           <div className="mt-12 max-w-7xl mx-auto">
-            <h2 className="text-4xl font-bold text-center mb-8">
-              Your <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Comprehensive Action Plan</span>
-            </h2>
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-4xl font-bold">
+                Your <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Comprehensive Action Plan</span>
+              </h2>
+              <div className="flex gap-3 print:hidden">
+                <Button
+                  onClick={handlePrint}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print
+                </Button>
+                <Button
+                  onClick={handleExportPDF}
+                  disabled={isExporting}
+                  className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 flex items-center gap-2"
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Export PDF
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
             
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-6 print:hidden">
               {refinedGoals.map((goal, index) => (
                 <Card key={index} className="bg-card border-border overflow-hidden animate-fade-in" style={{ animationDelay: `${0.1 * (index + 1)}s` }}>
                   <CardHeader className="bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20">
@@ -415,6 +482,9 @@ const AIGoalsReview = () => {
                 </Card>
               ))}
             </div>
+
+            {/* Printable Version */}
+            <PrintableGoals goals={refinedGoals} />
           </div>
         )}
 
