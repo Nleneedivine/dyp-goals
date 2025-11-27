@@ -61,6 +61,13 @@ const AIGoalsReview = () => {
     setResponses({});
 
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("You must be logged in to analyze goals");
+      }
+
       const { data, error } = await supabase.functions.invoke('analyze-goals', {
         body: { goals }
       });
@@ -74,6 +81,7 @@ const AIGoalsReview = () => {
         const { data: savedAnalysis } = await supabase
           .from('goal_analyses')
           .insert({
+            user_id: user.id,
             original_goals: goals,
             ai_analysis: data.analysis
           })

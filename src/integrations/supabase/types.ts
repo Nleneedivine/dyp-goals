@@ -22,6 +22,7 @@ export type Database = {
           original_goals: string
           refined_goals: string | null
           updated_at: string
+          user_id: string | null
           user_responses: Json | null
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           original_goals: string
           refined_goals?: string | null
           updated_at?: string
+          user_id?: string | null
           user_responses?: Json | null
         }
         Update: {
@@ -40,7 +42,35 @@ export type Database = {
           original_goals?: string
           refined_goals?: string | null
           updated_at?: string
+          user_id?: string | null
           user_responses?: Json | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          updated_at?: string
         }
         Relationships: []
       }
