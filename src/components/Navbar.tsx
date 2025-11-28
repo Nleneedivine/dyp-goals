@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -91,19 +98,36 @@ const Navbar = () => {
             ))}
             {user && (
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <User className="h-4 w-4" />
-                  <span>{user.email}</span>
-                </div>
-                <Button
-                  onClick={handleLogout}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
+                <Link
+                  to="/goal-history"
+                  className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
+                    isActive("/goal-history") ? "text-primary" : "text-muted-foreground"
+                  }`}
                 >
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </Button>
+                  <History className="h-4 w-4" />
+                  Goal History
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <User className="h-4 w-4" />
+                      {user.email}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-card border-border">
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="cursor-pointer flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer flex items-center gap-2">
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
           </div>
@@ -133,11 +157,30 @@ const Navbar = () => {
               </Link>
             ))}
             {user && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+              <div className="mt-4 pt-4 border-t border-border space-y-3">
+                <Link
+                  to="/goal-history"
+                  onClick={() => setIsOpen(false)}
+                  className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
+                    isActive("/goal-history") ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <History className="h-4 w-4" />
+                  Goal History
+                </Link>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                   <User className="h-4 w-4" />
                   <span>{user.email}</span>
                 </div>
+                <Link
+                  to="/profile"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Button variant="outline" className="w-full gap-2 mb-2">
+                    <User className="h-4 w-4" />
+                    Profile
+                  </Button>
+                </Link>
                 <Button
                   onClick={() => {
                     handleLogout();

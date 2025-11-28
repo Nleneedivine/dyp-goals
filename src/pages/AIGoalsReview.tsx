@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,7 +43,71 @@ const AIGoalsReview = () => {
   const [isRefining, setIsRefining] = useState(false);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSavingResponse, setIsSavingResponse] = useState(false);
   const { toast } = useToast();
+
+  // Auto-save responses with debounce
+  useEffect(() => {
+    if (!analysisId || Object.keys(responses).length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      saveResponses();
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [responses, analysisId]);
+
+  // Load existing analysis on mount
+  useEffect(() => {
+    loadExistingAnalysis();
+  }, []);
+
+  const loadExistingAnalysis = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('goal_analyses')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('refined_goals', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setAnalysisId(data.id);
+        setGoals(data.original_goals);
+        setAnalysis(data.ai_analysis as unknown as AnalysisResult);
+        if (data.user_responses) {
+          setResponses(data.user_responses as unknown as Record<number, string>);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error loading existing analysis:', error);
+    }
+  };
+
+  const saveResponses = async () => {
+    if (!analysisId) return;
+
+    setIsSavingResponse(true);
+    try {
+      const { error } = await supabase
+        .from('goal_analyses')
+        .update({ user_responses: responses })
+        .eq('id', analysisId);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error saving responses:', error);
+    } finally {
+      setIsSavingResponse(false);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!goals.trim()) {
