@@ -16,18 +16,40 @@ import {
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-    });
+      
+      if (session?.user) {
+        const { data } = await supabase.rpc('has_role', { 
+          _user_id: session.user.id, 
+          _role: 'admin' 
+        });
+        setIsAdmin(data === true);
+      }
+    };
+
+    checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const { data } = await supabase.rpc('has_role', { 
+            _user_id: session.user.id, 
+            _role: 'admin' 
+          });
+          setIsAdmin(data === true);
+        } else {
+          setIsAdmin(false);
+        }
       }
     );
 
@@ -107,6 +129,17 @@ const Navbar = () => {
                   <History className="h-4 w-4" />
                   Goal History
                 </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
+                      isActive("/admin") ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Admin
+                  </Link>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -168,6 +201,18 @@ const Navbar = () => {
                   <History className="h-4 w-4" />
                   Goal History
                 </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setIsOpen(false)}
+                    className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
+                      isActive("/admin") ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Admin
+                  </Link>
+                )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                   <User className="h-4 w-4" />
                   <span>{user.email}</span>
