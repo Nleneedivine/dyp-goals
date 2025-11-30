@@ -141,10 +141,6 @@ const AIGoalsReview = () => {
       if (data?.analysis) {
         setAnalysis(data.analysis);
         
-        // Assign user to accountability group
-        const { data: groupData, error: groupError } = await supabase
-          .rpc('assign_user_to_group', { _user_id: user.id });
-        
         // Store analysis for learning
         const { data: savedAnalysis } = await supabase
           .from('goal_analyses')
@@ -162,7 +158,7 @@ const AIGoalsReview = () => {
 
         toast({
           title: "Analysis Complete!",
-          description: "Your DYP AI Coach has reviewed your goals and assigned you to an accountability group.",
+          description: "Your DYP AI Coach has reviewed your goals.",
         });
       }
     } catch (error: any) {
@@ -250,7 +246,7 @@ const AIGoalsReview = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `DYP-Goals-2026-${new Date().toLocaleDateString()}.pdf`;
+      link.download = `DYP-Goals-2025-${new Date().toLocaleDateString()}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
 
@@ -282,7 +278,7 @@ const AIGoalsReview = () => {
             Meet Your <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">AI Coach</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Submit your 2026 goals and get instant AI-powered analysis, scoring, and personalized recommendations to make them SMART and achievable.
+            Submit your 2025 goals and get instant AI-powered analysis, scoring, and personalized recommendations to make them SMART and achievable.
           </p>
         </div>
 
@@ -292,7 +288,7 @@ const AIGoalsReview = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-2xl">
                 <Target className="h-6 w-6 text-primary" />
-                Your 2026 Goals
+                Your 2025 Goals
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

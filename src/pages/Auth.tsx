@@ -106,7 +106,7 @@ const Auth = () => {
 
       toast({
         title: "Account created!",
-        description: "Welcome to DYP GOALS 2026!",
+        description: "Welcome to DYP GOALS 2025!",
       });
     } catch (error: any) {
       toast({
@@ -123,7 +123,7 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">DYP GOALS 2026</CardTitle>
+          <CardTitle className="text-2xl text-center">DYP GOALS 2025</CardTitle>
           <CardDescription className="text-center">
             Sign in to access your personalized goal coaching
           </CardDescription>
