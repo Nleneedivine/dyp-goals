@@ -24,14 +24,14 @@ const Profile = () => {
 
   const loadProfile = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Not authenticated");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("first_name, last_name, email")
-        .eq("id", session.user.id)
-        .maybeSingle();
+        .select("*")
+        .eq("id", user.id)
+        .single();
 
       if (error) throw error;
 
@@ -54,8 +54,8 @@ const Profile = () => {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Not authenticated");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase
         .from("profiles")
@@ -64,7 +64,7 @@ const Profile = () => {
           last_name: lastName,
           email: email,
         })
-        .eq("id", session.user.id);
+        .eq("id", user.id);
 
       if (error) throw error;
 

@@ -49,7 +49,7 @@ const Mentorship = () => {
             Mentorship & <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Accountability</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Connect with experienced mentors and join accountability groups to stay on track with your goals throughout 2026.
+            Connect with experienced mentors and join accountability groups to stay on track with your goals throughout 2025.
           </p>
         </div>
 
@@ -97,7 +97,7 @@ const Mentorship = () => {
                   <div>
                     <h3 className="text-xl font-semibold mb-2">Track Progress</h3>
                     <p className="text-muted-foreground">
-                      Regular check-ins and progress tracking to keep you motivated and on track toward achieving your 2026 goals.
+                      Regular check-ins and progress tracking to keep you motivated and on track toward achieving your 2025 goals.
                     </p>
                   </div>
                 </div>
@@ -156,7 +156,7 @@ const Mentorship = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="goals">Your Top 3 Goals for 2026</Label>
+                  <Label htmlFor="goals">Your Top 3 Goals for 2025</Label>
                   <Textarea
                     id="goals"
                     name="goals"
