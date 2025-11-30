@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -85,7 +85,7 @@ const Navbar = () => {
             <Link to="/" className="flex items-center gap-2 group">
               <Sparkles className="h-8 w-8 text-primary animate-glow" />
               <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                DYP GOALS 2025
+                DYP GOALS 2026
               </span>
             </Link>
           </div>
@@ -101,7 +101,7 @@ const Navbar = () => {
           <Link to="/" className="flex items-center gap-2 group">
             <Sparkles className="h-8 w-8 text-primary animate-glow" />
             <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              DYP GOALS 2025
+              DYP GOALS 2026
             </span>
           </Link>
 
@@ -130,15 +130,26 @@ const Navbar = () => {
                   Goal History
                 </Link>
                 {isAdmin && (
-                  <Link
-                    to="/admin"
-                    className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
-                      isActive("/admin") ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Admin
-                  </Link>
+                  <>
+                    <Link
+                      to="/admin"
+                      className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
+                        isActive("/admin") ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Admin
+                    </Link>
+                    <Link
+                      to="/groups"
+                      className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
+                        isActive("/groups") ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    >
+                      <Users className="h-4 w-4" />
+                      Groups
+                    </Link>
+                  </>
                 )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -202,16 +213,28 @@ const Navbar = () => {
                   Goal History
                 </Link>
                 {isAdmin && (
-                  <Link
-                    to="/admin"
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
-                      isActive("/admin") ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Admin
-                  </Link>
+                  <>
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
+                        isActive("/admin") ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Admin
+                    </Link>
+                    <Link
+                      to="/groups"
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
+                        isActive("/groups") ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    >
+                      <Users className="h-4 w-4" />
+                      Groups
+                    </Link>
+                  </>
                 )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                   <User className="h-4 w-4" />
