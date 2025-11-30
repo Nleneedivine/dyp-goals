@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      accountability_groups: {
+        Row: {
+          created_at: string
+          id: string
+          mentor_id: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mentor_id?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mentor_id?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goal_analyses: {
         Row: {
           ai_analysis: Json
@@ -52,6 +76,7 @@ export type Database = {
           created_at: string
           email: string
           first_name: string
+          group_id: string | null
           id: string
           last_name: string
           updated_at: string
@@ -60,6 +85,7 @@ export type Database = {
           created_at?: string
           email: string
           first_name: string
+          group_id?: string | null
           id: string
           last_name: string
           updated_at?: string
@@ -68,11 +94,20 @@ export type Database = {
           created_at?: string
           email?: string
           first_name?: string
+          group_id?: string | null
           id?: string
           last_name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -100,6 +135,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_user_to_group: { Args: { _user_id: string }; Returns: string }
+      get_next_group_name: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -113,7 +150,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "mentor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -241,7 +278,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "mentor"],
     },
   },
 } as const

@@ -12,7 +12,7 @@ const Footer = () => {
             <Link to="/" className="flex items-center gap-2 mb-4">
               <Sparkles className="h-8 w-8 text-primary" />
               <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                DYP GOALS 2025
+                DYP GOALS 2026
               </span>
             </Link>
             <p className="text-muted-foreground mb-4 max-w-md">
@@ -66,7 +66,7 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold text-lg mb-4 text-foreground">Event Info</h3>
             <ul className="space-y-2 text-muted-foreground">
-              <li>Dec 6-8, 2025</li>
+              <li>Dec 6-8, 2026</li>
               <li>Virtual Masterclass</li>
               <li>Youth & Young Adults</li>
               <li>
