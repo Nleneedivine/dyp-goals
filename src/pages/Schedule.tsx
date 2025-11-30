@@ -12,7 +12,7 @@ const Schedule = () => {
   });
 
   useEffect(() => {
-    const eventDate = new Date("2025-11-28T20:00:00+01:00"); // Nov 28, 8PM WAT
+    const eventDate = new Date("2026-11-28T20:00:00+01:00"); // Nov 28, 8PM WAT
 
     const timer = setInterval(() => {
       const now = new Date();
@@ -33,7 +33,7 @@ const Schedule = () => {
 
   const schedule = [
     {
-      day: "Day 1 - Nov 28, 2025",
+      day: "Day 1 - Nov 28, 2026",
       theme: "Vision Casting",
       time: getEventTimeDisplay(),
       sessions: [
@@ -45,7 +45,7 @@ const Schedule = () => {
       color: "from-primary to-secondary",
     },
     {
-      day: "Day 2 - Nov 29, 2025",
+      day: "Day 2 - Nov 29, 2026",
       theme: "Goal Setting & Planning",
       time: getEventTimeDisplay(),
       sessions: [
@@ -57,7 +57,7 @@ const Schedule = () => {
       color: "from-secondary to-accent",
     },
     {
-      day: "Day 3 - Nov 30, 2025",
+      day: "Day 3 - Nov 30, 2026",
       theme: "Time Management & Action",
       time: getEventTimeDisplay(),
       sessions: [
