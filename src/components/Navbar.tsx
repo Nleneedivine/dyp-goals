@@ -60,12 +60,27 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Logged out",
-      description: "You've been successfully logged out.",
-    });
-    navigate("/auth");
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.error('Logout error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to log out. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setUser(null);
+      setIsAdmin(false);
+      toast({
+        title: "Logged out",
+        description: "You've been successfully logged out.",
+      });
+      navigate("/auth");
+    } catch (err) {
+      console.error('Logout exception:', err);
+    }
   };
 
   const navItems = [
