@@ -9,7 +9,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import Home from "./pages/Home";
 import Schedule from "./pages/Schedule";
-import AIGoalsReview from "./pages/AIGoalsReview";
+import GoalsPage from "./pages/GoalsPage";
 import Mentorship from "./pages/Mentorship";
 import Testimonials from "./pages/Testimonials";
 import Contact from "./pages/Contact";
@@ -33,7 +33,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
             <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
-            <Route path="/ai-goals" element={<ProtectedRoute><AIGoalsReview /></ProtectedRoute>} />
+            <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
             <Route path="/mentorship" element={<ProtectedRoute><Mentorship /></ProtectedRoute>} />
             <Route path="/testimonials" element={<ProtectedRoute><Testimonials /></ProtectedRoute>} />
             <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
