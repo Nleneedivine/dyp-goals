@@ -38,15 +38,18 @@ const Navbar = () => {
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          const { data } = await supabase.rpc('has_role', { 
-            _user_id: session.user.id, 
-            _role: 'admin' 
-          });
-          setIsAdmin(data === true);
+          // Defer Supabase calls to prevent auth deadlock
+          setTimeout(async () => {
+            const { data } = await supabase.rpc('has_role', { 
+              _user_id: session.user.id, 
+              _role: 'admin' 
+            });
+            setIsAdmin(data === true);
+          }, 0);
         } else {
           setIsAdmin(false);
         }
