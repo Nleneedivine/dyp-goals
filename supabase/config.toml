@@ -1,7 +1,7 @@
 project_id = "oegmeazgcmmsucvikbka"
 
 [functions.analyze-goals]
-verify_jwt = false
+verify_jwt = true
 
 [functions.refine-goals]
-verify_jwt = false
+verify_jwt = true
