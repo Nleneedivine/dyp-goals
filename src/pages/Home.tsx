@@ -22,7 +22,7 @@ const Home = () => {
               Transform Your Purpose Into Action
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              Join DYP GOALS 2025 - A 3-day virtual masterclass teaching vision casting, goal setting, and time management for youth and young adults.
+              Join DYP GOALS - A virtual masterclass teaching vision casting, goal setting, and time management for youth and young adults.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <Link to="/ai-goals">
@@ -176,7 +176,7 @@ const Home = () => {
             Ready to <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Transform</span> Your Life?
           </h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join hundreds of youth and young adults discovering their purpose and achieving their goals with DYP GOALS 2025.
+            Join hundreds of youth and young adults discovering their purpose and achieving their goals with DYP GOALS.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/ai-goals">

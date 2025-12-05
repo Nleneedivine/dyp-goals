@@ -124,7 +124,7 @@ const Testimonials = () => {
               Ready to Write Your <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Success Story</span>?
             </h2>
             <p className="text-xl text-muted-foreground mb-8">
-              Join DYP GOALS 2025 and become our next success story. Transform your vision into reality.
+              Join DYP GOALS and become our next success story. Transform your vision into reality.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="/ai-goals">

@@ -12,7 +12,7 @@ const Footer = () => {
             <Link to="/" className="flex items-center gap-2 mb-4">
               <Sparkles className="h-8 w-8 text-primary" />
               <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                DYP GOALS 2025
+                DYP GOALS
               </span>
             </Link>
             <p className="text-muted-foreground mb-4 max-w-md">
