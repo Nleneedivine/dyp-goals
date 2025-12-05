@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Target, CheckCircle2, MessageCircle, Lightbulb, Download, Printer } from "lucide-react";
+import { Loader2, Sparkles, Target, CheckCircle2, MessageCircle, Lightbulb, Download, Printer, CalendarDays } from "lucide-react";
 import aiCoachImage from "@/assets/ai-coach.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,13 @@ import { Label } from "@/components/ui/label";
 import { pdf } from "@react-pdf/renderer";
 import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
 import { PrintableGoals } from "@/components/PrintableGoals";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface GoalAnalysis {
   originalGoal: string;
@@ -35,7 +42,9 @@ interface RefinedGoal {
 }
 
 const AIGoalsReview = () => {
+  const currentYear = new Date().getFullYear();
   const [goals, setGoals] = useState("");
+  const [targetYear, setTargetYear] = useState<number>(currentYear + 1);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [responses, setResponses] = useState<Record<number, string>>({});
@@ -241,12 +250,12 @@ const AIGoalsReview = () => {
 
     setIsExporting(true);
     try {
-      const doc = <GoalsPDFDocument goals={refinedGoals} />;
+      const doc = <GoalsPDFDocument goals={refinedGoals} targetYear={targetYear} />;
       const blob = await pdf(doc).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `DYP-Goals-2025-${new Date().toLocaleDateString()}.pdf`;
+      link.download = `DYP-Goals-${targetYear}-${new Date().toLocaleDateString()}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
 
@@ -278,7 +287,7 @@ const AIGoalsReview = () => {
             Meet Your <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">AI Coach</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Submit your 2025 goals and get instant AI-powered analysis, scoring, and personalized recommendations to make them SMART and achievable.
+            Submit your goals and get instant AI-powered analysis, scoring, and personalized recommendations to make them SMART and achievable.
           </p>
         </div>
 
@@ -288,10 +297,31 @@ const AIGoalsReview = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-2xl">
                 <Target className="h-6 w-6 text-primary" />
-                Your 2025 Goals
+                Your Goals
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="targetYear" className="flex items-center gap-2 whitespace-nowrap">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  Target Year:
+                </Label>
+                <Select
+                  value={targetYear.toString()}
+                  onValueChange={(value) => setTargetYear(parseInt(value))}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[currentYear, currentYear + 1, currentYear + 2, currentYear + 3].map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Textarea
                 value={goals}
                 onChange={(e) => setGoals(e.target.value)}
@@ -556,7 +586,7 @@ const AIGoalsReview = () => {
             </div>
 
             {/* Printable Version */}
-            <PrintableGoals goals={refinedGoals} />
+            <PrintableGoals goals={refinedGoals} targetYear={targetYear} />
           </div>
         )}
 

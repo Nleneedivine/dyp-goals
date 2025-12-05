@@ -103,7 +103,7 @@ const Navbar = () => {
             <Link to="/" className="flex items-center gap-2 group">
               <Sparkles className="h-8 w-8 text-primary animate-glow" />
               <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                DYP GOALS 2025
+                DYP GOALS
               </span>
             </Link>
           </div>
@@ -119,7 +119,7 @@ const Navbar = () => {
           <Link to="/" className="flex items-center gap-2 group">
             <Sparkles className="h-8 w-8 text-primary animate-glow" />
             <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              DYP GOALS 2025
+              DYP GOALS
             </span>
           </Link>
 
