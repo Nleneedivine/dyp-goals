@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,7 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMentor, setIsMentor] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -27,11 +28,17 @@ const Navbar = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        const { data } = await supabase.rpc('has_role', { 
+        const { data: adminData } = await supabase.rpc('has_role', { 
           _user_id: session.user.id, 
           _role: 'admin' 
         });
-        setIsAdmin(data === true);
+        setIsAdmin(adminData === true);
+
+        const { data: mentorData } = await supabase.rpc('has_role', { 
+          _user_id: session.user.id, 
+          _role: 'mentor' 
+        });
+        setIsMentor(mentorData === true);
       }
     };
 
@@ -44,14 +51,21 @@ const Navbar = () => {
         if (session?.user) {
           // Defer Supabase calls to prevent auth deadlock
           setTimeout(async () => {
-            const { data } = await supabase.rpc('has_role', { 
+            const { data: adminData } = await supabase.rpc('has_role', { 
               _user_id: session.user.id, 
               _role: 'admin' 
             });
-            setIsAdmin(data === true);
+            setIsAdmin(adminData === true);
+
+            const { data: mentorData } = await supabase.rpc('has_role', { 
+              _user_id: session.user.id, 
+              _role: 'mentor' 
+            });
+            setIsMentor(mentorData === true);
           }, 0);
         } else {
           setIsAdmin(false);
+          setIsMentor(false);
         }
       }
     );
@@ -147,6 +161,17 @@ const Navbar = () => {
                   <History className="h-4 w-4" />
                   Goal History
                 </Link>
+                {isMentor && (
+                  <Link
+                    to="/mentor-dashboard"
+                    className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
+                      isActive("/mentor-dashboard") ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                    My Group
+                  </Link>
+                )}
                 {isAdmin && (
                   <Link
                     to="/admin"
@@ -219,6 +244,18 @@ const Navbar = () => {
                   <History className="h-4 w-4" />
                   Goal History
                 </Link>
+                {isMentor && (
+                  <Link
+                    to="/mentor-dashboard"
+                    onClick={() => setIsOpen(false)}
+                    className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
+                      isActive("/mentor-dashboard") ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                    My Group
+                  </Link>
+                )}
                 {isAdmin && (
                   <Link
                     to="/admin"

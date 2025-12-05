@@ -7,10 +7,12 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
+import MentorRoute from "./components/MentorRoute";
 import Home from "./pages/Home";
 import Schedule from "./pages/Schedule";
 import GoalsPage from "./pages/GoalsPage";
 import Mentorship from "./pages/Mentorship";
+import MentorDashboard from "./pages/MentorDashboard";
 import Testimonials from "./pages/Testimonials";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
@@ -39,6 +41,7 @@ const App = () => (
             <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/goal-history" element={<ProtectedRoute><GoalHistory /></ProtectedRoute>} />
+            <Route path="/mentor-dashboard" element={<MentorRoute><MentorDashboard /></MentorRoute>} />
             <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
