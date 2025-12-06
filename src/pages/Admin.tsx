@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2 } from "lucide-react";
+import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus } from "lucide-react";
 import { format } from "date-fns";
 import {
   Table,
@@ -66,6 +66,8 @@ const Admin = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredUsers, setFilteredUsers] = useState<Profile[]>([]);
   const [filteredGoals, setFilteredGoals] = useState<GoalAnalysis[]>([]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -284,6 +286,72 @@ const Admin = () => {
     return mentor ? `${mentor.first_name} ${mentor.last_name}` : "Unknown";
   };
 
+  const createGroup = async () => {
+    if (!newGroupName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a group name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingGroup(true);
+    try {
+      const { error } = await supabase
+        .from("accountability_groups")
+        .insert({ name: newGroupName.trim() });
+
+      if (error) throw error;
+
+      toast({
+        title: "Group created",
+        description: `"${newGroupName}" has been created.`,
+      });
+
+      setNewGroupName("");
+      loadAdminData();
+    } catch (error: any) {
+      toast({
+        title: "Error creating group",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const moveUserToGroup = async (userId: string, groupId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ group_id: groupId })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "User moved",
+        description: groupId ? "User has been moved to the new group." : "User has been removed from group.",
+      });
+
+      loadAdminData();
+    } catch (error: any) {
+      toast({
+        title: "Error moving user",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getGroupName = (groupId: string | null) => {
+    if (!groupId) return "No Group";
+    const group = groups.find((g) => g.id === groupId);
+    return group?.name || "Unknown";
+  };
+
   const filterUsers = () => {
     if (!searchQuery.trim()) {
       setFilteredUsers(users);
@@ -422,12 +490,13 @@ const Admin = () => {
               <CardContent>
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
+                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Group</TableHead>
                         <TableHead>Joined</TableHead>
-                        <TableHead>Goals Count</TableHead>
+                        <TableHead>Goals</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -443,6 +512,26 @@ const Admin = () => {
                                 <Mail className="h-4 w-4 text-muted-foreground" />
                                 {user.email}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={user.group_id || "none"}
+                                onValueChange={(value) => 
+                                  moveUserToGroup(user.id, value === "none" ? null : value)
+                                }
+                              >
+                                <SelectTrigger className="w-[180px]">
+                                  <SelectValue placeholder="Select group" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">No Group</SelectItem>
+                                  {groups.map((group) => (
+                                    <SelectItem key={group.id} value={group.id}>
+                                      {group.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -593,11 +682,30 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
-          {/* Groups Tab */}
           <TabsContent value="groups">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>Manage Accountability Groups</CardTitle>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <CardTitle>Manage Accountability Groups</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      placeholder="New group name..."
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      className="w-[200px]"
+                      onKeyDown={(e) => e.key === 'Enter' && createGroup()}
+                    />
+                    <Button onClick={createGroup} disabled={creatingGroup} size="sm">
+                      {creatingGroup ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      <span className="ml-1">Create</span>
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
