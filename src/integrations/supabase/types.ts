@@ -193,6 +193,39 @@ export type Database = {
         }
         Relationships: []
       }
+      mentorship_requests: {
+        Row: {
+          areas: string
+          created_at: string
+          experience: string | null
+          goals: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          areas: string
+          created_at?: string
+          experience?: string | null
+          goals: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          areas?: string
+          created_at?: string
+          experience?: string | null
+          goals?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       message_reactions: {
         Row: {
           created_at: string
