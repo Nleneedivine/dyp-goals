@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus } from "lucide-react";
+import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import {
   Table,
@@ -68,6 +69,8 @@ const Admin = () => {
   const [filteredGoals, setFilteredGoals] = useState<GoalAnalysis[]>([]);
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [bulkAssigning, setBulkAssigning] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -352,6 +355,67 @@ const Admin = () => {
     return group?.name || "Unknown";
   };
 
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUsers.size === filteredUsers.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(filteredUsers.map((u) => u.id)));
+    }
+  };
+
+  const bulkAssignToGroup = async (groupId: string | null) => {
+    if (selectedUsers.size === 0) {
+      toast({
+        title: "No users selected",
+        description: "Please select at least one user to assign.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBulkAssigning(true);
+    try {
+      const userIds = Array.from(selectedUsers);
+      
+      for (const userId of userIds) {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ group_id: groupId })
+          .eq("id", userId);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Users assigned",
+        description: `${userIds.length} user(s) have been ${groupId ? "assigned to the group" : "removed from groups"}.`,
+      });
+
+      setSelectedUsers(new Set());
+      loadAdminData();
+    } catch (error: any) {
+      toast({
+        title: "Error assigning users",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setBulkAssigning(false);
+    }
+  };
+
   const filterUsers = () => {
     if (!searchQuery.trim()) {
       setFilteredUsers(users);
@@ -485,13 +549,47 @@ const Admin = () => {
           <TabsContent value="users">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>All Users</CardTitle>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <CardTitle>All Users</CardTitle>
+                  {selectedUsers.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <CheckSquare className="h-3 w-3" />
+                        {selectedUsers.size} selected
+                      </Badge>
+                      <Select
+                        onValueChange={(value) => bulkAssignToGroup(value === "none" ? null : value)}
+                        disabled={bulkAssigning}
+                      >
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Assign to group..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Remove from group</SelectItem>
+                          {groups.map((group) => (
+                            <SelectItem key={group.id} value={group.id}>
+                              {group.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {bulkAssigning && <Loader2 className="h-4 w-4 animate-spin" />}
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <Table>
-                     <TableHeader>
+                    <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[50px]">
+                          <Checkbox
+                            checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                            aria-label="Select all"
+                          />
+                        </TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Group</TableHead>
@@ -502,8 +600,16 @@ const Admin = () => {
                     <TableBody>
                       {filteredUsers.map((user) => {
                         const userGoalsCount = goals.filter(g => g.user_id === user.id).length;
+                        const isSelected = selectedUsers.has(user.id);
                         return (
-                          <TableRow key={user.id}>
+                          <TableRow key={user.id} className={isSelected ? "bg-muted/50" : ""}>
+                            <TableCell>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleUserSelection(user.id)}
+                                aria-label={`Select ${user.first_name} ${user.last_name}`}
+                              />
+                            </TableCell>
                             <TableCell className="font-medium">
                               {user.first_name} {user.last_name}
                             </TableCell>
