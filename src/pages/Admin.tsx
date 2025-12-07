@@ -224,6 +224,13 @@ const Admin = () => {
 
   const assignMentorToGroup = async (groupId: string, mentorId: string | null) => {
     try {
+      // Get the group to find its name and old mentor
+      const group = groups.find(g => g.id === groupId);
+      if (!group) throw new Error("Group not found");
+      
+      const oldMentorId = group.mentor_id;
+
+      // Update accountability group
       const { error } = await supabase
         .from("accountability_groups")
         .update({ mentor_id: mentorId })
@@ -231,9 +238,56 @@ const Admin = () => {
 
       if (error) throw error;
 
+      // Find corresponding chat group
+      const { data: chatGroup } = await supabase
+        .from("chat_groups")
+        .select("id")
+        .eq("name", group.name)
+        .single();
+
+      if (chatGroup) {
+        // Remove old mentor from chat group if exists
+        if (oldMentorId) {
+          await supabase
+            .from("chat_group_members")
+            .delete()
+            .eq("group_id", chatGroup.id)
+            .eq("user_id", oldMentorId);
+        }
+
+        // Add new mentor as admin to chat group
+        if (mentorId) {
+          // Check if already a member
+          const { data: existingMember } = await supabase
+            .from("chat_group_members")
+            .select("id")
+            .eq("group_id", chatGroup.id)
+            .eq("user_id", mentorId)
+            .single();
+
+          if (existingMember) {
+            // Update role to admin
+            await supabase
+              .from("chat_group_members")
+              .update({ role: 'admin' })
+              .eq("group_id", chatGroup.id)
+              .eq("user_id", mentorId);
+          } else {
+            // Insert as admin
+            await supabase
+              .from("chat_group_members")
+              .insert({
+                group_id: chatGroup.id,
+                user_id: mentorId,
+                role: 'admin'
+              });
+          }
+        }
+      }
+
       toast({
         title: "Group updated",
-        description: mentorId ? "Mentor assigned to group." : "Mentor removed from group.",
+        description: mentorId ? "Mentor assigned to group and chat." : "Mentor removed from group and chat.",
       });
 
       loadAdminData();
