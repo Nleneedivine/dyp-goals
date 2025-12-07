@@ -248,6 +248,10 @@ const Admin = () => {
 
   const deleteGroup = async (groupId: string) => {
     try {
+      // Get group name before deletion
+      const group = groups.find(g => g.id === groupId);
+      const groupName = group?.name;
+
       // First remove group_id from all members
       const { error: membersError } = await supabase
         .from("profiles")
@@ -256,7 +260,36 @@ const Admin = () => {
 
       if (membersError) throw membersError;
 
-      // Then delete the group
+      // Delete corresponding chat group and its members
+      if (groupName) {
+        const { data: chatGroup } = await supabase
+          .from("chat_groups")
+          .select("id")
+          .eq("name", groupName)
+          .single();
+
+        if (chatGroup) {
+          // Delete chat group members first
+          await supabase
+            .from("chat_group_members")
+            .delete()
+            .eq("group_id", chatGroup.id);
+
+          // Delete chat messages
+          await supabase
+            .from("chat_messages")
+            .delete()
+            .eq("group_id", chatGroup.id);
+
+          // Delete the chat group
+          await supabase
+            .from("chat_groups")
+            .delete()
+            .eq("id", chatGroup.id);
+        }
+      }
+
+      // Then delete the accountability group
       const { error } = await supabase
         .from("accountability_groups")
         .delete()
@@ -266,7 +299,7 @@ const Admin = () => {
 
       toast({
         title: "Group deleted",
-        description: "Accountability group has been deleted.",
+        description: "Accountability group and its chat have been deleted.",
       });
 
       loadAdminData();
@@ -301,15 +334,45 @@ const Admin = () => {
 
     setCreatingGroup(true);
     try {
-      const { error } = await supabase
+      // Get current user for chat group creation
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Create accountability group
+      const { data: groupData, error } = await supabase
         .from("accountability_groups")
-        .insert({ name: newGroupName.trim() });
+        .insert({ name: newGroupName.trim() })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Create corresponding chat group
+      const { data: chatGroupData, error: chatError } = await supabase
+        .from("chat_groups")
+        .insert({ 
+          name: newGroupName.trim(),
+          created_by: user.id,
+          description: `Chat for accountability group: ${newGroupName.trim()}`,
+          is_channel: false
+        })
+        .select()
+        .single();
+
+      if (chatError) throw chatError;
+
+      // Add creator as admin member of chat group
+      await supabase
+        .from("chat_group_members")
+        .insert({
+          group_id: chatGroupData.id,
+          user_id: user.id,
+          role: 'admin'
+        });
+
       toast({
         title: "Group created",
-        description: `"${newGroupName}" has been created.`,
+        description: `"${newGroupName}" has been created with its chat group.`,
       });
 
       setNewGroupName("");
@@ -327,6 +390,11 @@ const Admin = () => {
 
   const moveUserToGroup = async (userId: string, groupId: string | null) => {
     try {
+      // Get user's old group
+      const user = users.find(u => u.id === userId);
+      const oldGroupId = user?.group_id;
+
+      // Update profile
       const { error } = await supabase
         .from("profiles")
         .update({ group_id: groupId })
@@ -334,9 +402,63 @@ const Admin = () => {
 
       if (error) throw error;
 
+      // Sync with chat groups - remove from old chat group
+      if (oldGroupId) {
+        const oldGroup = groups.find(g => g.id === oldGroupId);
+        if (oldGroup) {
+          // Find corresponding chat group by name
+          const { data: oldChatGroup } = await supabase
+            .from("chat_groups")
+            .select("id")
+            .eq("name", oldGroup.name)
+            .single();
+
+          if (oldChatGroup) {
+            await supabase
+              .from("chat_group_members")
+              .delete()
+              .eq("group_id", oldChatGroup.id)
+              .eq("user_id", userId);
+          }
+        }
+      }
+
+      // Add to new chat group
+      if (groupId) {
+        const newGroup = groups.find(g => g.id === groupId);
+        if (newGroup) {
+          // Find corresponding chat group by name
+          const { data: newChatGroup } = await supabase
+            .from("chat_groups")
+            .select("id")
+            .eq("name", newGroup.name)
+            .single();
+
+          if (newChatGroup) {
+            // Check if already a member
+            const { data: existingMember } = await supabase
+              .from("chat_group_members")
+              .select("id")
+              .eq("group_id", newChatGroup.id)
+              .eq("user_id", userId)
+              .single();
+
+            if (!existingMember) {
+              await supabase
+                .from("chat_group_members")
+                .insert({
+                  group_id: newChatGroup.id,
+                  user_id: userId,
+                  role: 'member'
+                });
+            }
+          }
+        }
+      }
+
       toast({
         title: "User moved",
-        description: groupId ? "User has been moved to the new group." : "User has been removed from group.",
+        description: groupId ? "User has been moved to the new group and chat." : "User has been removed from group and chat.",
       });
 
       loadAdminData();
@@ -390,17 +512,73 @@ const Admin = () => {
       const userIds = Array.from(selectedUsers);
       
       for (const userId of userIds) {
+        // Get user's old group
+        const user = users.find(u => u.id === userId);
+        const oldGroupId = user?.group_id;
+
+        // Update profile
         const { error } = await supabase
           .from("profiles")
           .update({ group_id: groupId })
           .eq("id", userId);
 
         if (error) throw error;
+
+        // Sync with chat groups - remove from old chat group
+        if (oldGroupId) {
+          const oldGroup = groups.find(g => g.id === oldGroupId);
+          if (oldGroup) {
+            const { data: oldChatGroup } = await supabase
+              .from("chat_groups")
+              .select("id")
+              .eq("name", oldGroup.name)
+              .single();
+
+            if (oldChatGroup) {
+              await supabase
+                .from("chat_group_members")
+                .delete()
+                .eq("group_id", oldChatGroup.id)
+                .eq("user_id", userId);
+            }
+          }
+        }
+
+        // Add to new chat group
+        if (groupId) {
+          const newGroup = groups.find(g => g.id === groupId);
+          if (newGroup) {
+            const { data: newChatGroup } = await supabase
+              .from("chat_groups")
+              .select("id")
+              .eq("name", newGroup.name)
+              .single();
+
+            if (newChatGroup) {
+              const { data: existingMember } = await supabase
+                .from("chat_group_members")
+                .select("id")
+                .eq("group_id", newChatGroup.id)
+                .eq("user_id", userId)
+                .single();
+
+              if (!existingMember) {
+                await supabase
+                  .from("chat_group_members")
+                  .insert({
+                    group_id: newChatGroup.id,
+                    user_id: userId,
+                    role: 'member'
+                  });
+              }
+            }
+          }
+        }
       }
 
       toast({
         title: "Users assigned",
-        description: `${userIds.length} user(s) have been ${groupId ? "assigned to the group" : "removed from groups"}.`,
+        description: `${userIds.length} user(s) have been ${groupId ? "assigned to the group and chat" : "removed from groups and chats"}.`,
       });
 
       setSelectedUsers(new Set());

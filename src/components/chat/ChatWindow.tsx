@@ -15,10 +15,8 @@ import {
   Video, 
   Search, 
   MoreVertical,
-  X,
-  Image as ImageIcon
+  X
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface Message {
   id: string;
@@ -59,6 +57,8 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [chatName, setChatName] = useState("Goals Chat");
+  const [chatInitials, setChatInitials] = useState("GC");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -67,15 +67,42 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
   useEffect(() => {
     if (!chatId) return;
     fetchMessages();
+    fetchChatInfo();
     const channel = setupRealtimeSubscription();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [chatId]);
+  }, [chatId, chatType]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const fetchChatInfo = async () => {
+    if (chatType === 'global' || chatId === 'global') {
+      setChatName("Goals Chat");
+      setChatInitials("GC");
+      return;
+    }
+
+    // Fetch group info
+    const { data } = await supabase
+      .from('chat_groups')
+      .select('name')
+      .eq('id', chatId)
+      .single();
+
+    if (data) {
+      setChatName(data.name);
+      const initials = data.name
+        .split(' ')
+        .map((word: string) => word[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+      setChatInitials(initials);
+    }
+  };
 
   const fetchMessages = async () => {
     setIsLoading(true);
@@ -86,7 +113,7 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
         .is('deleted_at', null)
         .order('created_at', { ascending: true });
 
-      if (chatType === 'global') {
+      if (chatType === 'global' || chatId === 'global') {
         query = query.is('group_id', null);
       } else {
         query = query.eq('group_id', chatId);
@@ -167,7 +194,8 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
         async (payload) => {
           if (payload.eventType === 'INSERT') {
             const newMsg = payload.new as Message;
-            if ((chatType === 'global' && !newMsg.group_id) || newMsg.group_id === chatId) {
+            const isGlobal = chatType === 'global' || chatId === 'global';
+            if ((isGlobal && !newMsg.group_id) || newMsg.group_id === chatId) {
               setMessages(prev => [...prev, newMsg]);
               
               // Fetch profile if needed
@@ -201,7 +229,6 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'message_reactions' },
         () => {
-          // Refetch reactions on any change
           fetchMessages();
         }
       )
@@ -227,7 +254,8 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
         messageData.reply_to_id = replyingTo.id;
       }
 
-      if (chatType !== 'global' && chatId) {
+      const isGlobal = chatType === 'global' || chatId === 'global';
+      if (!isGlobal && chatId) {
         messageData.group_id = chatId;
       }
 
@@ -317,10 +345,10 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
       <div className="h-16 px-4 border-b border-border flex items-center justify-between bg-card">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-primary/20 text-primary">GC</AvatarFallback>
+            <AvatarFallback className="bg-primary/20 text-primary">{chatInitials}</AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="font-semibold text-foreground">Goals Chat</h2>
+            <h2 className="font-semibold text-foreground">{chatName}</h2>
             <p className="text-xs text-muted-foreground">
               {messages.length} messages
             </p>

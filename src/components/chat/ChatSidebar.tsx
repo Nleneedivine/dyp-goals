@@ -11,7 +11,6 @@ import {
   Settings, 
   Search, 
   Plus,
-  Check,
   CheckCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,40 +38,7 @@ const ChatSidebar = ({ currentUserId, onSelectChat, selectedChatId }: ChatSideba
   const [activeTab, setActiveTab] = useState<'chats' | 'status' | 'channels' | 'settings'>('chats');
 
   useEffect(() => {
-    // For now, we'll show a global Goals Chat
-    const globalChat: ChatPreview = {
-      id: 'global',
-      name: 'Goals Chat',
-      lastMessage: 'Tap to start chatting...',
-      lastMessageTime: null,
-      unreadCount: 0,
-      type: 'global',
-      avatarInitials: 'GC'
-    };
-    
-    setChats([globalChat]);
-
-    // Fetch latest message for global chat
-    const fetchLatestMessage = async () => {
-      const { data } = await supabase
-        .from('chat_messages')
-        .select('message, created_at')
-        .is('group_id', null)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (data) {
-        setChats([{
-          ...globalChat,
-          lastMessage: data.message.length > 40 ? data.message.substring(0, 40) + '...' : data.message,
-          lastMessageTime: new Date(data.created_at)
-        }]);
-      }
-    };
-
-    fetchLatestMessage();
+    fetchChats();
 
     // Subscribe to new messages
     const channel = supabase
@@ -82,17 +48,31 @@ const ChatSidebar = ({ currentUserId, onSelectChat, selectedChatId }: ChatSideba
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
           const msg = payload.new as any;
-          if (!msg.group_id) {
-            setChats(prev => prev.map(chat => 
-              chat.id === 'global' 
-                ? { 
-                    ...chat, 
-                    lastMessage: msg.message.length > 40 ? msg.message.substring(0, 40) + '...' : msg.message,
-                    lastMessageTime: new Date(msg.created_at)
-                  }
-                : chat
-            ));
-          }
+          setChats(prev => prev.map(chat => {
+            if (chat.type === 'global' && !msg.group_id) {
+              return { 
+                ...chat, 
+                lastMessage: msg.message.length > 40 ? msg.message.substring(0, 40) + '...' : msg.message,
+                lastMessageTime: new Date(msg.created_at)
+              };
+            }
+            if (chat.type === 'group' && msg.group_id === chat.id) {
+              return {
+                ...chat,
+                lastMessage: msg.message.length > 40 ? msg.message.substring(0, 40) + '...' : msg.message,
+                lastMessageTime: new Date(msg.created_at)
+              };
+            }
+            return chat;
+          }));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_group_members' },
+        () => {
+          // Refetch when membership changes
+          fetchChats();
         }
       )
       .subscribe();
@@ -100,7 +80,101 @@ const ChatSidebar = ({ currentUserId, onSelectChat, selectedChatId }: ChatSideba
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [currentUserId]);
+
+  const fetchChats = async () => {
+    const chatPreviews: ChatPreview[] = [];
+
+    // Add global chat
+    const globalChat: ChatPreview = {
+      id: 'global',
+      name: 'Goals Chat',
+      lastMessage: 'Tap to start chatting...',
+      lastMessageTime: null,
+      unreadCount: 0,
+      type: 'global',
+      avatarInitials: 'GC'
+    };
+
+    // Fetch latest message for global chat
+    const { data: globalMsg } = await supabase
+      .from('chat_messages')
+      .select('message, created_at')
+      .is('group_id', null)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (globalMsg) {
+      globalChat.lastMessage = globalMsg.message.length > 40 
+        ? globalMsg.message.substring(0, 40) + '...' 
+        : globalMsg.message;
+      globalChat.lastMessageTime = new Date(globalMsg.created_at);
+    }
+
+    chatPreviews.push(globalChat);
+
+    // Fetch user's chat groups (accountability group chats)
+    const { data: memberGroups } = await supabase
+      .from('chat_group_members')
+      .select('group_id')
+      .eq('user_id', currentUserId);
+
+    if (memberGroups && memberGroups.length > 0) {
+      const groupIds = memberGroups.map(m => m.group_id);
+      
+      const { data: groups } = await supabase
+        .from('chat_groups')
+        .select('*')
+        .in('id', groupIds);
+
+      if (groups) {
+        for (const group of groups) {
+          // Fetch latest message for this group
+          const { data: latestMsg } = await supabase
+            .from('chat_messages')
+            .select('message, created_at')
+            .eq('group_id', group.id)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          const initials = group.name
+            .split(' ')
+            .map((word: string) => word[0])
+            .join('')
+            .substring(0, 2)
+            .toUpperCase();
+
+          chatPreviews.push({
+            id: group.id,
+            name: group.name,
+            lastMessage: latestMsg?.message 
+              ? (latestMsg.message.length > 40 ? latestMsg.message.substring(0, 40) + '...' : latestMsg.message)
+              : 'No messages yet',
+            lastMessageTime: latestMsg ? new Date(latestMsg.created_at) : null,
+            unreadCount: 0,
+            type: 'group',
+            avatarInitials: initials
+          });
+        }
+      }
+    }
+
+    // Sort by last message time (most recent first), global chat always at top
+    chatPreviews.sort((a, b) => {
+      if (a.id === 'global') return -1;
+      if (b.id === 'global') return 1;
+      if (!a.lastMessageTime && !b.lastMessageTime) return 0;
+      if (!a.lastMessageTime) return 1;
+      if (!b.lastMessageTime) return -1;
+      return b.lastMessageTime.getTime() - a.lastMessageTime.getTime();
+    });
+
+    setChats(chatPreviews);
+  };
 
   const filteredChats = chats.filter(chat => 
     chat.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -180,7 +254,10 @@ const ChatSidebar = ({ currentUserId, onSelectChat, selectedChatId }: ChatSideba
             onClick={() => onSelectChat(chat.id, chat.type)}
           >
             <Avatar className="h-12 w-12">
-              <AvatarFallback className="bg-primary/20 text-primary">
+              <AvatarFallback className={cn(
+                "text-primary",
+                chat.type === 'global' ? "bg-primary/20" : "bg-secondary/20"
+              )}>
                 {chat.avatarInitials}
               </AvatarFallback>
             </Avatar>
