@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare } from "lucide-react";
+import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import {
@@ -71,6 +71,7 @@ const Admin = () => {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [syncingChats, setSyncingChats] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -648,6 +649,97 @@ const Admin = () => {
     }
   };
 
+  const syncExistingGroupsToChat = async () => {
+    setSyncingChats(true);
+    let synced = 0;
+    let skipped = 0;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      for (const group of groups) {
+        // Check if chat group already exists
+        const { data: existingChatGroup } = await supabase
+          .from("chat_groups")
+          .select("id")
+          .eq("name", group.name)
+          .maybeSingle();
+
+        if (existingChatGroup) {
+          skipped++;
+          continue;
+        }
+
+        // Create chat group
+        const { data: chatGroupData, error: chatError } = await supabase
+          .from("chat_groups")
+          .insert({
+            name: group.name,
+            created_by: user.id,
+            description: `Chat for accountability group: ${group.name}`,
+            is_channel: false
+          })
+          .select()
+          .single();
+
+        if (chatError) throw chatError;
+
+        // Add creator as admin
+        await supabase
+          .from("chat_group_members")
+          .insert({
+            group_id: chatGroupData.id,
+            user_id: user.id,
+            role: 'admin'
+          });
+
+        // Add mentor as admin if exists
+        if (group.mentor_id && group.mentor_id !== user.id) {
+          await supabase
+            .from("chat_group_members")
+            .insert({
+              group_id: chatGroupData.id,
+              user_id: group.mentor_id,
+              role: 'admin'
+            });
+        }
+
+        // Add all members
+        if (group.members) {
+          for (const member of group.members) {
+            if (member.id !== user.id && member.id !== group.mentor_id) {
+              await supabase
+                .from("chat_group_members")
+                .insert({
+                  group_id: chatGroupData.id,
+                  user_id: member.id,
+                  role: 'member'
+                });
+            }
+          }
+        }
+
+        synced++;
+      }
+
+      toast({
+        title: "Sync complete",
+        description: `Created ${synced} chat group(s). ${skipped} already existed.`,
+      });
+
+      loadAdminData();
+    } catch (error: any) {
+      toast({
+        title: "Error syncing groups",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingChats(false);
+    }
+  };
+
   const filterUsers = () => {
     if (!searchQuery.trim()) {
       setFilteredUsers(users);
@@ -1041,6 +1133,19 @@ const Admin = () => {
                         <Plus className="h-4 w-4" />
                       )}
                       <span className="ml-1">Create</span>
+                    </Button>
+                    <Button 
+                      onClick={syncExistingGroupsToChat} 
+                      disabled={syncingChats || groups.length === 0} 
+                      size="sm"
+                      variant="outline"
+                    >
+                      {syncingChats ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      <span className="ml-1">Sync to Chat</span>
                     </Button>
                   </div>
                 </div>
