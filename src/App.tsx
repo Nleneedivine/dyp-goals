@@ -20,6 +20,7 @@ import Profile from "./pages/Profile";
 import GoalHistory from "./pages/GoalHistory";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import TimePlanner from "./pages/TimePlanner";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/goal-history" element={<ProtectedRoute><GoalHistory /></ProtectedRoute>} />
+            <Route path="/time-planner" element={<ProtectedRoute><TimePlanner /></ProtectedRoute>} />
             <Route path="/mentor-dashboard" element={<MentorRoute><MentorDashboard /></MentorRoute>} />
             <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
