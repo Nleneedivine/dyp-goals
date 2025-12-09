@@ -324,6 +324,7 @@ export type Database = {
     Functions: {
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
       get_next_group_name: { Args: never; Returns: string }
+      get_user_chat_group_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -333,6 +334,18 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_chat_group_admin: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_chat_group_creator: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_chat_group_member: {
+        Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
     }
