@@ -296,6 +296,51 @@ export type Database = {
           },
         ]
       }
+      time_plans: {
+        Row: {
+          created_at: string
+          current_step: number
+          daily_plan: Json | null
+          goal: string
+          id: string
+          monthly_plan: Json | null
+          questionnaire_data: Json
+          status: string
+          updated_at: string
+          user_id: string
+          weekly_plan: Json | null
+          yearly_plan: Json | null
+        }
+        Insert: {
+          created_at?: string
+          current_step?: number
+          daily_plan?: Json | null
+          goal: string
+          id?: string
+          monthly_plan?: Json | null
+          questionnaire_data?: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+          weekly_plan?: Json | null
+          yearly_plan?: Json | null
+        }
+        Update: {
+          created_at?: string
+          current_step?: number
+          daily_plan?: Json | null
+          goal?: string
+          id?: string
+          monthly_plan?: Json | null
+          questionnaire_data?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+          weekly_plan?: Json | null
+          yearly_plan?: Json | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
