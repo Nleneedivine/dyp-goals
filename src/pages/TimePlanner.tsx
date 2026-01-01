@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Target, Calendar, Clock, Download, Printer, ArrowRight, CheckCircle2, Sparkles, ArrowLeft } from "lucide-react";
+import { Loader2, Target, Calendar, Clock, Download, Printer, ArrowRight, CheckCircle2, Sparkles, ArrowLeft, Edit2, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionnaireStep } from "@/components/timeplanner/QuestionnaireStep";
 import { YearlyPlanView } from "@/components/timeplanner/YearlyPlanView";
@@ -13,6 +13,9 @@ import { WeeklyPlanView } from "@/components/timeplanner/WeeklyPlanView";
 import { DailyPlanView } from "@/components/timeplanner/DailyPlanView";
 import { TimePlanSummary } from "@/components/timeplanner/TimePlanSummary";
 import { TimePlanPDFDocument } from "@/components/timeplanner/TimePlanPDFDocument";
+import { EditSectionModal } from "@/components/timeplanner/EditSectionModal";
+import { WeeklyProgressChart } from "@/components/timeplanner/WeeklyProgressChart";
+import { CalendarIntegration } from "@/components/timeplanner/CalendarIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pdf } from "@react-pdf/renderer";
 import { Tables } from "@/integrations/supabase/types";
@@ -62,6 +65,8 @@ const TimePlanner = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isViewingExisting, setIsViewingExisting] = useState(false);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+  const [editingSection, setEditingSection] = useState<'yearly' | 'monthly' | 'weekly' | 'daily' | null>(null);
   const { toast } = useToast();
 
   // Handle viewing existing plan from navigation state
@@ -70,6 +75,7 @@ const TimePlanner = () => {
     if (state?.viewPlan) {
       const plan = state.viewPlan;
       setGoal(plan.goal);
+      setCurrentPlanId(plan.id);
       setTimePlan({
         yearlyPlan: plan.yearly_plan,
         monthlyPlan: plan.monthly_plan,
@@ -139,7 +145,7 @@ const TimePlanner = () => {
         setTimePlan(data.timePlan);
         
         // Save to database
-        await supabase.from('time_plans').insert([{
+        const { data: insertedPlan } = await supabase.from('time_plans').insert([{
           user_id: user.id,
           goal,
           questionnaire_data: questionnaireData as any,
@@ -148,7 +154,11 @@ const TimePlanner = () => {
           weekly_plan: data.timePlan.weeklyPlan,
           daily_plan: data.timePlan.dailyPlan,
           status: 'completed',
-        }]);
+        }]).select().single();
+
+        if (insertedPlan) {
+          setCurrentPlanId(insertedPlan.id);
+        }
 
         setPhase('result');
         toast({
@@ -220,10 +230,32 @@ const TimePlanner = () => {
     });
     setTimePlan(null);
     setIsViewingExisting(false);
+    setCurrentPlanId(null);
   };
 
   const handleBackToDashboard = () => {
     navigate('/time-plans');
+  };
+
+  const handleSectionUpdate = (sectionType: string, newData: any) => {
+    if (!timePlan) return;
+    
+    const updatedPlan = { ...timePlan };
+    switch (sectionType) {
+      case 'yearly':
+        updatedPlan.yearlyPlan = newData;
+        break;
+      case 'monthly':
+        updatedPlan.monthlyPlan = newData;
+        break;
+      case 'weekly':
+        updatedPlan.weeklyPlan = newData;
+        break;
+      case 'daily':
+        updatedPlan.dailyPlan = newData;
+        break;
+    }
+    setTimePlan(updatedPlan);
   };
 
   return (
@@ -398,26 +430,34 @@ const TimePlanner = () => {
 
             {/* Plan Tabs */}
             <Tabs defaultValue="summary" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+              <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
                 <TabsTrigger value="summary" className="gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Summary
+                  <span className="hidden sm:inline">Summary</span>
                 </TabsTrigger>
                 <TabsTrigger value="yearly" className="gap-2">
                   <Calendar className="h-4 w-4" />
-                  Yearly
+                  <span className="hidden sm:inline">Yearly</span>
                 </TabsTrigger>
                 <TabsTrigger value="monthly" className="gap-2">
                   <Calendar className="h-4 w-4" />
-                  Monthly
+                  <span className="hidden sm:inline">Monthly</span>
                 </TabsTrigger>
                 <TabsTrigger value="weekly" className="gap-2">
                   <Calendar className="h-4 w-4" />
-                  Weekly
+                  <span className="hidden sm:inline">Weekly</span>
                 </TabsTrigger>
                 <TabsTrigger value="daily" className="gap-2">
                   <Clock className="h-4 w-4" />
-                  Daily
+                  <span className="hidden sm:inline">Daily</span>
+                </TabsTrigger>
+                <TabsTrigger value="progress" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Progress</span>
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span className="hidden sm:inline">Calendar</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -426,22 +466,105 @@ const TimePlanner = () => {
               </TabsContent>
 
               <TabsContent value="yearly" className="mt-6">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingSection('yearly')}
+                    className="gap-2"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    Edit Section
+                  </Button>
+                </div>
                 {timePlan.yearlyPlan && <YearlyPlanView plan={timePlan.yearlyPlan} />}
               </TabsContent>
 
               <TabsContent value="monthly" className="mt-6">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingSection('monthly')}
+                    className="gap-2"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    Edit Section
+                  </Button>
+                </div>
                 {timePlan.monthlyPlan && <MonthlyPlanView plan={timePlan.monthlyPlan} />}
               </TabsContent>
 
               <TabsContent value="weekly" className="mt-6">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingSection('weekly')}
+                    className="gap-2"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    Edit Section
+                  </Button>
+                </div>
                 {timePlan.weeklyPlan && <WeeklyPlanView plan={timePlan.weeklyPlan} />}
               </TabsContent>
 
               <TabsContent value="daily" className="mt-6">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingSection('daily')}
+                    className="gap-2"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    Edit Section
+                  </Button>
+                </div>
                 {timePlan.dailyPlan && <DailyPlanView plan={timePlan.dailyPlan} />}
+              </TabsContent>
+
+              <TabsContent value="progress" className="mt-6">
+                {currentPlanId && timePlan.weeklyPlan && timePlan.dailyPlan && (
+                  <WeeklyProgressChart
+                    planId={currentPlanId}
+                    weeklyPlan={timePlan.weeklyPlan}
+                    dailyPlan={timePlan.dailyPlan}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="calendar" className="mt-6">
+                {currentPlanId && timePlan.dailyPlan && (
+                  <CalendarIntegration
+                    planId={currentPlanId}
+                    goal={goal}
+                    dailyPlan={timePlan.dailyPlan}
+                    weeklyPlan={timePlan.weeklyPlan}
+                  />
+                )}
               </TabsContent>
             </Tabs>
           </div>
+        )}
+
+        {/* Edit Section Modal */}
+        {editingSection && currentPlanId && timePlan && (
+          <EditSectionModal
+            isOpen={!!editingSection}
+            onClose={() => setEditingSection(null)}
+            sectionType={editingSection}
+            currentData={
+              editingSection === 'yearly' ? timePlan.yearlyPlan :
+              editingSection === 'monthly' ? timePlan.monthlyPlan :
+              editingSection === 'weekly' ? timePlan.weeklyPlan :
+              timePlan.dailyPlan
+            }
+            planId={currentPlanId}
+            goal={goal}
+            onUpdate={handleSectionUpdate}
+          />
         )}
       </div>
     </div>
