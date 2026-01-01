@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History, Users, Clock } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -97,17 +97,21 @@ const Navbar = () => {
     }
   };
 
-  const navItems = [
+  const mainNavItems = [
     { name: "Home", path: "/" },
     { name: "Schedule", path: "/schedule" },
-    { name: "AI Coach", path: "/ai-goals" },
-    { name: "Time Planner", path: "/time-plans" },
-    { name: "Mentorship", path: "/mentorship" },
     { name: "Testimonials", path: "/testimonials" },
     { name: "Contact", path: "/contact" },
   ];
 
+  const toolsNavItems = [
+    { name: "Time Planner", path: "/time-plans", icon: Clock },
+    { name: "AI Coach", path: "/ai-goals", icon: Sparkles },
+    { name: "Mentorship", path: "/mentorship", icon: Users },
+  ];
+
   const isActive = (path: string) => location.pathname === path;
+  const isToolsActive = toolsNavItems.some(item => location.pathname === item.path);
 
   // Don't show navigation items on auth page
   if (location.pathname === "/auth") {
@@ -140,7 +144,7 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            {navItems.map((item) => (
+            {mainNavItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
@@ -151,17 +155,39 @@ const Navbar = () => {
                 {item.name}
               </Link>
             ))}
-            {user && (
-              <div className="flex items-center gap-4">
-                <Link
-                  to="/goal-history"
-                  className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
-                    isActive("/goal-history") ? "text-primary" : "text-muted-foreground"
+
+            {/* Tools Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button 
+                  className={`font-medium transition-colors hover:text-primary flex items-center gap-1 ${
+                    isToolsActive ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  <History className="h-4 w-4" />
-                  Goal History
-                </Link>
+                  <Wrench className="h-4 w-4" />
+                  Tools
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="bg-card border-border min-w-[180px]">
+                {toolsNavItems.map((item) => (
+                  <DropdownMenuItem key={item.path} asChild>
+                    <Link 
+                      to={item.path} 
+                      className={`cursor-pointer flex items-center gap-2 ${
+                        isActive(item.path) ? "text-primary" : ""
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {user && (
+              <div className="flex items-center gap-4">
                 {isMentor && (
                   <Link
                     to="/mentor-dashboard"
@@ -173,17 +199,8 @@ const Navbar = () => {
                     My Group
                   </Link>
                 )}
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
-                      isActive("/admin") ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Admin
-                  </Link>
-                )}
+                
+                {/* User Account Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -191,13 +208,30 @@ const Navbar = () => {
                       {user.email}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-card border-border">
+                  <DropdownMenuContent align="end" className="bg-card border-border min-w-[200px]">
                     <DropdownMenuItem asChild>
                       <Link to="/profile" className="cursor-pointer flex items-center gap-2">
                         <User className="h-4 w-4" />
                         Profile
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/goal-history" className="cursor-pointer flex items-center gap-2">
+                        <History className="h-4 w-4" />
+                        Goal History
+                      </Link>
+                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="cursor-pointer flex items-center gap-2">
+                            <Settings className="h-4 w-4" />
+                            Admin
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} className="cursor-pointer flex items-center gap-2">
                       <LogOut className="h-4 w-4" />
@@ -221,7 +255,7 @@ const Navbar = () => {
         {/* Mobile Navigation */}
         {isOpen && (
           <div className="md:hidden py-4 animate-fade-in">
-            {navItems.map((item) => (
+            {mainNavItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
@@ -233,18 +267,30 @@ const Navbar = () => {
                 {item.name}
               </Link>
             ))}
-            {user && (
-              <div className="mt-4 pt-4 border-t border-border space-y-3">
+            
+            {/* Tools Section in Mobile */}
+            <div className="py-3 border-t border-border mt-2">
+              <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                <Wrench className="h-4 w-4" />
+                Tools
+              </p>
+              {toolsNavItems.map((item) => (
                 <Link
-                  to="/goal-history"
+                  key={item.path}
+                  to={item.path}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
-                    isActive("/goal-history") ? "text-primary" : "text-muted-foreground"
+                  className={`block py-2 pl-6 font-medium transition-colors hover:text-primary flex items-center gap-2 ${
+                    isActive(item.path) ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  <History className="h-4 w-4" />
-                  Goal History
+                  <item.icon className="h-4 w-4" />
+                  {item.name}
                 </Link>
+              ))}
+            </div>
+
+            {user && (
+              <div className="mt-4 pt-4 border-t border-border space-y-3">
                 {isMentor && (
                   <Link
                     to="/mentor-dashboard"
@@ -255,18 +301,6 @@ const Navbar = () => {
                   >
                     <Users className="h-4 w-4" />
                     My Group
-                  </Link>
-                )}
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
-                      isActive("/admin") ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Admin
                   </Link>
                 )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
@@ -282,6 +316,26 @@ const Navbar = () => {
                     Profile
                   </Button>
                 </Link>
+                <Link
+                  to="/goal-history"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Button variant="outline" className="w-full gap-2 mb-2">
+                    <History className="h-4 w-4" />
+                    Goal History
+                  </Button>
+                </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Button variant="outline" className="w-full gap-2 mb-2">
+                      <Settings className="h-4 w-4" />
+                      Admin
+                    </Button>
+                  </Link>
+                )}
                 <Button
                   onClick={() => {
                     handleLogout();
