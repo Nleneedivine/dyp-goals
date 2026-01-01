@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Target, Calendar, Clock, Download, Printer, ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+import { Loader2, Target, Calendar, Clock, Download, Printer, ArrowRight, CheckCircle2, Sparkles, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionnaireStep } from "@/components/timeplanner/QuestionnaireStep";
 import { YearlyPlanView } from "@/components/timeplanner/YearlyPlanView";
@@ -14,6 +15,7 @@ import { TimePlanSummary } from "@/components/timeplanner/TimePlanSummary";
 import { TimePlanPDFDocument } from "@/components/timeplanner/TimePlanPDFDocument";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pdf } from "@react-pdf/renderer";
+import { Tables } from "@/integrations/supabase/types";
 
 interface QuestionnaireData {
   specificOutcomes: string;
@@ -37,7 +39,11 @@ interface TimePlan {
 
 type Phase = 'goal-input' | 'questionnaire' | 'generating' | 'result';
 
+type SavedTimePlan = Tables<'time_plans'>;
+
 const TimePlanner = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('goal-input');
   const [goal, setGoal] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
@@ -55,7 +61,29 @@ const TimePlanner = () => {
   const [timePlan, setTimePlan] = useState<TimePlan | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isViewingExisting, setIsViewingExisting] = useState(false);
   const { toast } = useToast();
+
+  // Handle viewing existing plan from navigation state
+  useEffect(() => {
+    const state = location.state as { viewPlan?: SavedTimePlan } | null;
+    if (state?.viewPlan) {
+      const plan = state.viewPlan;
+      setGoal(plan.goal);
+      setTimePlan({
+        yearlyPlan: plan.yearly_plan,
+        monthlyPlan: plan.monthly_plan,
+        weeklyPlan: plan.weekly_plan,
+        dailyPlan: plan.daily_plan,
+        summary: null,
+      });
+      setPhase('result');
+      setIsViewingExisting(true);
+      
+      // Clear the state so refreshing doesn't reload the same plan
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleGoalSubmit = () => {
     if (!goal.trim()) {
@@ -191,6 +219,11 @@ const TimePlanner = () => {
       weekendPreference: 'same',
     });
     setTimePlan(null);
+    setIsViewingExisting(false);
+  };
+
+  const handleBackToDashboard = () => {
+    navigate('/time-plans');
   };
 
   return (
@@ -318,11 +351,29 @@ const TimePlanner = () => {
           <div className="space-y-8 animate-fade-in">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">Your Time Plan</h2>
-                <p className="text-muted-foreground">{goal}</p>
+              <div className="flex items-center gap-4">
+                {isViewingExisting && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleBackToDashboard}
+                    className="shrink-0"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                )}
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">Your Time Plan</h2>
+                  <p className="text-muted-foreground">{goal}</p>
+                </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
+                {isViewingExisting && (
+                  <Button variant="outline" onClick={handleBackToDashboard} className="gap-2">
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Dashboard
+                  </Button>
+                )}
                 <Button variant="outline" onClick={handlePrint} className="gap-2">
                   <Printer className="h-4 w-4" />
                   Print
