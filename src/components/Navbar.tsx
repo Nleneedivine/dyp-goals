@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History, Users } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -101,6 +101,7 @@ const Navbar = () => {
     { name: "Home", path: "/" },
     { name: "Schedule", path: "/schedule" },
     { name: "AI Coach", path: "/ai-goals" },
+    { name: "Time Planner", path: "/time-plans" },
     { name: "Mentorship", path: "/mentorship" },
     { name: "Testimonials", path: "/testimonials" },
     { name: "Contact", path: "/contact" },
