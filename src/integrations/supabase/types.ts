@@ -393,6 +393,10 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      users_share_group: {
+        Args: { _profile_id: string; _viewer_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "mentor"
