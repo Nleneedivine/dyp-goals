@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, Calendar, Target, Trash2, Eye } from "lucide-react";
+import { Loader2, Search, Calendar, Target, Trash2, Eye, Download } from "lucide-react";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -24,6 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
+import { pdf } from "@react-pdf/renderer";
 
 interface GoalAnalysisRecord {
   id: string;
@@ -49,6 +51,7 @@ const GoalHistory = () => {
   const [filteredAnalyses, setFilteredAnalyses] = useState<GoalAnalysisRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAnalysis, setSelectedAnalysis] = useState<GoalAnalysisRecord | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -140,6 +143,45 @@ const GoalHistory = () => {
     }
   };
 
+  const handleDownloadPDF = async (analysis: GoalAnalysisRecord) => {
+    const refinedGoals = getRefinedGoals(analysis);
+    if (!refinedGoals) {
+      toast({
+        title: "No refined goals",
+        description: "This analysis doesn't have refined goals to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setExportingId(analysis.id);
+    try {
+      const targetYear = new Date(analysis.created_at).getFullYear() + 1;
+      const doc = <GoalsPDFDocument goals={refinedGoals} targetYear={targetYear} />;
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `DYP-Goals-${format(new Date(analysis.created_at), "yyyy-MM-dd")}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Downloaded!",
+        description: "Your goals have been exported as a PDF.",
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: "Export Failed",
+        description: "Unable to export PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen pt-20 pb-12 flex items-center justify-center">
@@ -217,15 +259,32 @@ const GoalHistory = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setSelectedAnalysis(analysis)}
+                        title="View details"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
+                      {analysis.refined_goals && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(analysis)}
+                          disabled={exportingId === analysis.id}
+                          title="Download PDF"
+                        >
+                          {exportingId === analysis.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="outline"
                             size="sm"
                             className="text-destructive hover:text-destructive"
+                            title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

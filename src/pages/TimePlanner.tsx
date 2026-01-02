@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Target, Calendar, Clock, Download, Printer, ArrowRight, CheckCircle2, Sparkles, ArrowLeft, Edit2, BarChart3 } from "lucide-react";
+import { Loader2, Target, Calendar, Clock, Download, Printer, ArrowRight, CheckCircle2, Sparkles, ArrowLeft, Edit2, BarChart3, Import, Sun } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionnaireStep } from "@/components/timeplanner/QuestionnaireStep";
 import { YearlyPlanView } from "@/components/timeplanner/YearlyPlanView";
@@ -16,6 +16,8 @@ import { TimePlanPDFDocument } from "@/components/timeplanner/TimePlanPDFDocumen
 import { EditSectionModal } from "@/components/timeplanner/EditSectionModal";
 import { WeeklyProgressChart } from "@/components/timeplanner/WeeklyProgressChart";
 import { CalendarIntegration } from "@/components/timeplanner/CalendarIntegration";
+import { GoalImportDialog } from "@/components/timeplanner/GoalImportDialog";
+import { TodaySection } from "@/components/timeplanner/TodaySection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pdf } from "@react-pdf/renderer";
 import { Tables } from "@/integrations/supabase/types";
@@ -67,6 +69,7 @@ const TimePlanner = () => {
   const [isViewingExisting, setIsViewingExisting] = useState(false);
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
   const [editingSection, setEditingSection] = useState<'yearly' | 'monthly' | 'weekly' | 'daily' | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const { toast } = useToast();
 
   // Handle viewing existing plan from navigation state
@@ -296,13 +299,23 @@ const TimePlanner = () => {
                   className="min-h-[150px] bg-background border-border text-base"
                 />
                 
-                <Button
-                  onClick={handleGoalSubmit}
-                  className="w-full gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-semibold text-lg py-6"
-                >
-                  Start Planning
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleGoalSubmit}
+                    className="flex-1 gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-semibold text-lg py-6"
+                  >
+                    Start Planning
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowImportDialog(true)}
+                    className="gap-2 py-6"
+                  >
+                    <Import className="h-5 w-5" />
+                    Import Goal
+                  </Button>
+                </div>
 
                 {/* Features */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-border">
@@ -429,8 +442,12 @@ const TimePlanner = () => {
             </div>
 
             {/* Plan Tabs */}
-            <Tabs defaultValue="summary" className="w-full">
-              <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
+            <Tabs defaultValue="today" className="w-full">
+              <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-flex">
+                <TabsTrigger value="today" className="gap-2">
+                  <Sun className="h-4 w-4" />
+                  <span className="hidden sm:inline">Today</span>
+                </TabsTrigger>
                 <TabsTrigger value="summary" className="gap-2">
                   <Sparkles className="h-4 w-4" />
                   <span className="hidden sm:inline">Summary</span>
@@ -460,6 +477,10 @@ const TimePlanner = () => {
                   <span className="hidden sm:inline">Calendar</span>
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="today" className="mt-6">
+                <TodaySection dailyPlan={timePlan.dailyPlan} planId={currentPlanId} />
+              </TabsContent>
 
               <TabsContent value="summary" className="mt-6">
                 {timePlan.summary && <TimePlanSummary summary={timePlan.summary} />}
@@ -566,6 +587,13 @@ const TimePlanner = () => {
             onUpdate={handleSectionUpdate}
           />
         )}
+
+        {/* Goal Import Dialog */}
+        <GoalImportDialog
+          isOpen={showImportDialog}
+          onClose={() => setShowImportDialog(false)}
+          onImport={(importedGoal) => setGoal(importedGoal)}
+        />
       </div>
     </div>
   );
