@@ -1,10 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from "date-fns";
+import { TimePickerPopover } from "./TimePickerPopover";
+import { TodoArchive } from "./TodoArchive";
+import { cn } from "@/lib/utils";
 import { 
   Search, 
   Plus, 
@@ -18,7 +25,9 @@ import {
   Coffee,
   Users,
   Tv,
-  Bed
+  Bed,
+  CalendarIcon,
+  Archive
 } from "lucide-react";
 
 interface TimeBlock {
@@ -48,6 +57,19 @@ interface TodoItem {
   time: string;
   completed: boolean;
   category?: string;
+}
+
+interface ArchivedDay {
+  date: string;
+  items: TodoItem[];
+}
+
+interface BookItem {
+  id: string;
+  title: string;
+  month: string;
+  completed: boolean;
+  addedAt: string;
 }
 
 interface TodaySectionProps {
@@ -82,38 +104,111 @@ const categoryColors: Record<string, string> = {
 export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [newActivity, setNewActivity] = useState("");
-  const [todoItems, setTodoItems] = useState<TodoItem[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [todoItemsByDate, setTodoItemsByDate] = useState<Record<string, TodoItem[]>>({});
+  const [archives, setArchives] = useState<ArchivedDay[]>([]);
+  const [books, setBooks] = useState<BookItem[]>([]);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("todo");
+
+  const dateKey = format(selectedDate, "yyyy-MM-dd");
+  const isToday = format(new Date(), "yyyy-MM-dd") === dateKey;
 
   // Get today's activities based on whether it's a weekday or weekend
-  const isWeekend = [0, 6].includes(new Date().getDay());
+  const isWeekend = [0, 6].includes(selectedDate.getDay());
   const todayTemplate = dailyPlan
     ? isWeekend
       ? dailyPlan.weekendTemplate
       : dailyPlan.weekdayTemplate
     : null;
 
-  // Load saved todo items from localStorage
+  // Current date's todo items
+  const todoItems = todoItemsByDate[dateKey] || [];
+
+  // Load saved data from localStorage
   useEffect(() => {
     if (planId) {
-      const saved = localStorage.getItem(`today-tasks-${planId}`);
-      if (saved) {
+      // Load todos by date
+      const savedTodos = localStorage.getItem(`todo-by-date-${planId}`);
+      if (savedTodos) {
         try {
-          setTodoItems(JSON.parse(saved));
+          setTodoItemsByDate(JSON.parse(savedTodos));
         } catch {
-          setTodoItems([]);
+          setTodoItemsByDate({});
+        }
+      }
+
+      // Load archives
+      const savedArchives = localStorage.getItem(`todo-archives-${planId}`);
+      if (savedArchives) {
+        try {
+          setArchives(JSON.parse(savedArchives));
+        } catch {
+          setArchives([]);
+        }
+      }
+
+      // Load books
+      const savedBooks = localStorage.getItem(`reading-list-${planId}`);
+      if (savedBooks) {
+        try {
+          setBooks(JSON.parse(savedBooks));
+        } catch {
+          setBooks([]);
         }
       }
     }
   }, [planId]);
 
-  // Save todo items to localStorage
+  // Save todos to localStorage
   useEffect(() => {
-    if (planId && todoItems.length > 0) {
-      localStorage.setItem(`today-tasks-${planId}`, JSON.stringify(todoItems));
+    if (planId && Object.keys(todoItemsByDate).length > 0) {
+      localStorage.setItem(`todo-by-date-${planId}`, JSON.stringify(todoItemsByDate));
     }
-  }, [todoItems, planId]);
+  }, [todoItemsByDate, planId]);
+
+  // Save archives to localStorage
+  useEffect(() => {
+    if (planId) {
+      localStorage.setItem(`todo-archives-${planId}`, JSON.stringify(archives));
+    }
+  }, [archives, planId]);
+
+  // Save books to localStorage
+  useEffect(() => {
+    if (planId) {
+      localStorage.setItem(`reading-list-${planId}`, JSON.stringify(books));
+    }
+  }, [books, planId]);
+
+  // Auto-archive past incomplete todos
+  useEffect(() => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const toArchive: string[] = [];
+    
+    Object.entries(todoItemsByDate).forEach(([date, items]) => {
+      if (date < today && items.length > 0) {
+        toArchive.push(date);
+      }
+    });
+
+    if (toArchive.length > 0) {
+      const newArchives = [...archives];
+      const newTodosByDate = { ...todoItemsByDate };
+
+      toArchive.forEach((date) => {
+        const existingArchive = newArchives.find((a) => a.date === date);
+        if (!existingArchive) {
+          newArchives.push({ date, items: newTodosByDate[date] });
+        }
+        delete newTodosByDate[date];
+      });
+
+      setArchives(newArchives);
+      setTodoItemsByDate(newTodosByDate);
+    }
+  }, [todoItemsByDate]);
 
   const filteredActivities = todayTemplate?.timeBlocks.filter((block) =>
     block.activity.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -143,19 +238,20 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
       const newItem: TodoItem = {
         id: `${Date.now()}-${Math.random()}`,
         activity: activity.activity,
-        time: `${activity.startTime} - ${activity.endTime}`,
+        time: activity.startTime,
         completed: false,
         category: activity.category,
       };
       
-      setTodoItems((prev) => {
-        const newItems = [...prev];
+      setTodoItemsByDate((prev) => {
+        const currentItems = prev[dateKey] || [];
+        const newItems = [...currentItems];
         if (typeof dropIndex === 'number') {
           newItems.splice(dropIndex, 0, newItem);
         } else {
           newItems.push(newItem);
         }
-        return newItems;
+        return { ...prev, [dateKey]: newItems };
       });
     }
   };
@@ -166,24 +262,40 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
     const newItem: TodoItem = {
       id: `${Date.now()}-${Math.random()}`,
       activity: newActivity.trim(),
-      time: "Custom",
+      time: "09:00",
       completed: false,
     };
     
-    setTodoItems((prev) => [...prev, newItem]);
+    setTodoItemsByDate((prev) => ({
+      ...prev,
+      [dateKey]: [...(prev[dateKey] || []), newItem],
+    }));
     setNewActivity("");
   };
 
   const handleToggleComplete = (id: string) => {
-    setTodoItems((prev) =>
-      prev.map((item) =>
+    setTodoItemsByDate((prev) => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).map((item) =>
         item.id === id ? { ...item, completed: !item.completed } : item
-      )
-    );
+      ),
+    }));
   };
 
   const handleRemoveItem = (id: string) => {
-    setTodoItems((prev) => prev.filter((item) => item.id !== id));
+    setTodoItemsByDate((prev) => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).filter((item) => item.id !== id),
+    }));
+  };
+
+  const handleTimeChange = (id: string, newTime: string) => {
+    setTodoItemsByDate((prev) => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).map((item) =>
+        item.id === id ? { ...item, time: newTime } : item
+      ),
+    }));
   };
 
   // Drag reordering for todo list
@@ -197,160 +309,237 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
     setDragOverIndex(null);
     
     if (draggedItem) {
-      setTodoItems((prev) => {
-        const newItems = [...prev];
-        const draggedIndex = newItems.findIndex((item) => item.id === draggedItem);
+      setTodoItemsByDate((prev) => {
+        const currentItems = [...(prev[dateKey] || [])];
+        const draggedIndex = currentItems.findIndex((item) => item.id === draggedItem);
         if (draggedIndex > -1) {
-          const [removed] = newItems.splice(draggedIndex, 1);
-          newItems.splice(targetIndex, 0, removed);
+          const [removed] = currentItems.splice(draggedIndex, 1);
+          currentItems.splice(targetIndex, 0, removed);
         }
-        return newItems;
+        return { ...prev, [dateKey]: currentItems };
       });
       setDraggedItem(null);
     }
   };
 
-  return (
-    <div className="flex gap-4 h-full">
-      {/* Activities List - 25% width */}
-      <Card className="w-1/4 min-w-[280px] bg-card border-border flex flex-col">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sun className="h-5 w-5 text-primary" />
-            {isWeekend ? "Weekend" : "Weekday"} Activities
-          </CardTitle>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search activities..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 p-0 overflow-hidden">
-          <ScrollArea className="h-full px-4 pb-4">
-            <div className="space-y-2">
-              {filteredActivities.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No activities found
-                </p>
-              ) : (
-                filteredActivities.map((block, idx) => {
-                  const category = block.category?.toLowerCase() || 'routine';
-                  const Icon = categoryIcons[category] || Clock;
-                  const colorClass = categoryColors[category] || categoryColors.routine;
-                  
-                  return (
-                    <div
-                      key={idx}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, block)}
-                      className={`flex items-center gap-2 p-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:border-primary/50 ${colorClass}`}
-                    >
-                      <GripVertical className="h-4 w-4 opacity-50" />
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{block.activity}</p>
-                        <p className="text-xs opacity-70">{block.startTime} - {block.endTime}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+  const handleAddBook = (title: string, month: string) => {
+    const newBook: BookItem = {
+      id: `${Date.now()}-${Math.random()}`,
+      title,
+      month,
+      completed: false,
+      addedAt: new Date().toISOString(),
+    };
+    setBooks((prev) => [...prev, newBook]);
+  };
 
-      {/* To-Do Section - 75% width */}
-      <Card 
-        className="flex-1 bg-card border-border flex flex-col"
-        onDragOver={(e) => handleDragOver(e)}
-        onDrop={(e) => handleDrop(e)}
-      >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Clock className="h-5 w-5 text-secondary" />
-            Today's To-Do
-          </CardTitle>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add custom activity..."
-              value={newActivity}
-              onChange={(e) => setNewActivity(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddCustomActivity()}
-              className="h-9"
-            />
-            <Button
-              size="sm"
-              onClick={handleAddCustomActivity}
-              disabled={!newActivity.trim()}
-              className="gap-1 shrink-0"
+  const handleUpdateBook = (bookId: string, completed: boolean) => {
+    setBooks((prev) =>
+      prev.map((book) => (book.id === bookId ? { ...book, completed } : book))
+    );
+  };
+
+  // Progress stats
+  const completedCount = todoItems.filter((item) => item.completed).length;
+  const totalCount = todoItems.length;
+
+  return (
+    <div className="flex flex-col h-full gap-4">
+      {/* Top navigation tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="todo" className="gap-2">
+            <Clock className="h-4 w-4" />
+            To-Do List
+          </TabsTrigger>
+          <TabsTrigger value="archive" className="gap-2">
+            <Archive className="h-4 w-4" />
+            Archives & Books
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="todo" className="mt-4">
+          <div className="flex gap-4 h-full">
+            {/* Activities List - 25% width */}
+            <Card className="w-1/4 min-w-[280px] bg-card border-border flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Sun className="h-5 w-5 text-primary" />
+                  {isWeekend ? "Weekend" : "Weekday"} Activities
+                </CardTitle>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search activities..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 p-0 overflow-hidden">
+                <ScrollArea className="h-full px-4 pb-4">
+                  <div className="space-y-2">
+                    {filteredActivities.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No activities found
+                      </p>
+                    ) : (
+                      filteredActivities.map((block, idx) => {
+                        const category = block.category?.toLowerCase() || 'routine';
+                        const Icon = categoryIcons[category] || Clock;
+                        const colorClass = categoryColors[category] || categoryColors.routine;
+                        
+                        return (
+                          <div
+                            key={idx}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, block)}
+                            className={`flex items-center gap-2 p-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:border-primary/50 ${colorClass}`}
+                          >
+                            <GripVertical className="h-4 w-4 opacity-50" />
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{block.activity}</p>
+                              <p className="text-xs opacity-70">{block.startTime} - {block.endTime}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* To-Do Section - 75% width */}
+            <Card 
+              className="flex-1 bg-card border-border flex flex-col"
+              onDragOver={(e) => handleDragOver(e)}
+              onDrop={(e) => handleDrop(e)}
             >
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 p-0 overflow-hidden">
-          <ScrollArea className="h-full px-4 pb-4">
-            {todoItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-lg mx-4">
-                <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-2">No tasks yet</p>
-                <p className="text-sm text-muted-foreground">
-                  Drag activities from the left or add custom tasks
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {todoItems.map((item, idx) => {
-                  const category = item.category?.toLowerCase() || 'routine';
-                  const Icon = categoryIcons[category] || Clock;
-                  
-                  return (
-                    <div
-                      key={item.id}
-                      draggable
-                      onDragStart={(e) => handleTodoDragStart(e, item.id)}
-                      onDragOver={(e) => handleDragOver(e, idx)}
-                      onDrop={(e) => handleTodoDrop(e, idx)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border bg-background transition-all ${
-                        dragOverIndex === idx ? "border-primary" : "border-border"
-                      } ${item.completed ? "opacity-60" : ""}`}
-                    >
-                      <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
-                      <Checkbox
-                        checked={item.completed}
-                        onCheckedChange={() => handleToggleComplete(item.id)}
-                      />
-                      <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-medium ${item.completed ? "line-through text-muted-foreground" : ""}`}>
-                          {item.activity}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="shrink-0">
-                        {item.time}
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Clock className="h-5 w-5 text-secondary" />
+                    {isToday ? "Today's" : format(selectedDate, "MMM d")} To-Do
+                    {totalCount > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {completedCount}/{totalCount}
                       </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleRemoveItem(item.id)}
-                      >
-                        ×
+                    )}
+                  </CardTitle>
+                  
+                  {/* Date Picker */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <CalendarIcon className="h-4 w-4" />
+                        {format(selectedDate, "PPP")}
                       </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => date && setSelectedDate(date)}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add custom activity..."
+                    value={newActivity}
+                    onChange={(e) => setNewActivity(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddCustomActivity()}
+                    className="h-9"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleAddCustomActivity}
+                    disabled={!newActivity.trim()}
+                    className="gap-1 shrink-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 p-0 overflow-hidden">
+                <ScrollArea className="h-full px-4 pb-4">
+                  {todoItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-lg mx-4">
+                      <Clock className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground mb-2">No tasks yet</p>
+                      <p className="text-sm text-muted-foreground">
+                        Drag activities from the left or add custom tasks
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </ScrollArea>
-        </CardContent>
-      </Card>
+                  ) : (
+                    <div className="space-y-2">
+                      {todoItems.map((item, idx) => {
+                        const category = item.category?.toLowerCase() || 'routine';
+                        const Icon = categoryIcons[category] || Clock;
+                        
+                        return (
+                          <div
+                            key={item.id}
+                            draggable
+                            onDragStart={(e) => handleTodoDragStart(e, item.id)}
+                            onDragOver={(e) => handleDragOver(e, idx)}
+                            onDrop={(e) => handleTodoDrop(e, idx)}
+                            className={`flex items-center gap-3 p-3 rounded-lg border bg-background transition-all ${
+                              dragOverIndex === idx ? "border-primary" : "border-border"
+                            } ${item.completed ? "opacity-60" : ""}`}
+                          >
+                            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                            <Checkbox
+                              checked={item.completed}
+                              onCheckedChange={() => handleToggleComplete(item.id)}
+                            />
+                            <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-medium ${item.completed ? "line-through text-muted-foreground" : ""}`}>
+                                {item.activity}
+                              </p>
+                            </div>
+                            <TimePickerPopover
+                              value={item.time}
+                              onChange={(time) => handleTimeChange(item.id, time)}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleRemoveItem(item.id)}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="archive" className="mt-4">
+          <TodoArchive
+            archives={archives}
+            books={books}
+            onSelectDate={setSelectedDate}
+            onUpdateBook={handleUpdateBook}
+            onAddBook={handleAddBook}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
