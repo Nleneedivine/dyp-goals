@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw } from "lucide-react";
+import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw, Eye, Download } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import {
@@ -24,6 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
+import { pdf } from "@react-pdf/renderer";
 
 interface Profile {
   id: string;
@@ -72,7 +80,68 @@ const Admin = () => {
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [bulkAssigning, setBulkAssigning] = useState(false);
   const [syncingChats, setSyncingChats] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<GoalAnalysis | null>(null);
+  const [exportingGoalId, setExportingGoalId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  interface RefinedGoal {
+    title: string;
+    description: string;
+    actionSteps: string[];
+    timeline: string;
+    successMetrics: string[];
+  }
+
+  const getRefinedGoals = (goal: GoalAnalysis): RefinedGoal[] | null => {
+    if (!goal.refined_goals) return null;
+    try {
+      return JSON.parse(goal.refined_goals);
+    } catch {
+      return null;
+    }
+  };
+
+  const handleDownloadGoalPDF = async (goal: GoalAnalysis) => {
+    const refinedGoals = getRefinedGoals(goal);
+    if (!refinedGoals) {
+      toast({
+        title: "No refined goals",
+        description: "This submission doesn't have refined goals to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setExportingGoalId(goal.id);
+    try {
+      const targetYear = new Date(goal.created_at).getFullYear() + 1;
+      const userName = goal.profiles 
+        ? `${goal.profiles.first_name} ${goal.profiles.last_name}`
+        : "Unknown User";
+      const doc = <GoalsPDFDocument goals={refinedGoals} userName={userName} targetYear={targetYear} />;
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `DYP-Goals-${userName.replace(/\s+/g, '-')}-${format(new Date(goal.created_at), "yyyy-MM-dd")}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Downloaded!",
+        description: `Goals for ${userName} exported successfully.`,
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: "Export Failed",
+        description: "Unable to export PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingGoalId(null);
+    }
+  };
 
   useEffect(() => {
     loadAdminData();
@@ -1019,6 +1088,31 @@ const Admin = () => {
                               )}
                             </div>
                           </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedGoal(goal)}
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {goal.refined_goals && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadGoalPDF(goal)}
+                                disabled={exportingGoalId === goal.id}
+                                title="Download PDF"
+                              >
+                                {exportingGoalId === goal.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -1221,6 +1315,97 @@ const Admin = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Goal Detail Dialog */}
+        <Dialog open={!!selectedGoal} onOpenChange={() => setSelectedGoal(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-card border-border">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">
+                Goal Analysis - {selectedGoal?.profiles 
+                  ? `${selectedGoal.profiles.first_name} ${selectedGoal.profiles.last_name}`
+                  : "Unknown User"}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedGoal && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Mail className="h-4 w-4" />
+                  {selectedGoal.profiles?.email || "N/A"}
+                  <span className="mx-2">•</span>
+                  <Calendar className="h-4 w-4" />
+                  {format(new Date(selectedGoal.created_at), "MMM d, yyyy")}
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-primary mb-2">Original Goals</h3>
+                  <p className="text-foreground whitespace-pre-wrap">{selectedGoal.original_goals}</p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-secondary mb-2">AI Analysis</h3>
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Overall Score: <span className="text-primary font-bold">{getOverallScore(selectedGoal.ai_analysis)}%</span>
+                    </p>
+                    <p className="text-foreground">{selectedGoal.ai_analysis?.generalAdvice}</p>
+                  </div>
+                </div>
+
+                {selectedGoal.refined_goals && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-accent">Refined Goals</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadGoalPDF(selectedGoal)}
+                        disabled={exportingGoalId === selectedGoal.id}
+                      >
+                        {exportingGoalId === selectedGoal.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Download className="h-4 w-4 mr-2" />
+                        )}
+                        Download PDF
+                      </Button>
+                    </div>
+                    <div className="space-y-4">
+                      {getRefinedGoals(selectedGoal)?.map((goal, i) => (
+                        <div key={i} className="bg-accent/10 rounded-lg p-4 border border-accent/30">
+                          <h4 className="font-semibold text-lg mb-2">{goal.title}</h4>
+                          <p className="text-foreground mb-3">{goal.description}</p>
+                          <div className="text-sm text-muted-foreground mb-2">
+                            <strong>Timeline:</strong> {goal.timeline}
+                          </div>
+                          {goal.actionSteps && goal.actionSteps.length > 0 && (
+                            <div className="text-sm text-muted-foreground mb-2">
+                              <strong>Action Steps:</strong>
+                              <ul className="list-disc ml-5 mt-1">
+                                {goal.actionSteps.map((step, stepIdx) => (
+                                  <li key={stepIdx}>{step}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {goal.successMetrics && goal.successMetrics.length > 0 && (
+                            <div className="text-sm text-muted-foreground">
+                              <strong>Success Metrics:</strong>
+                              <ul className="list-disc ml-5 mt-1">
+                                {goal.successMetrics.map((metric, metricIdx) => (
+                                  <li key={metricIdx}>{metric}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
