@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -105,6 +105,7 @@ const Navbar = () => {
   ];
 
   const toolsNavItems = [
+    { name: "Today's To-Do", path: "/todo", icon: CheckSquare },
     { name: "Time Planner", path: "/time-plans", icon: Clock },
     { name: "AI Coach", path: "/ai-goals", icon: Sparkles },
     { name: "Mentorship", path: "/mentorship", icon: Users },
