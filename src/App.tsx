@@ -23,6 +23,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import TimePlanner from "./pages/TimePlanner";
 import TimePlansDashboard from "./pages/TimePlansDashboard";
+import TodoPage from "./pages/TodoPage";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/goal-history" element={<ProtectedRoute><GoalHistory /></ProtectedRoute>} />
               <Route path="/time-planner" element={<ProtectedRoute><TimePlanner /></ProtectedRoute>} />
               <Route path="/time-plans" element={<ProtectedRoute><TimePlansDashboard /></ProtectedRoute>} />
+              <Route path="/todo" element={<ProtectedRoute><TodoPage /></ProtectedRoute>} />
               <Route path="/mentor-dashboard" element={<MentorRoute><MentorDashboard /></MentorRoute>} />
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
