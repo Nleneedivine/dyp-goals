@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,13 @@ import { format } from "date-fns";
 import { TimePickerPopover } from "./TimePickerPopover";
 import { TodoArchive } from "./TodoArchive";
 import { cn } from "@/lib/utils";
-import { 
-  Search, 
-  Plus, 
-  GripVertical, 
-  Clock, 
+import { generateIcs, downloadIcs, parseIcs } from "@/lib/icsUtils";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Search,
+  Plus,
+  GripVertical,
+  Clock,
   Sun,
   Briefcase,
   Book,
@@ -27,7 +29,11 @@ import {
   Tv,
   Bed,
   CalendarIcon,
-  Archive
+  Archive,
+  Download,
+  Upload,
+  Tag,
+  X,
 } from "lucide-react";
 
 interface TimeBlock {
