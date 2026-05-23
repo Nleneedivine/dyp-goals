@@ -546,26 +546,73 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
                       </Badge>
                     )}
                   </CardTitle>
-                  
-                  {/* Date Picker */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        {format(selectedDate, "PPP")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => date && setSelectedDate(date)}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+
+                  <div className="flex items-center gap-2">
+                    {/* Calendar sync */}
+                    <Button variant="outline" size="sm" className="gap-1" onClick={handleExportIcs} title="Export to Google Calendar / Apple Calendar / Outlook">
+                      <Download className="h-4 w-4" />
+                      Export
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} title="Import from .ics calendar file">
+                      <Upload className="h-4 w-4" />
+                      Import
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".ics,text/calendar"
+                      className="hidden"
+                      onChange={handleImportIcs}
+                    />
+
+                    {/* Date Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <CalendarIcon className="h-4 w-4" />
+                          {format(selectedDate, "PPP")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => date && setSelectedDate(date)}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
+
+                {/* Tag filter chips */}
+                {allTags.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap pt-1">
+                    <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                    <button
+                      onClick={() => setTagFilter(null)}
+                      className={cn(
+                        "text-xs px-2 py-0.5 rounded-full border transition",
+                        tagFilter === null ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      All
+                    </button>
+                    {allTags.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setTagFilter(tagFilter === t ? null : t)}
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded-full border transition",
+                          tagFilter === t ? getTagColor(t) : "border-border text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        #{t}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 
                 <div className="flex gap-2">
                   <Input
