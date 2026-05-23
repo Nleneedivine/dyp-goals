@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,13 @@ import { format } from "date-fns";
 import { TimePickerPopover } from "./TimePickerPopover";
 import { TodoArchive } from "./TodoArchive";
 import { cn } from "@/lib/utils";
-import { 
-  Search, 
-  Plus, 
-  GripVertical, 
-  Clock, 
+import { generateIcs, downloadIcs, parseIcs } from "@/lib/icsUtils";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Search,
+  Plus,
+  GripVertical,
+  Clock,
   Sun,
   Briefcase,
   Book,
@@ -27,7 +29,11 @@ import {
   Tv,
   Bed,
   CalendarIcon,
-  Archive
+  Archive,
+  Download,
+  Upload,
+  Tag,
+  X,
 } from "lucide-react";
 
 interface TimeBlock {
@@ -57,11 +63,31 @@ interface TodoItem {
   time: string;
   completed: boolean;
   category?: string;
+  tags?: string[];
 }
 
 interface ArchivedDay {
   date: string;
   items: TodoItem[];
+}
+
+const TAG_COLORS: { name: string; classes: string }[] = [
+  { name: "red", classes: "bg-red-500/20 border-red-500/40 text-red-400" },
+  { name: "orange", classes: "bg-orange-500/20 border-orange-500/40 text-orange-400" },
+  { name: "amber", classes: "bg-amber-500/20 border-amber-500/40 text-amber-400" },
+  { name: "green", classes: "bg-green-500/20 border-green-500/40 text-green-400" },
+  { name: "teal", classes: "bg-teal-500/20 border-teal-500/40 text-teal-400" },
+  { name: "blue", classes: "bg-blue-500/20 border-blue-500/40 text-blue-400" },
+  { name: "indigo", classes: "bg-indigo-500/20 border-indigo-500/40 text-indigo-400" },
+  { name: "purple", classes: "bg-purple-500/20 border-purple-500/40 text-purple-400" },
+  { name: "pink", classes: "bg-pink-500/20 border-pink-500/40 text-pink-400" },
+];
+
+function getTagColor(tag: string): string {
+  // Stable color based on tag name hash
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) hash = (hash * 31 + tag.charCodeAt(i)) >>> 0;
+  return TAG_COLORS[hash % TAG_COLORS.length].classes;
 }
 
 interface BookItem {
@@ -111,6 +137,10 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>("todo");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [newTagInput, setNewTagInput] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const dateKey = format(selectedDate, "yyyy-MM-dd");
   const isToday = format(new Date(), "yyyy-MM-dd") === dateKey;
@@ -339,9 +369,96 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
     );
   };
 
+  // Tag management
+  const handleAddTag = (itemId: string, tag: string) => {
+    const trimmed = tag.trim().toLowerCase();
+    if (!trimmed) return;
+    setTodoItemsByDate((prev) => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).map((item) =>
+        item.id === itemId
+          ? { ...item, tags: Array.from(new Set([...(item.tags || []), trimmed])) }
+          : item
+      ),
+    }));
+    setNewTagInput((p) => ({ ...p, [itemId]: "" }));
+  };
+
+  const handleRemoveTag = (itemId: string, tag: string) => {
+    setTodoItemsByDate((prev) => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).map((item) =>
+        item.id === itemId ? { ...item, tags: (item.tags || []).filter((t) => t !== tag) } : item
+      ),
+    }));
+  };
+
+  // Collect all tags across the visible date for filter chips
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    (todoItemsByDate[dateKey] || []).forEach((i) => i.tags?.forEach((t) => s.add(t)));
+    return Array.from(s).sort();
+  }, [todoItemsByDate, dateKey]);
+
+  // Calendar sync: export current day's todos to .ics
+  const handleExportIcs = () => {
+    const items = todoItemsByDate[dateKey] || [];
+    if (items.length === 0) {
+      toast({ title: "Nothing to export", description: "Add tasks first.", variant: "destructive" });
+      return;
+    }
+    const ics = generateIcs(
+      items.map((i) => ({
+        activity: i.activity,
+        time: i.time,
+        date: dateKey,
+        category: i.category,
+        tags: i.tags,
+      })),
+      `To-Do ${dateKey}`
+    );
+    downloadIcs(`todo-${dateKey}.ics`, ics);
+    toast({ title: "Calendar exported", description: "Open the .ics file in Google Calendar, Apple Calendar, or Outlook." });
+  };
+
+  const handleImportIcs = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const events = parseIcs(text);
+      if (events.length === 0) {
+        toast({ title: "No events found", description: "The file did not contain importable events.", variant: "destructive" });
+        return;
+      }
+      setTodoItemsByDate((prev) => {
+        const next = { ...prev };
+        events.forEach((ev) => {
+          const item: TodoItem = {
+            id: `${Date.now()}-${Math.random()}`,
+            activity: ev.summary,
+            time: ev.time,
+            completed: false,
+            tags: ev.categories,
+          };
+          next[ev.date] = [...(next[ev.date] || []), item];
+        });
+        return next;
+      });
+      toast({ title: "Imported", description: `${events.length} event(s) added to your to-do.` });
+    } catch (err) {
+      toast({ title: "Import failed", description: "Could not parse the .ics file.", variant: "destructive" });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   // Progress stats
-  const completedCount = todoItems.filter((item) => item.completed).length;
-  const totalCount = todoItems.length;
+  const visibleItems = tagFilter
+    ? todoItems.filter((i) => i.tags?.includes(tagFilter))
+    : todoItems;
+  const completedCount = visibleItems.filter((item) => item.completed).length;
+  const totalCount = visibleItems.length;
 
   return (
     <div className="flex flex-col h-full gap-4">
@@ -429,26 +546,73 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
                       </Badge>
                     )}
                   </CardTitle>
-                  
-                  {/* Date Picker */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        {format(selectedDate, "PPP")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => date && setSelectedDate(date)}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+
+                  <div className="flex items-center gap-2">
+                    {/* Calendar sync */}
+                    <Button variant="outline" size="sm" className="gap-1" onClick={handleExportIcs} title="Export to Google Calendar / Apple Calendar / Outlook">
+                      <Download className="h-4 w-4" />
+                      Export
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} title="Import from .ics calendar file">
+                      <Upload className="h-4 w-4" />
+                      Import
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".ics,text/calendar"
+                      className="hidden"
+                      onChange={handleImportIcs}
+                    />
+
+                    {/* Date Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <CalendarIcon className="h-4 w-4" />
+                          {format(selectedDate, "PPP")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => date && setSelectedDate(date)}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
+
+                {/* Tag filter chips */}
+                {allTags.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap pt-1">
+                    <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                    <button
+                      onClick={() => setTagFilter(null)}
+                      className={cn(
+                        "text-xs px-2 py-0.5 rounded-full border transition",
+                        tagFilter === null ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      All
+                    </button>
+                    {allTags.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setTagFilter(tagFilter === t ? null : t)}
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded-full border transition",
+                          tagFilter === t ? getTagColor(t) : "border-border text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        #{t}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 
                 <div className="flex gap-2">
                   <Input
@@ -471,20 +635,22 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
                 <ScrollArea className="h-full px-4 pb-4">
-                  {todoItems.length === 0 ? (
+                  {visibleItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-lg mx-4">
                       <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground mb-2">No tasks yet</p>
+                      <p className="text-muted-foreground mb-2">
+                        {tagFilter ? `No tasks tagged #${tagFilter}` : "No tasks yet"}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        Drag activities from the left or add custom tasks
+                        Drag activities from the left, add custom tasks, or import a calendar
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {todoItems.map((item, idx) => {
+                      {visibleItems.map((item, idx) => {
                         const category = item.category?.toLowerCase() || 'routine';
                         const Icon = categoryIcons[category] || Clock;
-                        
+
                         return (
                           <div
                             key={item.id}
@@ -492,33 +658,82 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
                             onDragStart={(e) => handleTodoDragStart(e, item.id)}
                             onDragOver={(e) => handleDragOver(e, idx)}
                             onDrop={(e) => handleTodoDrop(e, idx)}
-                            className={`flex items-center gap-3 p-3 rounded-lg border bg-background transition-all ${
+                            className={`flex flex-col gap-2 p-3 rounded-lg border bg-background transition-all ${
                               dragOverIndex === idx ? "border-primary" : "border-border"
                             } ${item.completed ? "opacity-60" : ""}`}
                           >
-                            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
-                            <Checkbox
-                              checked={item.completed}
-                              onCheckedChange={() => handleToggleComplete(item.id)}
-                            />
-                            <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-medium ${item.completed ? "line-through text-muted-foreground" : ""}`}>
-                                {item.activity}
-                              </p>
+                            <div className="flex items-center gap-3">
+                              <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                              <Checkbox
+                                checked={item.completed}
+                                onCheckedChange={() => handleToggleComplete(item.id)}
+                              />
+                              <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className={`font-medium ${item.completed ? "line-through text-muted-foreground" : ""}`}>
+                                  {item.activity}
+                                </p>
+                              </div>
+                              <TimePickerPopover
+                                value={item.time}
+                                onChange={(time) => handleTimeChange(item.id, time)}
+                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" title="Add tag">
+                                    <Tag className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-2" align="end">
+                                  <p className="text-xs text-muted-foreground mb-2">Add a tag</p>
+                                  <div className="flex gap-1">
+                                    <Input
+                                      placeholder="e.g. urgent"
+                                      value={newTagInput[item.id] || ""}
+                                      onChange={(e) => setNewTagInput((p) => ({ ...p, [item.id]: e.target.value }))}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") handleAddTag(item.id, newTagInput[item.id] || "");
+                                      }}
+                                      className="h-8"
+                                    />
+                                    <Button size="sm" className="h-8 px-2" onClick={() => handleAddTag(item.id, newTagInput[item.id] || "")}>
+                                      Add
+                                    </Button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleRemoveItem(item.id)}
+                              >
+                                ×
+                              </Button>
                             </div>
-                            <TimePickerPopover
-                              value={item.time}
-                              onChange={(time) => handleTimeChange(item.id, time)}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => handleRemoveItem(item.id)}
-                            >
-                              ×
-                            </Button>
+
+                            {item.tags && item.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pl-12">
+                                {item.tags.map((t) => (
+                                  <span
+                                    key={t}
+                                    className={cn(
+                                      "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border",
+                                      getTagColor(t)
+                                    )}
+                                  >
+                                    #{t}
+                                    <button
+                                      onClick={() => handleRemoveTag(item.id, t)}
+                                      className="hover:opacity-70"
+                                      aria-label={`Remove tag ${t}`}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}

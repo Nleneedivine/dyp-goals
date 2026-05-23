@@ -74,7 +74,7 @@ export const EditSectionModal = ({
         const updateField = `${sectionType}_plan`;
         await supabase
           .from('time_plans')
-          .update({ [updateField]: data.sectionData })
+          .update({ [updateField]: data.sectionData } as any)
           .eq('id', planId);
 
         onUpdate(sectionType, data.sectionData);
