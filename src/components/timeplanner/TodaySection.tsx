@@ -63,11 +63,31 @@ interface TodoItem {
   time: string;
   completed: boolean;
   category?: string;
+  tags?: string[];
 }
 
 interface ArchivedDay {
   date: string;
   items: TodoItem[];
+}
+
+const TAG_COLORS: { name: string; classes: string }[] = [
+  { name: "red", classes: "bg-red-500/20 border-red-500/40 text-red-400" },
+  { name: "orange", classes: "bg-orange-500/20 border-orange-500/40 text-orange-400" },
+  { name: "amber", classes: "bg-amber-500/20 border-amber-500/40 text-amber-400" },
+  { name: "green", classes: "bg-green-500/20 border-green-500/40 text-green-400" },
+  { name: "teal", classes: "bg-teal-500/20 border-teal-500/40 text-teal-400" },
+  { name: "blue", classes: "bg-blue-500/20 border-blue-500/40 text-blue-400" },
+  { name: "indigo", classes: "bg-indigo-500/20 border-indigo-500/40 text-indigo-400" },
+  { name: "purple", classes: "bg-purple-500/20 border-purple-500/40 text-purple-400" },
+  { name: "pink", classes: "bg-pink-500/20 border-pink-500/40 text-pink-400" },
+];
+
+function getTagColor(tag: string): string {
+  // Stable color based on tag name hash
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) hash = (hash * 31 + tag.charCodeAt(i)) >>> 0;
+  return TAG_COLORS[hash % TAG_COLORS.length].classes;
 }
 
 interface BookItem {
