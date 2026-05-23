@@ -369,9 +369,96 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
     );
   };
 
+  // Tag management
+  const handleAddTag = (itemId: string, tag: string) => {
+    const trimmed = tag.trim().toLowerCase();
+    if (!trimmed) return;
+    setTodoItemsByDate((prev) => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).map((item) =>
+        item.id === itemId
+          ? { ...item, tags: Array.from(new Set([...(item.tags || []), trimmed])) }
+          : item
+      ),
+    }));
+    setNewTagInput((p) => ({ ...p, [itemId]: "" }));
+  };
+
+  const handleRemoveTag = (itemId: string, tag: string) => {
+    setTodoItemsByDate((prev) => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).map((item) =>
+        item.id === itemId ? { ...item, tags: (item.tags || []).filter((t) => t !== tag) } : item
+      ),
+    }));
+  };
+
+  // Collect all tags across the visible date for filter chips
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    (todoItemsByDate[dateKey] || []).forEach((i) => i.tags?.forEach((t) => s.add(t)));
+    return Array.from(s).sort();
+  }, [todoItemsByDate, dateKey]);
+
+  // Calendar sync: export current day's todos to .ics
+  const handleExportIcs = () => {
+    const items = todoItemsByDate[dateKey] || [];
+    if (items.length === 0) {
+      toast({ title: "Nothing to export", description: "Add tasks first.", variant: "destructive" });
+      return;
+    }
+    const ics = generateIcs(
+      items.map((i) => ({
+        activity: i.activity,
+        time: i.time,
+        date: dateKey,
+        category: i.category,
+        tags: i.tags,
+      })),
+      `To-Do ${dateKey}`
+    );
+    downloadIcs(`todo-${dateKey}.ics`, ics);
+    toast({ title: "Calendar exported", description: "Open the .ics file in Google Calendar, Apple Calendar, or Outlook." });
+  };
+
+  const handleImportIcs = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const events = parseIcs(text);
+      if (events.length === 0) {
+        toast({ title: "No events found", description: "The file did not contain importable events.", variant: "destructive" });
+        return;
+      }
+      setTodoItemsByDate((prev) => {
+        const next = { ...prev };
+        events.forEach((ev) => {
+          const item: TodoItem = {
+            id: `${Date.now()}-${Math.random()}`,
+            activity: ev.summary,
+            time: ev.time,
+            completed: false,
+            tags: ev.categories,
+          };
+          next[ev.date] = [...(next[ev.date] || []), item];
+        });
+        return next;
+      });
+      toast({ title: "Imported", description: `${events.length} event(s) added to your to-do.` });
+    } catch (err) {
+      toast({ title: "Import failed", description: "Could not parse the .ics file.", variant: "destructive" });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   // Progress stats
-  const completedCount = todoItems.filter((item) => item.completed).length;
-  const totalCount = todoItems.length;
+  const visibleItems = tagFilter
+    ? todoItems.filter((i) => i.tags?.includes(tagFilter))
+    : todoItems;
+  const completedCount = visibleItems.filter((item) => item.completed).length;
+  const totalCount = visibleItems.length;
 
   return (
     <div className="flex flex-col h-full gap-4">
