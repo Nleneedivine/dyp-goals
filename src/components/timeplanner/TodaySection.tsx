@@ -635,20 +635,22 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
                 <ScrollArea className="h-full px-4 pb-4">
-                  {todoItems.length === 0 ? (
+                  {visibleItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-lg mx-4">
                       <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground mb-2">No tasks yet</p>
+                      <p className="text-muted-foreground mb-2">
+                        {tagFilter ? `No tasks tagged #${tagFilter}` : "No tasks yet"}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        Drag activities from the left or add custom tasks
+                        Drag activities from the left, add custom tasks, or import a calendar
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {todoItems.map((item, idx) => {
+                      {visibleItems.map((item, idx) => {
                         const category = item.category?.toLowerCase() || 'routine';
                         const Icon = categoryIcons[category] || Clock;
-                        
+
                         return (
                           <div
                             key={item.id}
@@ -656,33 +658,82 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
                             onDragStart={(e) => handleTodoDragStart(e, item.id)}
                             onDragOver={(e) => handleDragOver(e, idx)}
                             onDrop={(e) => handleTodoDrop(e, idx)}
-                            className={`flex items-center gap-3 p-3 rounded-lg border bg-background transition-all ${
+                            className={`flex flex-col gap-2 p-3 rounded-lg border bg-background transition-all ${
                               dragOverIndex === idx ? "border-primary" : "border-border"
                             } ${item.completed ? "opacity-60" : ""}`}
                           >
-                            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
-                            <Checkbox
-                              checked={item.completed}
-                              onCheckedChange={() => handleToggleComplete(item.id)}
-                            />
-                            <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-medium ${item.completed ? "line-through text-muted-foreground" : ""}`}>
-                                {item.activity}
-                              </p>
+                            <div className="flex items-center gap-3">
+                              <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                              <Checkbox
+                                checked={item.completed}
+                                onCheckedChange={() => handleToggleComplete(item.id)}
+                              />
+                              <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className={`font-medium ${item.completed ? "line-through text-muted-foreground" : ""}`}>
+                                  {item.activity}
+                                </p>
+                              </div>
+                              <TimePickerPopover
+                                value={item.time}
+                                onChange={(time) => handleTimeChange(item.id, time)}
+                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" title="Add tag">
+                                    <Tag className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-2" align="end">
+                                  <p className="text-xs text-muted-foreground mb-2">Add a tag</p>
+                                  <div className="flex gap-1">
+                                    <Input
+                                      placeholder="e.g. urgent"
+                                      value={newTagInput[item.id] || ""}
+                                      onChange={(e) => setNewTagInput((p) => ({ ...p, [item.id]: e.target.value }))}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") handleAddTag(item.id, newTagInput[item.id] || "");
+                                      }}
+                                      className="h-8"
+                                    />
+                                    <Button size="sm" className="h-8 px-2" onClick={() => handleAddTag(item.id, newTagInput[item.id] || "")}>
+                                      Add
+                                    </Button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleRemoveItem(item.id)}
+                              >
+                                ×
+                              </Button>
                             </div>
-                            <TimePickerPopover
-                              value={item.time}
-                              onChange={(time) => handleTimeChange(item.id, time)}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => handleRemoveItem(item.id)}
-                            >
-                              ×
-                            </Button>
+
+                            {item.tags && item.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pl-12">
+                                {item.tags.map((t) => (
+                                  <span
+                                    key={t}
+                                    className={cn(
+                                      "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border",
+                                      getTagColor(t)
+                                    )}
+                                  >
+                                    #{t}
+                                    <button
+                                      onClick={() => handleRemoveTag(item.id, t)}
+                                      className="hover:opacity-70"
+                                      aria-label={`Remove tag ${t}`}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
