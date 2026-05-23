@@ -160,9 +160,9 @@ const Contact = () => {
                   <Textarea id="message" name="message" value={formData.message} onChange={handleChange} placeholder="Tell us what's on your mind..." required className="min-h-[150px] bg-background border-border" />
                 </div>
 
-                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-semibold text-lg py-6">
+                <Button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-semibold text-lg py-6">
                   <Send className="mr-2 h-5 w-5" />
-                  Send Message
+                  {submitting ? "Sending..." : "Send Message"}
                 </Button>
               </form>
             </CardContent>
