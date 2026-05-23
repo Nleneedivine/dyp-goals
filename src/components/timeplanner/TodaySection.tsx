@@ -137,6 +137,10 @@ export function TodaySection({ dailyPlan, planId }: TodaySectionProps) {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>("todo");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [newTagInput, setNewTagInput] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const dateKey = format(selectedDate, "yyyy-MM-dd");
   const isToday = format(new Date(), "yyyy-MM-dd") === dateKey;
