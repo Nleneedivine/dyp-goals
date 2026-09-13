@@ -296,6 +296,308 @@ export type Database = {
           },
         ]
       }
+      program_form_answers: {
+        Row: {
+          active_time_ms: number | null
+          answer: Json
+          created_at: string
+          field_id: string
+          first_input_delay_ms: number | null
+          id: string
+          submission_id: string
+        }
+        Insert: {
+          active_time_ms?: number | null
+          answer?: Json
+          created_at?: string
+          field_id: string
+          first_input_delay_ms?: number | null
+          id?: string
+          submission_id: string
+        }
+        Update: {
+          active_time_ms?: number | null
+          answer?: Json
+          created_at?: string
+          field_id?: string
+          first_input_delay_ms?: number | null
+          id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_form_answers_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_form_answers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_form_events: {
+        Row: {
+          created_at: string
+          elapsed_ms: number
+          event_type: string
+          field_id: string | null
+          form_id: string
+          id: number
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          elapsed_ms?: number
+          event_type: string
+          field_id?: string | null
+          form_id: string
+          id?: number
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          elapsed_ms?: number
+          event_type?: string
+          field_id?: string | null
+          form_id?: string
+          id?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_form_events_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_form_events_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_form_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_form_fields: {
+        Row: {
+          conditional_logic: Json
+          created_at: string
+          display_order: number
+          field_type: string
+          form_id: string
+          helper_text: string
+          id: string
+          label: string
+          options: Json
+          placeholder: string
+          required: boolean
+          updated_at: string
+          validation_rules: Json
+        }
+        Insert: {
+          conditional_logic?: Json
+          created_at?: string
+          display_order?: number
+          field_type: string
+          form_id: string
+          helper_text?: string
+          id?: string
+          label: string
+          options?: Json
+          placeholder?: string
+          required?: boolean
+          updated_at?: string
+          validation_rules?: Json
+        }
+        Update: {
+          conditional_logic?: Json
+          created_at?: string
+          display_order?: number
+          field_type?: string
+          form_id?: string
+          helper_text?: string
+          id?: string
+          label?: string
+          options?: Json
+          placeholder?: string
+          required?: boolean
+          updated_at?: string
+          validation_rules?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_form_fields_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_form_sessions: {
+        Row: {
+          browser_family: string
+          completed_at: string | null
+          created_at: string
+          device_type: string
+          form_id: string
+          id: string
+          last_activity_at: string
+          session_token: string
+          started_at: string
+        }
+        Insert: {
+          browser_family?: string
+          completed_at?: string | null
+          created_at?: string
+          device_type?: string
+          form_id: string
+          id?: string
+          last_activity_at?: string
+          session_token?: string
+          started_at?: string
+        }
+        Update: {
+          browser_family?: string
+          completed_at?: string | null
+          created_at?: string
+          device_type?: string
+          form_id?: string
+          id?: string
+          last_activity_at?: string
+          session_token?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_form_sessions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_form_submissions: {
+        Row: {
+          completion_time_ms: number
+          created_at: string
+          form_id: string
+          id: string
+          session_id: string
+          submitted_at: string
+        }
+        Insert: {
+          completion_time_ms?: number
+          created_at?: string
+          form_id: string
+          id?: string
+          session_id: string
+          submitted_at?: string
+        }
+        Update: {
+          completion_time_ms?: number
+          created_at?: string
+          form_id?: string
+          id?: string
+          session_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_form_submissions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_forms: {
+        Row: {
+          brand: string
+          closes_at: string | null
+          confirmation_email_enabled: boolean
+          confirmation_message: string
+          created_at: string
+          created_by: string
+          description: string
+          dropoff_warning_threshold: number
+          featured: boolean
+          id: string
+          low_fill_threshold: number
+          opens_at: string | null
+          response_limit: number | null
+          slug: string
+          status: string
+          submission_deadline: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          brand?: string
+          closes_at?: string | null
+          confirmation_email_enabled?: boolean
+          confirmation_message?: string
+          created_at?: string
+          created_by: string
+          description?: string
+          dropoff_warning_threshold?: number
+          featured?: boolean
+          id?: string
+          low_fill_threshold?: number
+          opens_at?: string | null
+          response_limit?: number | null
+          slug: string
+          status?: string
+          submission_deadline?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          brand?: string
+          closes_at?: string | null
+          confirmation_email_enabled?: boolean
+          confirmation_message?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          dropoff_warning_threshold?: number
+          featured?: boolean
+          id?: string
+          low_fill_threshold?: number
+          opens_at?: string | null
+          response_limit?: number | null
+          slug?: string
+          status?: string
+          submission_deadline?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       time_plans: {
         Row: {
           created_at: string
