@@ -1,0 +1,23 @@
+REVOKE EXECUTE ON FUNCTION public.assign_user_to_group(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_next_group_name() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.get_user_chat_group_ids(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_user_role(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.is_chat_group_admin(uuid, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.is_chat_group_creator(uuid, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.is_chat_group_member(uuid, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.update_goal_analyses_updated_at() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.users_share_group(uuid, uuid) FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.assign_user_to_group(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_next_group_name() TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_user_chat_group_ids(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_user_role(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_chat_group_admin(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_chat_group_creator(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_chat_group_member(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.update_goal_analyses_updated_at() TO service_role;
+GRANT EXECUTE ON FUNCTION public.users_share_group(uuid, uuid) TO authenticated, service_role;

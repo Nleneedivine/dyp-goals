@@ -24,6 +24,10 @@ import NotFound from "./pages/NotFound";
 import TimePlanner from "./pages/TimePlanner";
 import TimePlansDashboard from "./pages/TimePlansDashboard";
 import TodoPage from "./pages/TodoPage";
+import FormManager from "./pages/admin/FormManager";
+import FormBuilder from "./pages/admin/FormBuilder";
+import FormAnalytics from "./pages/admin/FormAnalytics";
+import PublicForm from "./pages/PublicForm";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +42,7 @@ const App = () => (
             <Navbar />
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/apply/:slug" element={<PublicForm />} />
               <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
               <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
@@ -51,6 +56,9 @@ const App = () => (
               <Route path="/todo" element={<ProtectedRoute><TodoPage /></ProtectedRoute>} />
               <Route path="/mentor-dashboard" element={<MentorRoute><MentorDashboard /></MentorRoute>} />
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+              <Route path="/admin/forms" element={<AdminRoute><FormManager /></AdminRoute>} />
+              <Route path="/admin/forms/:formId/edit" element={<AdminRoute><FormBuilder /></AdminRoute>} />
+              <Route path="/admin/forms/:formId/analytics" element={<AdminRoute><FormAnalytics /></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

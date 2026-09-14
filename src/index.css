@@ -2,91 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 220 26% 14%;
-    --foreground: 0 0% 98%;
+    --color-primary: 178 37% 27%;
+    --color-primary-dark: 179 40% 18%;
+    --color-primary-light: 174 38% 89%;
+    --color-accent: 176 39% 40%;
+    --color-surface: 0 0% 100%;
+    --color-neutral-900: 160 16% 12%;
+    --color-neutral-500: 174 9% 40%;
+    --color-neutral-100: 168 23% 91%;
+    --color-success: 151 39% 40%;
+    --color-warning: 35 67% 54%;
+    --color-danger: 2 48% 54%;
 
-    --card: 220 26% 18%;
-    --card-foreground: 0 0% 98%;
+    --background: var(--color-surface);
+    --foreground: var(--color-neutral-900);
+    --card: var(--color-surface);
+    --card-foreground: var(--color-neutral-900);
+    --popover: var(--color-surface);
+    --popover-foreground: var(--color-neutral-900);
+    --primary: var(--color-primary);
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--color-primary-light);
+    --secondary-foreground: var(--color-primary-dark);
+    --muted: 170 23% 96%;
+    --muted-foreground: var(--color-neutral-500);
+    --accent: var(--color-accent);
+    --accent-foreground: 0 0% 100%;
+    --destructive: var(--color-danger);
+    --destructive-foreground: 0 0% 100%;
+    --border: var(--color-neutral-100);
+    --input: var(--color-neutral-100);
+    --ring: var(--color-accent);
+    --radius: 0.5rem;
 
-    --popover: 220 26% 18%;
-    --popover-foreground: 0 0% 98%;
+    --gradient-hero: linear-gradient(135deg, hsl(var(--color-primary-dark)) 0%, hsl(var(--color-primary)) 52%, hsl(var(--color-primary-light)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--color-primary)), hsl(var(--color-accent)));
+    --gradient-card: linear-gradient(145deg, hsl(var(--color-surface)), hsl(var(--color-primary-light) / 0.48));
+    --shadow-card: 0 18px 45px -28px hsl(var(--color-primary-dark) / 0.34);
+    --shadow-glow: 0 12px 34px -18px hsl(var(--color-accent) / 0.7);
 
-    /* Gold - Achievement */
-    --primary: 45 93% 58%;
-    --primary-foreground: 220 26% 14%;
-
-    /* Purple - Vision */
-    --secondary: 258 90% 66%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 220 20% 25%;
-    --muted-foreground: 220 13% 69%;
-
-    /* Teal - Growth */
-    --accent: 173 80% 40%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 220 20% 25%;
-    --input: 220 20% 25%;
-    --ring: 45 93% 58%;
-
-    --radius: 0.75rem;
-    
-    /* Custom gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(45 93% 58%), hsl(258 90% 66%), hsl(173 80% 40%));
-    --gradient-card: linear-gradient(135deg, hsl(220 26% 18%), hsl(220 26% 22%));
-    --gradient-accent: linear-gradient(90deg, hsl(45 93% 58%), hsl(258 90% 66%));
-    
-    /* Shadows */
-    --shadow-glow: 0 0 40px hsl(45 93% 58% / 0.3);
-    --shadow-card: 0 10px 30px -10px hsl(0 0% 0% / 0.5);
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: var(--color-surface);
+    --sidebar-foreground: var(--color-neutral-900);
+    --sidebar-primary: var(--color-primary);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: var(--color-primary-light);
+    --sidebar-accent-foreground: var(--color-primary-dark);
+    --sidebar-border: var(--color-neutral-100);
+    --sidebar-ring: var(--color-accent);
   }
 
   .dark {
-    --background: 220 26% 14%;
-    --foreground: 0 0% 98%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: var(--color-primary-dark);
+    --foreground: 168 25% 96%;
+    --card: 178 34% 21%;
+    --card-foreground: 168 25% 96%;
+    --popover: 178 34% 21%;
+    --popover-foreground: 168 25% 96%;
+    --primary: 174 38% 78%;
+    --primary-foreground: var(--color-primary-dark);
+    --secondary: 178 30% 27%;
+    --secondary-foreground: 168 25% 96%;
+    --muted: 178 26% 24%;
+    --muted-foreground: 174 15% 72%;
+    --accent: 176 44% 52%;
+    --accent-foreground: var(--color-primary-dark);
+    --border: 177 24% 30%;
+    --input: 177 24% 30%;
   }
+
+  * { @apply border-border; }
+  html { scroll-behavior: smooth; }
+  body { @apply bg-background text-foreground antialiased; letter-spacing: 0; }
+  h1, h2, h3, h4 { text-wrap: balance; }
+  button, a, input, select, textarea { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2; }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+@layer components {
+  .brand-wash { background: var(--gradient-hero); }
+  .brand-card { background: var(--gradient-card); box-shadow: var(--shadow-card); }
+  .page-shell { @apply container mx-auto px-4 pb-16 pt-28 sm:px-6 lg:px-8; }
+  .section-title { @apply text-2xl font-bold text-foreground sm:text-3xl; }
+}
 
-  body {
-    @apply bg-background text-foreground;
-  }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
