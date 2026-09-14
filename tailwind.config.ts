@@ -65,6 +65,7 @@ export default {
       },
       fontFamily: {
         poppins: ['Poppins', 'sans-serif'],
+        sans: ['Poppins', 'sans-serif'],
       },
       keyframes: {
         "accordion-down": {
@@ -88,8 +89,8 @@ export default {
           "50%": { backgroundPosition: "100% 50%" }
         },
         "glow": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(45 93% 58% / 0.3)" },
-          "50%": { boxShadow: "0 0 40px hsl(45 93% 58% / 0.5)" }
+          "0%, 100%": { boxShadow: "0 10px 28px -18px hsl(var(--color-accent) / 0.45)" },
+          "50%": { boxShadow: "0 16px 38px -16px hsl(var(--color-accent) / 0.7)" }
         }
       },
       animation: {
