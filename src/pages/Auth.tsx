@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -120,10 +121,11 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
-      <Card className="w-full max-w-md">
+    <main className="min-h-screen brand-wash flex items-center justify-center p-4 pt-28 sm:p-8 sm:pt-28">
+      <Card className="w-full max-w-md border-primary/15 shadow-2xl">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">DYP GOALS</CardTitle>
+          <BrandLogo className="mx-auto mb-4" />
+          <CardTitle className="text-2xl text-center">Welcome to DYP GOALS</CardTitle>
           <CardDescription className="text-center">
             Sign in to access your personalized goal coaching
           </CardDescription>
@@ -213,7 +215,7 @@ const Auth = () => {
           </Tabs>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 };
 

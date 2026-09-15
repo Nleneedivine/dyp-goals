@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Sparkles, Facebook, Twitter, Instagram, Linkedin, Youtube } from "lucide-react";
+import { Facebook, Twitter, Instagram, Linkedin, Youtube } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -10,10 +11,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                DYP GOALS
-              </span>
+              <BrandLogo compact />
             </Link>
             <p className="text-muted-foreground mb-4 max-w-md">
               Discover Your Purpose - Transforming vision into action through AI-powered goal setting and mentorship.
@@ -66,7 +64,7 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold text-lg mb-4 text-foreground">Event Info</h3>
             <ul className="space-y-2 text-muted-foreground">
-              <li>Dec 6-8, 2025</li>
+              <li>Goal-setting programs</li>
               <li>Virtual Masterclass</li>
               <li>Youth & Young Adults</li>
               <li>
