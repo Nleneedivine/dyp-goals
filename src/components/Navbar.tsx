@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare } from "lucide-react";
+import { Menu, X, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare, ClipboardList } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -121,10 +122,7 @@ const Navbar = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-center h-20">
             <Link to="/" className="flex items-center gap-2 group">
-              <Sparkles className="h-8 w-8 text-primary animate-glow" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                DYP GOALS
-              </span>
+              <BrandLogo compact />
             </Link>
           </div>
         </div>
@@ -137,10 +135,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link to="/" className="flex items-center gap-2 group">
-            <Sparkles className="h-8 w-8 text-primary animate-glow" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              DYP GOALS
-            </span>
+            <BrandLogo compact />
           </Link>
 
           {/* Desktop Navigation */}
@@ -234,6 +229,14 @@ const Navbar = () => {
                       </>
                     )}
                     <DropdownMenuSeparator />
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/forms" className="cursor-pointer flex items-center gap-2">
+                          <ClipboardList className="h-4 w-4" />
+                          Program Forms
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={handleLogout} className="cursor-pointer flex items-center gap-2">
                       <LogOut className="h-4 w-4" />
                       Logout
@@ -326,6 +329,14 @@ const Navbar = () => {
                     Goal History
                   </Button>
                 </Link>
+                {isAdmin && (
+                  <Link to="/admin/forms" onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full gap-2 mb-2">
+                      <ClipboardList className="h-4 w-4" />
+                      Program Forms
+                    </Button>
+                  </Link>
+                )}
                 {isAdmin && (
                   <Link
                     to="/admin"
