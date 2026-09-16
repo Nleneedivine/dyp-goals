@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3";
 
 const RequestSchema = z.object({
-  action: z.enum(["start", "track", "submit"]),
+  action: z.enum(["start", "track", "upload", "submit"]),
   formId: z.string().uuid(),
   sessionToken: z.string().uuid().nullable().optional(),
   deviceType: z.enum(["mobile", "tablet", "desktop", "unknown"]).optional(),
@@ -13,6 +13,8 @@ const RequestSchema = z.object({
   elapsedMs: z.number().int().min(0).max(86400000).optional(),
   answers: z.record(z.union([z.string(), z.number(), z.boolean(), z.array(z.string()), z.null()])).optional(),
   timings: z.record(z.object({ firstInputDelayMs: z.number().int().min(0).nullable(), activeTimeMs: z.number().int().min(0).nullable() })).optional(),
+  fileName: z.string().trim().min(1).max(180).optional(),
+  contentType: z.enum(["application/pdf", "image/jpeg", "image/png", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]).optional(),
 });
 
 const respond = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -36,6 +38,17 @@ Deno.serve(async (req) => {
     if (!body.sessionToken) return respond({ error: "Missing form session." }, 400);
     const { data: session } = await admin.from("program_form_sessions").select("id,started_at,completed_at").eq("form_id", form.id).eq("session_token", body.sessionToken).maybeSingle();
     if (!session || session.completed_at) return respond({ error: "This form session is no longer active." }, 409);
+
+    if (body.action === "upload") {
+      if (!body.fieldId || !body.fileName || !body.contentType) return respond({ error: "Missing file details." }, 400);
+      const { data: uploadField } = await admin.from("program_form_fields").select("id,field_type").eq("id", body.fieldId).eq("form_id", form.id).maybeSingle();
+      if (!uploadField || uploadField.field_type !== "file") return respond({ error: "This upload field is not valid." }, 400);
+      const extension = body.fileName.includes(".") ? body.fileName.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) : "file";
+      const path = `${form.id}/${session.id}/${body.fieldId}-${crypto.randomUUID()}.${extension || "file"}`;
+      const { data, error } = await admin.storage.from("program-form-uploads").createSignedUploadUrl(path);
+      if (error) throw error;
+      return respond({ path, token: data.token });
+    }
 
     if (body.action === "track") {
       if (!body.eventType) return respond({ error: "Missing interaction type." }, 400);
