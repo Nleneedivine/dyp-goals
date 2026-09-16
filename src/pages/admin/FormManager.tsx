@@ -15,6 +15,7 @@ export default function FormManager() {
   const [forms, setForms] = useState<ProgramForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [qr, setQr] = useState<{ title: string; src: string } | null>(null);
+  const [performance, setPerformance] = useState<Record<string, { visits: number; submissions: number }>>({});
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -22,6 +23,18 @@ export default function FormManager() {
     const { data, error } = await supabase.from("program_forms").select("*").order("updated_at", { ascending: false });
     if (error) toast({ title: "Forms could not be loaded", description: error.message, variant: "destructive" });
     setForms((data ?? []) as ProgramForm[]);
+    const formIds = (data ?? []).map((form) => form.id);
+    if (formIds.length) {
+      const [{ data: sessions }, { data: submissions }] = await Promise.all([
+        supabase.from("program_form_sessions").select("form_id").in("form_id", formIds),
+        supabase.from("program_form_submissions").select("form_id").in("form_id", formIds),
+      ]);
+      const totals: Record<string, { visits: number; submissions: number }> = {};
+      formIds.forEach((id) => { totals[id] = { visits: 0, submissions: 0 }; });
+      sessions?.forEach((row) => { if (totals[row.form_id]) totals[row.form_id].visits += 1; });
+      submissions?.forEach((row) => { if (totals[row.form_id]) totals[row.form_id].submissions += 1; });
+      setPerformance(totals);
+    }
     setLoading(false);
   };
   useEffect(() => { void load(); }, []);
@@ -62,6 +75,7 @@ export default function FormManager() {
         <div><p className="mb-2 text-sm font-semibold uppercase text-primary">Program operations</p><h1 className="text-3xl font-bold sm:text-5xl">Application forms</h1><p className="mt-3 max-w-2xl text-muted-foreground">Create, publish, share, and understand every program application.</p></div>
         <Button onClick={createForm} size="lg" className="min-h-11"><FilePlus2 className="mr-2 h-5 w-5" />Create form</Button>
       </div>
+      {forms.length > 0 && <section className="mb-8"><h2 className="mb-3 text-xl font-semibold">Form comparison</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{forms.map((form) => { const stats = performance[form.id] ?? { visits: 0, submissions: 0 }; const conversion = stats.visits ? Math.round(stats.submissions / stats.visits * 100) : 0; return <Card key={`performance-${form.id}`}><CardContent className="p-4"><div className="flex items-start justify-between gap-3"><p className="font-medium">{form.title}</p><span className="text-lg font-bold text-primary">{conversion}%</span></div><p className="mt-2 text-sm text-muted-foreground">{stats.submissions} submissions from {stats.visits} visits</p></CardContent></Card>; })}</div></section>}
       {loading ? <div className="h-48 animate-pulse rounded-lg bg-muted" /> : forms.length === 0 ? (
         <section className="brand-card rounded-lg border p-10 text-center"><FilePlus2 className="mx-auto mb-4 h-10 w-10 text-primary" /><h2 className="text-xl font-semibold">Create your first program form</h2><p className="mx-auto mt-2 max-w-lg text-muted-foreground">Start from a blank form or ask AI to draft the fields from your program description.</p><Button onClick={createForm} className="mt-6">Create form</Button></section>
       ) : <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{forms.map((form) => (
