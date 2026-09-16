@@ -26,6 +26,7 @@ export default function PublicForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [files, setFiles] = useState<Record<string, File>>({});
   const [timings, setTimings] = useState<Record<string, Timing>>({});
   const startedAt = useRef(Date.now());
   const focusedAt = useRef<Record<string, number>>({});
@@ -60,7 +61,16 @@ export default function PublicForm() {
     event.preventDefault(); setError("");
     if (!form || !sessionToken) return setError("The form session could not start. Please refresh the page.");
     setSubmitting(true);
-    const { data, error: invokeError } = await supabase.functions.invoke("program-form-public", { body: { action: "submit", formId: form.id, sessionToken, answers, timings } });
+    const submittedAnswers = { ...answers };
+    for (const [fieldId, file] of Object.entries(files)) {
+      if (file.size > 10 * 1024 * 1024) { setSubmitting(false); return setError(`${file.name} is larger than 10 MB.`); }
+      const { data: upload, error: uploadRequestError } = await supabase.functions.invoke("program-form-public", { body: { action: "upload", formId: form.id, sessionToken, fieldId, fileName: file.name, contentType: file.type } });
+      if (uploadRequestError || !upload?.path || !upload?.token) { setSubmitting(false); return setError("A file could not be prepared for upload."); }
+      const { error: uploadError } = await supabase.storage.from("program-form-uploads").uploadToSignedUrl(upload.path, upload.token, file, { contentType: file.type });
+      if (uploadError) { setSubmitting(false); return setError(`${file.name} could not be uploaded.`); }
+      submittedAnswers[fieldId] = upload.path;
+    }
+    const { data, error: invokeError } = await supabase.functions.invoke("program-form-public", { body: { action: "submit", formId: form.id, sessionToken, answers: submittedAnswers, timings } });
     setSubmitting(false);
     if (invokeError || data?.error) return setError(data?.error ?? invokeError?.message ?? "Your response could not be submitted.");
     setSuccess(data.confirmationMessage ?? form.confirmation_message);
@@ -75,7 +85,7 @@ export default function PublicForm() {
     if (field.field_type === "multi_select") return <div className="grid gap-2 sm:grid-cols-2">{options.map((option) => { const selected = Array.isArray(value) ? value : []; return <label key={option} className="flex min-h-11 items-center gap-3 rounded-md border p-3"><Checkbox checked={selected.includes(option)} onCheckedChange={(checked) => change(field.id, checked ? [...selected, option] : selected.filter((item) => item !== option))} />{option}</label>; })}</div>;
     if (field.field_type === "checkbox") return <label className="flex min-h-11 items-center gap-3 rounded-md border p-3"><Checkbox checked={Boolean(value)} onCheckedChange={(checked) => change(field.id, Boolean(checked))} />{field.placeholder || "Yes"}</label>;
     if (field.field_type === "rating") return <div className="flex gap-2">{[1,2,3,4,5].map((rating) => <Button key={rating} type="button" size="icon" variant={Number(value) >= rating ? "default" : "outline"} onClick={() => change(field.id, rating)} aria-label={`${rating} stars`}><Star className="h-4 w-4" /></Button>)}</div>;
-    if (field.field_type === "file") return <Input {...common} type="file" disabled aria-describedby={`${field.id}-help`} />;
+    if (field.field_type === "file") return <Input {...common} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" aria-describedby={`${field.id}-help`} onChange={(event) => { const file = event.target.files?.[0]; if (file) { setFiles((current) => ({ ...current, [field.id]: file })); change(field.id, file.name); } }} />;
     return <Input {...common} type={field.field_type === "phone" ? "tel" : field.field_type} value={String(value ?? "")} onChange={(event) => change(field.id, field.field_type === "number" ? Number(event.target.value) : event.target.value)} />;
   };
 
