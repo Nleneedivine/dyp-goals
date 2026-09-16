@@ -1,13 +1,18 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Target, Calendar, Users, Sparkles, Trophy, Clock } from "lucide-react";
+import { Target, Calendar, Users, Sparkles, Trophy, Clock, ArrowRight } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
 import goalSettingGuide from "@/assets/goal-setting-guide.png";
 import timeManagement from "@/assets/time-management.png";
 import { getEventTimeDisplay } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import type { ProgramForm } from "@/lib/formTypes";
 
 const Home = () => {
+  const [featuredForms, setFeaturedForms] = useState<ProgramForm[]>([]);
+  useEffect(() => { void supabase.from("program_forms").select("*").eq("status", "published").eq("featured", true).order("updated_at", { ascending: false }).limit(6).then(({ data }) => setFeaturedForms((data ?? []) as ProgramForm[])); }, []);
   return (
     <div className="min-h-screen font-poppins">
       {/* Hero Section */}
@@ -18,7 +23,7 @@ const Home = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/80 to-background"></div>
         <div className="container mx-auto px-4 relative z-10 text-center">
           <div className="animate-fade-in">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 text-foreground leading-tight">
               Transform Your Purpose Into Action
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
@@ -26,7 +31,7 @@ const Home = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <Link to="/ai-goals">
-                <Button size="lg" className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-semibold text-lg px-8 py-6 animate-glow">
+                <Button size="lg" className="font-semibold text-lg px-8 py-6 animate-glow">
                   <Sparkles className="mr-2 h-5 w-5" />
                   Meet Your AI Coach
                 </Button>
@@ -41,7 +46,7 @@ const Home = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
-                <span>Nov 28-30, 2025</span>
+                <span>Purpose-driven programs</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-secondary" />
@@ -55,6 +60,8 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {featuredForms.length > 0 && <section className="bg-secondary/45 py-16 sm:py-20"><div className="container mx-auto px-4"><div className="mb-10 max-w-2xl"><p className="mb-2 text-sm font-semibold uppercase text-primary">Open opportunities</p><h2 className="text-3xl font-bold sm:text-4xl">Apply to a DYP program</h2><p className="mt-3 text-muted-foreground">Choose a program and submit your application from any device.</p></div><div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{featuredForms.map((form) => <Card key={form.id} className="border-primary/10"><CardContent className="p-6"><p className="text-xs font-semibold uppercase text-primary">{form.brand}</p><h3 className="mt-2 text-xl font-semibold">{form.title}</h3><p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{form.description}</p><Button asChild variant="outline" className="mt-5"><Link to={`/apply/${form.slug}`}>Open application<ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardContent></Card>)}</div></div></section>}
 
       {/* Features Section */}
       <section className="py-20 container mx-auto px-4">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare, ClipboardList } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare, ClipboardList } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -155,7 +155,8 @@ const Navbar = () => {
             {/* Tools Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button 
+                <Button
+                  variant="ghost"
                   className={`font-medium transition-colors hover:text-primary flex items-center gap-1 ${
                     isToolsActive ? "text-primary" : "text-muted-foreground"
                   }`}
@@ -163,7 +164,7 @@ const Navbar = () => {
                   <Wrench className="h-4 w-4" />
                   Tools
                   <ChevronDown className="h-3 w-3" />
-                </button>
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="bg-card border-border min-w-[180px]">
                 {toolsNavItems.map((item) => (
@@ -248,12 +249,16 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden text-foreground"
+            aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
           >
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+          </Button>
         </div>
 
         {/* Mobile Navigation */}
