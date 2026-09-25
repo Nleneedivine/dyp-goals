@@ -12,7 +12,7 @@ import {
   TrendingUp, CheckCircle2, Circle, Calendar, Clock, 
   ChevronLeft, ChevronRight, Target
 } from "lucide-react";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, differenceInCalendarWeeks } from "date-fns";
 
 interface WeeklyProgressChartProps {
   planId: string;
@@ -35,7 +35,7 @@ export const WeeklyProgressChart = ({ planId, weeklyPlan, dailyPlan }: WeeklyPro
 
   useEffect(() => {
     loadProgressData();
-  }, [planId, currentWeekStart]);
+  }, [planId, currentWeekStart, weeklyPlan]);
 
   const loadProgressData = () => {
     const saved = localStorage.getItem(storageKey);
@@ -46,24 +46,27 @@ export const WeeklyProgressChart = ({ planId, weeklyPlan, dailyPlan }: WeeklyPro
       end: endOfWeek(currentWeekStart, { weekStartsOn: 1 }),
     });
 
+    const sampleWeeks = weeklyPlan?.sampleWeeks ?? [];
+    const currentBaseWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const offset = differenceInCalendarWeeks(currentWeekStart, currentBaseWeek, { weekStartsOn: 1 });
+    const sampleIndex = sampleWeeks.length ? ((offset % sampleWeeks.length) + sampleWeeks.length) % sampleWeeks.length : 0;
+    const sampleWeek = sampleWeeks[sampleIndex];
+
     const weekData: DayProgress[] = weekDays.map((date) => {
       const dayName = format(date, 'EEEE');
       const dateKey = format(date, 'yyyy-MM-dd');
-      
-      // Get tasks from daily plan template
-      const isWeekend = dayName === 'Saturday' || dayName === 'Sunday';
-      const template = isWeekend ? dailyPlan?.weekendTemplate : dailyPlan?.weekdayTemplate;
-      const timeBlocks = template?.timeBlocks || [];
-      
-      const tasks = timeBlocks
-        .filter((block: any) => block.activity && block.category !== 'Break' && block.category !== 'Sleep')
-        .map((block: any, idx: number) => ({
-          id: `${dateKey}-${idx}`,
-          name: `${block.startTime} - ${block.activity}`,
-          completed: allProgress[dateKey]?.[idx] || false,
-        }));
 
-      const completed = tasks.filter((t: any) => t.completed).length;
+      // Track only the goal tasks from the weekly plan. The old implementation
+      // counted meals, classes, leisure, and routines as goal progress.
+      const dayPlan = sampleWeek?.tasks?.find((task: any) => task.day === dayName);
+      const activities: string[] = dayPlan?.activities ?? [];
+      const tasks = activities.map((activity: string, idx: number) => ({
+        id: `${dateKey}-${idx}`,
+        name: activity,
+        completed: allProgress[dateKey]?.[idx] || false,
+      }));
+
+      const completed = tasks.filter((task) => task.completed).length;
 
       return {
         day: format(date, 'EEE'),
