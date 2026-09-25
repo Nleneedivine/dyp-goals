@@ -7,5 +7,5 @@
 - [x] Build public no-login form experience with interaction tracking
 - [x] Build per-form analytics with responses and CSV export
 - [x] Add routes and featured forms to the home experience
-- [ ] Complete responsive pass and verify mobile, tablet, and desktop
-- [ ] Validate build, security permissions, and primary user flows
+- [x] Complete responsive pass and verify mobile, tablet, and desktop
+- [x] Validate build, security permissions, and primary user flows
