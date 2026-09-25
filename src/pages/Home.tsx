@@ -51,10 +51,10 @@ const Home = () => {
               Join DYP GOALS - A virtual masterclass teaching vision casting, goal setting, and time management for youth and young adults.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Link to="/ai-goals">
+              <Link to={event ? "/apply/" + event.registration_slug : "/apply/goals-masterclass-2026"}>
                 <Button size="lg" className="font-semibold text-lg px-8 py-6 animate-glow">
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Meet Your AI Coach
+                  <ArrowRight className="mr-2 h-5 w-5" />
+                  Register Now
                 </Button>
               </Link>
               <Link to="/schedule">
@@ -257,9 +257,9 @@ const Home = () => {
             Join young people who want to turn vision into clear goals, realistic plans and consistent action with DYP GOALS.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/ai-goals">
+            <Link to={event ? "/apply/" + event.registration_slug : "/apply/goals-masterclass-2026"}>
               <Button size="lg" className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-semibold text-lg px-8 py-6">
-                Submit Your Goals
+                Register for GOALS
               </Button>
             </Link>
             <Link to="/mentorship">
