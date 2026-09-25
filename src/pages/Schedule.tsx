@@ -94,7 +94,7 @@ const Schedule = () => {
             Three practical evenings designed to help you move from vision to goals, planning and daily action.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <span className="rounded-full bg-primary/10 px-4 py-2 font-medium text-primary">{formatEventDate(event.starts_at, event.timezone)} – {formatEventDate(event.ends_at, event.timezone)}</span>
+            <span className="rounded-full bg-primary/10 px-4 py-2 font-medium text-primary">{formatEventDate(event.starts_at)} – {formatEventDate(event.ends_at)}</span>
             <span className="rounded-full bg-secondary/10 px-4 py-2 font-medium text-secondary">{event.session_start_time} – {event.session_end_time} WAT</span>
           </div>
           <div className="mt-6 flex items-center justify-center gap-3">
@@ -163,7 +163,7 @@ const Schedule = () => {
                   <div className="flex items-center gap-4">
                     <CalendarIcon className="h-8 w-8" />
                     <div>
-                      <h3 className="text-2xl font-bold">Day {dayIndex + 1} - {dates[dayIndex] ? formatEventDate(dates[dayIndex].toISOString(), event.timezone) : ""}</h3>
+                      <h3 className="text-2xl font-bold">Day {dayIndex + 1} - {dates[dayIndex] ? formatEventDate(dates[dayIndex].toISOString()) : ""}</h3>
                       <p className="text-lg opacity-90">{day.theme}</p>
                     </div>
                   </div>
