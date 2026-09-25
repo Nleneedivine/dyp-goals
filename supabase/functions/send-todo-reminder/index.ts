@@ -40,10 +40,13 @@ const corsHeaders = {
 };
 
 interface ReminderRequest {
-  email: string;
   taskName: string;
   taskTime: string;
   taskDate: string;
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -86,7 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
           .header { text-align: center; margin-bottom: 24px; }
           .emoji { font-size: 48px; margin-bottom: 16px; }
           h1 { color: #0f766e; margin: 0 0 8px 0; font-size: 24px; }
-          .task-name { font-size: 28px; font-weight: bold; color: #fff; margin: 16px 0; }
+          .task-name { font-size: 28px; font-weight: bold; color: #173b2b; margin: 16px 0; }
           .time-badge { display: inline-block; background: #0f766e; color: #ffffff; padding: 8px 16px; border-radius: 8px; font-weight: 600; margin: 8px 0; }
           .date { color: #888; font-size: 14px; margin-top: 8px; }
           .cta { display: block; text-align: center; background: linear-gradient(135deg, #a78bfa, #f472b6); color: #0a0a0a; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 24px; }
