@@ -4,7 +4,18 @@
 do $$
 declare
   v_form_id uuid;
+  v_created_by uuid;
 begin
+  select user_id into v_created_by
+  from public.user_roles
+  where role = 'admin'::public.app_role
+  order by created_at
+  limit 1;
+
+  if v_created_by is null then
+    raise exception 'No admin user exists. Assign an admin role before seeding the GOALS 2026 registration form.';
+  end if;
+
   select id into v_form_id from public.program_forms where slug = 'goals-masterclass-2026';
 
   if v_form_id is null then
@@ -25,7 +36,7 @@ begin
       'Registration received! The DYP team will review your details and contact you with the next steps for completing your registration.',
       false,
       true,
-      gen_random_uuid()
+      v_created_by
     )
     returning id into v_form_id;
   else
