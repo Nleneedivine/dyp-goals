@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      program_events: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          starts_at: string
+          ends_at: string
+          timezone: string
+          session_start_time: string
+          session_end_time: string
+          currency: string
+          original_price: number
+          discounted_price: number
+          registration_slug: string
+          benefits: Json
+          status: "draft" | "published" | "archived"
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          starts_at: string
+          ends_at: string
+          timezone?: string
+          session_start_time?: string
+          session_end_time?: string
+          currency?: string
+          original_price: number
+          discounted_price: number
+          registration_slug?: string
+          benefits?: Json
+          status?: "draft" | "published" | "archived"
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          title?: string
+          starts_at?: string
+          ends_at?: string
+          timezone?: string
+          session_start_time?: string
+          session_end_time?: string
+          currency?: string
+          original_price?: number
+          discounted_price?: number
+          registration_slug?: string
+          benefits?: Json
+          status?: "draft" | "published" | "archived"
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       accountability_groups: {
         Row: {
           created_at: string
