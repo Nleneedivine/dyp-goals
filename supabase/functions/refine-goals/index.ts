@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { z } from "npm:zod@3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,7 +40,29 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    const { originalGoals, questions, responses } = await req.json();
+    const limit = await rateLimit(req, "refine-goals", 10, 60, user.id);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
+
+    const currentYear = new Date().getUTCFullYear();
+    const RequestSchema = z.object({
+      originalGoals: z.string().trim().min(3).max(12000),
+      questions: z.array(z.string().trim().min(1).max(1500)).max(100),
+      responses: z.array(z.string().trim().min(1).max(4000)).max(100),
+      targetYear: z.number().int().min(currentYear).max(currentYear + 10).optional(),
+    }).refine((value) => value.questions.length === value.responses.length, {
+      message: "Each clarification question must have a response",
+    });
+
+    const parsedRequest = RequestSchema.safeParse(await req.json());
+    if (!parsedRequest.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid refinement input' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { originalGoals, questions, responses, targetYear } = parsedRequest.data;
+    const currentDate = new Date().toISOString().slice(0, 10);
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -49,7 +73,19 @@ serve(async (req) => {
 
     const systemPrompt = `You are the DYP AI Coach - an expert at helping youth create comprehensive, actionable SMART goals.
 
+CURRENT DATE: ${currentDate}
+TARGET YEAR: ${targetYear ?? "not explicitly selected"}
+
 Based on the original goals and the user's responses to your questions, create a refined, comprehensive goal plan.
+
+DATE RULES:
+- Never create an action step, milestone, or deadline in the past relative to CURRENT DATE.
+- If the user supplied a deadline, preserve it unless their clarification explicitly changes it.
+- If TARGET YEAR is supplied, keep the plan aligned with that year while still respecting any explicit deadline the user wrote.
+- Begin action steps from the current date forward; do not fabricate historical work.
+- Sequence steps realistically within the remaining time.
+- Use specific dates only when useful; otherwise use clear future periods such as "October 2026".
+- Do not claim the project has been underway for months or years unless the user actually said so.
 
 Return a JSON object with this structure:
 {
@@ -67,7 +103,10 @@ Return a JSON object with this structure:
 
 Be specific, actionable, and inspiring. Focus on making goals achievable for youth and young adults.`;
 
-    const userPrompt = `Original goals: ${originalGoals}
+    const userPrompt = `Current date: ${currentDate}
+Target year: ${targetYear ?? "not explicitly selected"}
+
+Original goals: ${originalGoals}
 
 Questions asked: ${JSON.stringify(questions)}
 
@@ -111,7 +150,7 @@ Create comprehensive refined goals based on this information.`;
     const data = await response.json();
     const refinedText = data.choices[0].message.content;
     
-    // Parse the JSON response
+    // Parse and validate the JSON response
     let refined;
     try {
       const cleanedText = refinedText.replace(/```json\n?|\n?```/g, '').trim();
@@ -121,10 +160,27 @@ Create comprehensive refined goals based on this information.`;
       throw new Error('AI returned invalid format');
     }
 
+    const RefinementSchema = z.object({
+      refinedGoals: z.array(z.object({
+        title: z.string().min(1),
+        description: z.string().min(1),
+        actionSteps: z.array(z.string().min(1)).min(1),
+        timeline: z.string().min(1),
+        successMetrics: z.array(z.string().min(1)).min(1),
+      })).min(1).max(30),
+      nextSteps: z.string().min(1),
+    });
+
+    const validated = RefinementSchema.safeParse(refined);
+    if (!validated.success) {
+      console.error("AI refinement failed schema validation:", validated.error.flatten());
+      throw new Error("AI returned invalid refined goals");
+    }
+
     console.log('Refinement complete');
 
     return new Response(
-      JSON.stringify({ refined }),
+      JSON.stringify({ refined: validated.data }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

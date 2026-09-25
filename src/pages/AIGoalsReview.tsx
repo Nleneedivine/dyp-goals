@@ -208,7 +208,8 @@ const AIGoalsReview = () => {
         body: {
           originalGoals: goals,
           questions: allQuestions,
-          responses: allResponses
+          responses: allResponses,
+          targetYear
         }
       });
 
