@@ -112,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
               <span class="time-badge">🕐 ${escapeHtml(taskTime)}</span>
             </p>
             <p class="date" style="text-align: center;">Scheduled for ${escapeHtml(taskDate)}</p>
-            <a href="${Deno.env.get("APP_URL") ?? "https://dypgoals.lovable.app"}/todo" class="cta">View Your To-Do List</a>
+            <a href="${Deno.env.get("APP_URL") ?? "https://dyp-goals.lovable.app"}/todo" class="cta">View Your To-Do List</a>
           </div>
           <p class="footer">
             You're receiving this because you enabled task reminders on DYP Goals.<br>
