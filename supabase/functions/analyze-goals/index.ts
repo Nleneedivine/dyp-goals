@@ -40,7 +40,10 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    const limit = await rateLimit(req, "analyze-goals", 10, 60, user.id);\n    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);\n\n    const { goals } = await req.json();
+    const limit = await rateLimit(req, "analyze-goals", 10, 60, user.id);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
+
+    const { goals } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -123,7 +126,9 @@ IMPORTANT:
       throw new Error('AI returned invalid format');
     }
 
-    const AnalysisSchema = z.object({\n      overallScore: z.number().min(0).max(100),\n      goals: z.array(z.object({ originalGoal: z.string(), score: z.number().min(0).max(100), feedback: z.string(), questions: z.array(z.string()).max(3), improvedVersion: z.string() })),\n      generalAdvice: z.string(),\n    });\n    const validated = AnalysisSchema.safeParse(analysis);\n    if (!validated.success) throw new Error("AI returned an invalid goal analysis");\n\n    console.log("Analysis complete");
+    const AnalysisSchema = z.object({
+      overallScore: z.number().min(0).max(100),\n      goals: z.array(z.object({ originalGoal: z.string(), score: z.number().min(0).max(100), feedback: z.string(), questions: z.array(z.string()).max(3), improvedVersion: z.string() })),\n      generalAdvice: z.string(),\n    });\n    const validated = AnalysisSchema.safeParse(analysis);
+    if (!validated.success) throw new Error("AI returned an invalid goal analysis");\n\n    console.log("Analysis complete");
 
     return new Response(
       JSON.stringify({ analysis }),
