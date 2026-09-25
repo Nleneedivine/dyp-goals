@@ -127,11 +127,23 @@ IMPORTANT:
     }
 
     const AnalysisSchema = z.object({
-      overallScore: z.number().min(0).max(100),\n      goals: z.array(z.object({ originalGoal: z.string(), score: z.number().min(0).max(100), feedback: z.string(), questions: z.array(z.string()).max(3), improvedVersion: z.string() })),\n      generalAdvice: z.string(),\n    });\n    const validated = AnalysisSchema.safeParse(analysis);
-    if (!validated.success) throw new Error("AI returned an invalid goal analysis");\n\n    console.log("Analysis complete");
+      overallScore: z.number().min(0).max(100),
+      goals: z.array(z.object({
+        originalGoal: z.string(),
+        score: z.number().min(0).max(100),
+        feedback: z.string(),
+        questions: z.array(z.string()).max(3),
+        improvedVersion: z.string(),
+      })),
+      generalAdvice: z.string(),
+    });
+    const validated = AnalysisSchema.safeParse(analysis);
+    if (!validated.success) throw new Error("AI returned an invalid goal analysis");
+
+    console.log("Analysis complete");
 
     return new Response(
-      JSON.stringify({ analysis }),
+      JSON.stringify({ analysis: validated.data }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
