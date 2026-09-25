@@ -101,12 +101,12 @@ const handler = async (req: Request): Promise<Response> => {
               <h1>Task Reminder</h1>
             </div>
             <p style="text-align: center; color: #ccc; margin: 0;">Your scheduled task is starting soon:</p>
-            <p class="task-name" style="text-align: center;">${taskName}</p>
+            <p class="task-name" style="text-align: center;">${escapeHtml(taskName)}</p>
             <p style="text-align: center;">
-              <span class="time-badge">🕐 ${taskTime}</span>
+              <span class="time-badge">🕐 ${escapeHtml(taskTime)}</span>
             </p>
-            <p class="date" style="text-align: center;">Scheduled for ${taskDate}</p>
-            <a href="https://dypgoals.lovable.app/todo" class="cta">View Your To-Do List</a>
+            <p class="date" style="text-align: center;">Scheduled for ${escapeHtml(taskDate)}</p>
+            <a href="${Deno.env.get("APP_URL") ?? "https://dypgoals.lovable.app"}/todo" class="cta">View Your To-Do List</a>
           </div>
           <p class="footer">
             You're receiving this because you enabled task reminders on DYP Goals.<br>
