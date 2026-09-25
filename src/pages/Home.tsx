@@ -71,7 +71,7 @@ const Home = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-secondary" />
-                <span>{event ? formatEventDate(event.starts_at) : getEventTimeDisplay()}</span>
+                <span>{event ? formatEventDate(event.starts_at, event.timezone) : "Upcoming event"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-accent" />
@@ -90,7 +90,7 @@ const Home = () => {
             <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wider text-primary">Next live experience</p>
-                <h2 className="mt-2 text-3xl font-bold">{formatEventDate(event.starts_at)} – {formatEventDate(event.ends_at)}</h2>
+                <h2 className="mt-2 text-3xl font-bold">{formatEventDate(event.starts_at)} – {formatEventDate(event.ends_at, event.timezone)}</h2>
                 <p className="mt-2 text-muted-foreground">{event.session_start_time} – {event.session_end_time} WAT · Online</p>
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <span className="text-muted-foreground line-through">{formatNaira(event.original_price)}</span>
