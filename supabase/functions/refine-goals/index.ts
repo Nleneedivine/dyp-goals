@@ -40,7 +40,10 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    const limit = await rateLimit(req, "refine-goals", 10, 60, user.id);\n    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);\n\n    const { originalGoals, questions, responses } = await req.json();
+    const limit = await rateLimit(req, "refine-goals", 10, 60, user.id);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
+
+    const { originalGoals, questions, responses } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -123,7 +126,9 @@ Create comprehensive refined goals based on this information.`;
       throw new Error('AI returned invalid format');
     }
 
-    const RefinementSchema = z.object({\n      refinedGoals: z.array(z.object({ title: z.string(), description: z.string(), actionSteps: z.array(z.string()), timeline: z.string(), successMetrics: z.array(z.string()) })),\n      nextSteps: z.string(),\n    });\n    const validated = RefinementSchema.safeParse(refined);\n    if (!validated.success) throw new Error("AI returned invalid refined goals");\n\n    console.log("Refinement complete");
+    const RefinementSchema = z.object({
+      refinedGoals: z.array(z.object({ title: z.string(), description: z.string(), actionSteps: z.array(z.string()), timeline: z.string(), successMetrics: z.array(z.string()) })),\n      nextSteps: z.string(),\n    });\n    const validated = RefinementSchema.safeParse(refined);
+    if (!validated.success) throw new Error("AI returned invalid refined goals");\n\n    console.log("Refinement complete");
 
     return new Response(
       JSON.stringify({ refined }),
