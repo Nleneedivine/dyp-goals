@@ -6,6 +6,7 @@ interface YearlyPlan {
   mainGoal: string;
   quarters: {
     quarter: number;
+    period?: string;
     focus: string;
     milestones: string[];
     keyDeadlines: string[];
@@ -54,7 +55,7 @@ export function YearlyPlanView({ plan }: YearlyPlanViewProps) {
                   Q{quarter.quarter}
                 </span>
                 <Badge variant="outline" className="text-xs">
-                  {quarter.quarter === 1 ? 'Jan-Mar' : quarter.quarter === 2 ? 'Apr-Jun' : quarter.quarter === 3 ? 'Jul-Sep' : 'Oct-Dec'}
+                  {quarter.period || (quarter.quarter === 1 ? 'Jan-Mar' : quarter.quarter === 2 ? 'Apr-Jun' : quarter.quarter === 3 ? 'Jul-Sep' : 'Oct-Dec')}
                 </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground font-medium">{quarter.focus}</p>
