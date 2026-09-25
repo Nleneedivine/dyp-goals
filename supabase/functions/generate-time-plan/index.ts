@@ -48,6 +48,35 @@ const RegenerateSectionSchema = z.object({
   goal: z.string().trim().min(3).max(12000),
 });
 
+function parseClockMinutes(value: string) {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([ap]m))?$/i);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridiem = match[3]?.toLowerCase();
+
+  if (minute > 59 || hour > 23) return null;
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return null;
+    if (hour === 12) hour = 0;
+    if (meridiem === "pm") hour += 12;
+  }
+
+  return hour * 60 + minute;
+}
+
+function templateGoalHours(template: { timeBlocks: Array<{ startTime: string; endTime: string; isGoalWork?: boolean }> }) {
+  return template.timeBlocks.reduce((total, block) => {
+    if (!block.isGoalWork) return total;
+    const start = parseClockMinutes(block.startTime);
+    const end = parseClockMinutes(block.endTime);
+    if (start === null || end === null) return total;
+    const durationMinutes = end >= start ? end - start : (24 * 60 - start) + end;
+    return total + durationMinutes / 60;
+  }, 0);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -115,7 +144,7 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
       "quarters": [
         {
           "quarter": 1,
-          "period": "Sep-Nov 2026",
+          "period": "<Month YYYY - Month YYYY>",
           "focus": "string",
           "milestones": ["string"],
           "keyDeadlines": ["string"]
@@ -126,7 +155,7 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
     monthly: `{
       "months": [
         {
-          "month": "September 2026",
+          "month": "<Month YYYY>",
           "focus": "string",
           "goals": ["string"],
           "weeklyHours": number,
@@ -376,7 +405,7 @@ Response format:
     "quarters": [
       {
         "quarter": 1,
-        "period": "Sep-Nov 2026",
+        "period": "<Month YYYY - Month YYYY>",
         "focus": "string",
         "milestones": ["string"],
         "keyDeadlines": ["string"]
@@ -387,7 +416,7 @@ Response format:
   "monthlyPlan": {
     "months": [
       {
-        "month": "September 2026",
+        "month": "<Month YYYY>",
         "focus": "string",
         "goals": ["string"],
         "weeklyHours": number,
@@ -626,6 +655,15 @@ Generate a detailed, realistic, and actionable time plan that:
     if (Math.abs(taskHours - expectedWeeklyHours) > tolerance) {
       throw new Error(`AI generated Week ${sampleWeek.weekNumber} with ${taskHours} hours instead of ${expectedWeeklyHours}`);
     }
+  }
+
+  const weekdayGoalHours = templateGoalHours(parsedPlan.data.dailyPlan.weekdayTemplate);
+  const weekendGoalHours = templateGoalHours(parsedPlan.data.dailyPlan.weekendTemplate);
+  const impliedDailyTemplateHours = weekdayGoalHours * 5 + weekendGoalHours * 2;
+  if (impliedDailyTemplateHours > 0 && Math.abs(impliedDailyTemplateHours - expectedWeeklyHours) > 0.25) {
+    throw new Error(
+      `AI daily templates imply ${impliedDailyTemplateHours.toFixed(2)} goal-work hours per week instead of ${expectedWeeklyHours}`,
+    );
   }
   const currentMonthStart = Date.parse(`${currentDate.slice(0, 7)}-01T00:00:00Z`);
   const deadline = Date.parse(questionnaireData.deadline);
