@@ -284,6 +284,13 @@ const Navbar = () => {
               </Link>
             ))}
             
+            <Link to="/apply/goals-masterclass-2026" onClick={() => setIsOpen(false)}>
+              <Button className="w-full mb-3">
+                Register for GOALS
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+
             {/* Tools Section in Mobile */}
             <div className="py-3 border-t border-border mt-2">
               <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
