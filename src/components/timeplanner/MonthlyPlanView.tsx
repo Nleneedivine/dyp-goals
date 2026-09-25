@@ -43,7 +43,7 @@ export function MonthlyPlanView({ plan }: MonthlyPlanViewProps) {
                   <Calendar className="h-5 w-5 text-primary" />
                   {month.month}
                 </CardTitle>
-                <Badge className={`${monthColors[month.month] || 'bg-muted'} border`}>
+                <Badge className={`${monthColors[month.month.split(" ")[0]] || 'bg-muted'} border`}>
                   <Clock className="h-3 w-3 mr-1" />
                   {month.weeklyHours}h/week
                 </Badge>
