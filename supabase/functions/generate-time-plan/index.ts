@@ -387,7 +387,7 @@ Response format:
   "monthlyPlan": {
     "months": [
       {
-        "month": "January",
+        "month": "September 2026",
         "focus": "string",
         "goals": ["string"],
         "weeklyHours": number,
