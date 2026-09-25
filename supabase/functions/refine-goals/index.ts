@@ -127,11 +127,22 @@ Create comprehensive refined goals based on this information.`;
     }
 
     const RefinementSchema = z.object({
-      refinedGoals: z.array(z.object({ title: z.string(), description: z.string(), actionSteps: z.array(z.string()), timeline: z.string(), successMetrics: z.array(z.string()) })),\n      nextSteps: z.string(),\n    });\n    const validated = RefinementSchema.safeParse(refined);
-    if (!validated.success) throw new Error("AI returned invalid refined goals");\n\n    console.log("Refinement complete");
+      refinedGoals: z.array(z.object({
+        title: z.string(),
+        description: z.string(),
+        actionSteps: z.array(z.string()),
+        timeline: z.string(),
+        successMetrics: z.array(z.string()),
+      })),
+      nextSteps: z.string(),
+    });
+    const validated = RefinementSchema.safeParse(refined);
+    if (!validated.success) throw new Error("AI returned invalid refined goals");
+
+    console.log("Refinement complete");
 
     return new Response(
-      JSON.stringify({ refined }),
+      JSON.stringify({ refined: validated.data }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
