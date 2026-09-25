@@ -26,6 +26,12 @@ Deno.serve(async (req) => {
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) return respond({ error: "Invalid form request." }, 400);
     const body = parsed.data;
+    const requestLimit = await rateLimit(req, "program-form-public", 120, 60);
+    if (!requestLimit.allowed) return rateLimitResponse(requestLimit.retryAfterSeconds, corsHeaders);
+    if (body.action === "submit") {
+      const submitLimit = await rateLimit(req, "program-form-submit", 5, 600, body.sessionToken ?? undefined);
+      if (!submitLimit.allowed) return rateLimitResponse(submitLimit.retryAfterSeconds, corsHeaders);
+    }
     const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
     const { data: form } = await admin.from("program_forms").select("*").eq("id", body.formId).eq("status", "published").maybeSingle();
     const now = Date.now();
