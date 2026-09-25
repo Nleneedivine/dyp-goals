@@ -14,63 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      program_events: {
-        Row: {
-          id: string
-          slug: string
-          title: string
-          starts_at: string
-          ends_at: string
-          timezone: string
-          session_start_time: string
-          session_end_time: string
-          currency: string
-          original_price: number
-          discounted_price: number
-          registration_slug: string
-          benefits: Json
-          status: "draft" | "published" | "archived"
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          slug: string
-          title: string
-          starts_at: string
-          ends_at: string
-          timezone?: string
-          session_start_time?: string
-          session_end_time?: string
-          currency?: string
-          original_price: number
-          discounted_price: number
-          registration_slug?: string
-          benefits?: Json
-          status?: "draft" | "published" | "archived"
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          slug?: string
-          title?: string
-          starts_at?: string
-          ends_at?: string
-          timezone?: string
-          session_start_time?: string
-          session_end_time?: string
-          currency?: string
-          original_price?: number
-          discounted_price?: number
-          registration_slug?: string
-          benefits?: Json
-          status?: "draft" | "published" | "archived"
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       accountability_groups: {
         Row: {
           created_at: string
@@ -217,6 +160,27 @@ export type Database = {
           },
         ]
       }
+      edge_rate_limits: {
+        Row: {
+          rate_key: string
+          request_count: number
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          rate_key: string
+          request_count?: number
+          updated_at?: string
+          window_started_at: string
+        }
+        Update: {
+          rate_key?: string
+          request_count?: number
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       goal_analyses: {
         Row: {
           ai_analysis: Json
@@ -352,6 +316,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      program_events: {
+        Row: {
+          benefits: Json
+          created_at: string
+          currency: string
+          discounted_price: number
+          ends_at: string
+          id: string
+          original_price: number
+          registration_slug: string
+          session_end_time: string
+          session_start_time: string
+          slug: string
+          starts_at: string
+          status: string
+          timezone: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          benefits?: Json
+          created_at?: string
+          currency?: string
+          discounted_price: number
+          ends_at: string
+          id?: string
+          original_price: number
+          registration_slug?: string
+          session_end_time?: string
+          session_start_time?: string
+          slug: string
+          starts_at: string
+          status?: string
+          timezone?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          benefits?: Json
+          created_at?: string
+          currency?: string
+          discounted_price?: number
+          ends_at?: string
+          id?: string
+          original_price?: number
+          registration_slug?: string
+          session_end_time?: string
+          session_start_time?: string
+          slug?: string
+          starts_at?: string
+          status?: string
+          timezone?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       program_form_answers: {
         Row: {
@@ -727,6 +748,14 @@ export type Database = {
     }
     Functions: {
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
+      consume_edge_rate_limit: {
+        Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          retry_after_seconds: number
+        }[]
+      }
       get_next_group_name: { Args: never; Returns: string }
       get_user_chat_group_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
