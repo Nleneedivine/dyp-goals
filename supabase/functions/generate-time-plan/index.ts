@@ -82,6 +82,7 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
       "quarters": [
         {
           "quarter": 1,
+          "period": "Sep-Nov 2026",
           "focus": "string",
           "milestones": ["string"],
           "keyDeadlines": ["string"]
@@ -129,7 +130,8 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
             "endTime": "string",
             "activity": "string",
             "category": "string",
-            "notes": "string"
+            "notes": "string",
+            "isGoalWork": true
           }
         ]
       },
@@ -142,14 +144,20 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
             "endTime": "string",
             "activity": "string",
             "category": "string",
-            "notes": "string"
+            "notes": "string",
+            "isGoalWork": true
           }
         ]
       }
     }`,
   };
 
+  const currentDate = new Date().toISOString().slice(0, 10);
+
   const systemPrompt = `You are an expert productivity coach. You need to regenerate a specific section of a time plan based on user feedback.
+
+CURRENT DATE: ${currentDate}
+Never introduce milestones, months, or deadlines before the current date unless the current plan explicitly describes completed historical work.
 
 You MUST respond with valid JSON only. No markdown, no explanations outside the JSON structure.
 
@@ -224,6 +232,7 @@ Please regenerate the ${request.sectionType} plan section incorporating the user
 }
 
 async function handleFullPlanGeneration(questionnaireData: QuestionnaireData) {
+  const currentDate = new Date().toISOString().slice(0, 10);
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     throw new Error("LOVABLE_API_KEY is not configured");
@@ -232,6 +241,22 @@ async function handleFullPlanGeneration(questionnaireData: QuestionnaireData) {
   const systemPrompt = `You are an expert productivity coach and time management specialist for DYP (Discover Your Purpose). Your role is to create comprehensive, actionable time plans based on user goals and constraints.
 
 You MUST respond with valid JSON only. No markdown, no explanations outside the JSON structure.
+
+DATE RULES:
+- Today's date is ${currentDate}.
+- Planning starts today. Never create future tasks, milestones, months, or deadlines dated before today.
+- Respect the user's stated deadline exactly; do not invent an earlier starting year or describe a longer project duration than the actual remaining time.
+- Monthly plans must include only months from the current month through the deadline, formatted as "Month YYYY".
+- Quarterly sections are planning phases within the remaining time, not automatically Jan-Mar/Apr-Jun/Jul-Sep/Oct-Dec. Include a human-readable "period" for each phase.
+
+TIME-BUDGET RULES:
+- The requested weekly commitment is a hard cap and target.
+- weeklyPlan.totalHoursPerWeek must equal the user's available hours.
+- weekdayHours + weekendHours must equal totalHoursPerWeek.
+- Each sample week's task hours must add up to the weekly commitment.
+- Do not count sleep, meals, classes, leisure, routines, or other life obligations as goal-work hours.
+- In daily time blocks, set "isGoalWork": true only for blocks that directly advance the user's goal; otherwise false.
+- The daily schedule is a realistic template and must not imply more goal-work time than the weekly plan.
 
 Based on the user's goal, questionnaire responses, and constraints, generate a detailed time plan with four tiers:
 
@@ -254,6 +279,7 @@ Response format:
     "quarters": [
       {
         "quarter": 1,
+        "period": "Sep-Nov 2026",
         "focus": "string",
         "milestones": ["string"],
         "keyDeadlines": ["string"]
@@ -301,7 +327,8 @@ Response format:
           "endTime": "string",
           "activity": "string",
           "category": "string",
-          "notes": "string"
+          "notes": "string",
+          "isGoalWork": true
         }
       ]
     },
@@ -314,7 +341,8 @@ Response format:
           "endTime": "string",
           "activity": "string",
           "category": "string",
-          "notes": "string"
+          "notes": "string",
+          "isGoalWork": true
         }
       ]
     }
@@ -330,6 +358,7 @@ Response format:
 
   const userPrompt = `Create a comprehensive time plan for the following goal and constraints:
 
+CURRENT DATE: ${currentDate}
 GOAL: ${questionnaireData.goal}
 
 QUESTIONNAIRE RESPONSES:
@@ -348,7 +377,9 @@ Generate a detailed, realistic, and actionable time plan that:
 - Breaks down the goal into manageable chunks
 - Provides clear daily schedules
 - Accounts for rest and breaks
-- Is achievable within the deadline`;
+- Is achievable within the deadline
+- Starts from the current date, never from a past month
+- Uses the exact weekly-hour commitment consistently across summary, monthly, weekly, and daily views`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -410,6 +441,7 @@ Generate a detailed, realistic, and actionable time plan that:
       mainGoal: z.string(),
       quarters: z.array(z.object({
         quarter: z.number(),
+        period: z.string().optional(),
         focus: z.string(),
         milestones: z.array(z.string()),
         keyDeadlines: z.array(z.string()),
@@ -450,6 +482,7 @@ Generate a detailed, realistic, and actionable time plan that:
           activity: z.string(),
           category: z.string(),
           notes: z.string(),
+          isGoalWork: z.boolean().optional(),
         })),
       }),
       weekendTemplate: z.object({
@@ -461,6 +494,7 @@ Generate a detailed, realistic, and actionable time plan that:
           activity: z.string(),
           category: z.string(),
           notes: z.string(),
+          isGoalWork: z.boolean().optional(),
         })),
       }),
     }),
@@ -477,8 +511,39 @@ Generate a detailed, realistic, and actionable time plan that:
     console.error("AI time plan failed schema validation:", parsedPlan.error.flatten());
     throw new Error("AI returned an invalid time plan");
   }
-  if (parsedPlan.data.summary.totalWeeklyCommitment > questionnaireData.hoursPerWeek) {
-    throw new Error("AI generated a plan that exceeds the available weekly hours");
+  const tolerance = 0.01;
+  const expectedWeeklyHours = questionnaireData.hoursPerWeek;
+  const weekly = parsedPlan.data.weeklyPlan;
+
+  if (Math.abs(parsedPlan.data.summary.totalWeeklyCommitment - expectedWeeklyHours) > tolerance) {
+    throw new Error("AI generated a summary with an inconsistent weekly commitment");
+  }
+  if (Math.abs(weekly.totalHoursPerWeek - expectedWeeklyHours) > tolerance) {
+    throw new Error("AI generated a weekly plan with an inconsistent weekly commitment");
+  }
+  if (Math.abs((weekly.weekdayHours + weekly.weekendHours) - expectedWeeklyHours) > tolerance) {
+    throw new Error("AI generated weekday/weekend hours that do not match the weekly commitment");
+  }
+  for (const sampleWeek of weekly.sampleWeeks) {
+    const taskHours = sampleWeek.tasks.reduce((sum, task) => sum + task.hours, 0);
+    if (Math.abs(taskHours - expectedWeeklyHours) > tolerance) {
+      throw new Error(`AI generated Week ${sampleWeek.weekNumber} with ${taskHours} hours instead of ${expectedWeeklyHours}`);
+    }
+  }
+  for (const month of parsedPlan.data.monthlyPlan.months) {
+    if (month.weeklyHours - expectedWeeklyHours > tolerance) {
+      throw new Error(`AI generated ${month.month} above the available weekly hours`);
+    }
+  }
+
+  const deadline = Date.parse(questionnaireData.deadline);
+  const estimated = Date.parse(parsedPlan.data.summary.estimatedCompletionDate);
+  const today = Date.parse(currentDate);
+  if (Number.isFinite(estimated) && estimated < today) {
+    throw new Error("AI generated an estimated completion date in the past");
+  }
+  if (Number.isFinite(deadline) && Number.isFinite(estimated) && estimated > deadline) {
+    throw new Error("AI generated an estimated completion date after the user's deadline");
   }
 
   return new Response(
