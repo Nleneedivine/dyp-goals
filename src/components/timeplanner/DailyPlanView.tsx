@@ -9,6 +9,7 @@ interface TimeBlock {
   activity: string;
   category: string;
   notes?: string;
+  isGoalWork?: boolean;
 }
 
 interface DailyPlan {
@@ -74,9 +75,12 @@ function TimeBlockCard({ block }: { block: TimeBlock }) {
           <p className="text-xs opacity-75">{block.notes}</p>
         )}
       </div>
-      <Badge variant="outline" className="text-xs capitalize">
-        {block.category}
-      </Badge>
+      <div className="flex flex-col items-end gap-1">
+        {block.isGoalWork && <Badge className="text-[10px]">Goal work</Badge>}
+        <Badge variant="outline" className="text-xs capitalize">
+          {block.category}
+        </Badge>
+      </div>
     </div>
   );
 }
