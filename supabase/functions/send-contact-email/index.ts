@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { z } from "npm:zod@3";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY_1") ?? Deno.env.get("RESEND_API_KEY");
@@ -11,12 +13,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface ContactRequest {
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-}
+const ContactSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email().max(200),
+  subject: z.string().trim().min(1).max(300),
+  message: z.string().trim().min(1).max(5000),
+});
 
 function escapeHtml(s: string) {
   return s
@@ -33,27 +35,20 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const limit = await rateLimit(req, "send-contact-email", 5, 3600);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
+
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
-    const body = (await req.json()) as ContactRequest;
-    const name = (body.name ?? "").toString().trim().slice(0, 200);
-    const email = (body.email ?? "").toString().trim().slice(0, 200);
-    const subject = (body.subject ?? "").toString().trim().slice(0, 300);
-    const message = (body.message ?? "").toString().trim().slice(0, 5000);
-
-    if (!name || !email || !subject || !message) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+    const parsed = ContactSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid contact request" }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return new Response(JSON.stringify({ error: "Invalid email" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    const { name, email, subject, message } = parsed.data;
 
     const html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
