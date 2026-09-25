@@ -14,53 +14,63 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+    let active = true;
 
-      if (session?.user) {
-        // Check if user has admin role using the security definer function
-        const { data, error } = await supabase
-          .rpc('has_role', { 
-            _user_id: session.user.id, 
-            _role: 'admin' 
-          });
+    const checkRole = async (nextUser: User | null) => {
+      if (!active) return;
 
-        if (!error && data === true) {
-          setIsAdmin(true);
-        }
+      setUser(nextUser);
+
+      if (!nextUser) {
+        setIsAdmin(false);
+        setLoading(false);
+        return;
       }
 
+      const cacheKey = `dyp-admin:${nextUser.id}`;
+      const cached = sessionStorage.getItem(cacheKey) === "true";
+
+      // The cache only speeds up the UI. Supabase RLS still protects every
+      // admin query, so this never grants database access by itself.
+      if (cached) {
+        setIsAdmin(true);
+        setLoading(false);
+      }
+
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", nextUser.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (!active) return;
+
+      const confirmed = !error && data?.role === "admin";
+      setIsAdmin(confirmed);
       setLoading(false);
+
+      if (confirmed) sessionStorage.setItem(cacheKey, "true");
+      else sessionStorage.removeItem(cacheKey);
     };
 
-    checkAdminStatus();
+    const initialize = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      await checkRole(session?.user ?? null);
+    };
+
+    void initialize();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          const { data, error } = await supabase
-            .rpc('has_role', { 
-              _user_id: session.user.id, 
-              _role: 'admin' 
-            });
-
-          if (!error && data === true) {
-            setIsAdmin(true);
-          } else {
-            setIsAdmin(false);
-          }
-        } else {
-          setIsAdmin(false);
-        }
-        
-        setLoading(false);
+      (_event, session) => {
+        void checkRole(session?.user ?? null);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (loading) {
