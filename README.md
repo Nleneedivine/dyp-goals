@@ -1,73 +1,42 @@
-# Welcome to your Lovable project
+# dyp-goals
 
-## Project info
+Build a beautiful, modern, and inspiring website for DYP GOALS 2025 — a 3-day virtual masterclass by Discover Your Purpose (DYP) that teaches vision casting, goal setting, and time management for youth and young adults. The landing page should feel energetic and purposeful, with smooth animations, vibrant gradients (gold, purple, teal), and clear CTAs: “Register,” “Submit Your Goals,” and “Meet Your AI Coach.”
 
-**URL**: https://lovable.dev/projects/a7598638-632b-403e-a0b9-44157833693f
+Include these pages:
 
-## How can I edit this code?
+Home/About: Overview of DYP GOALS, event dates (Dec 6–8, 2025), and a highlight video.
 
-There are several ways of editing your application.
+Schedule: 3-day breakdown and countdown timer.
 
-**Use Lovable**
+AI Goals Review Portal: An interactive page where users upload or type their 2025 goals. The built-in AI (called DYP AI Coach) should instantly analyze goals, score them (percentage accuracy), ask clarifying questions, and help rewrite them to be SMART and practical.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/a7598638-632b-403e-a0b9-44157833693f) and start prompting.
+Mentorship & Accountability: Form to request mentorship or join groups, optionally recommended by AI.
 
-Changes made via Lovable will be committed automatically to this repo.
+Testimonials: Past participants’ success stories.
 
-**Use your preferred IDE**
+Contact/Community: Newsletter signup and DYP social links.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Style the site with clean typography (Poppins or Montserrat), friendly icons, and subtle motion effects. The overall tone should feel hopeful, purposeful, and tech-driven — where purpose meets action.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+This project was built with [Lovable](https://lovable.dev).
 
-Follow these steps:
+**Live app**: https://dyp-goals.lovable.app
+
+## Build with Lovable
+
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/a7598638-632b-403e-a0b9-44157833693f).
+
+- **Ship faster**: describe what you want to build and Lovable handles the code.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+
+## Development
+
+Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
+git clone <this-repository-url>
+cd <repository-name>
 npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/a7598638-632b-403e-a0b9-44157833693f) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
