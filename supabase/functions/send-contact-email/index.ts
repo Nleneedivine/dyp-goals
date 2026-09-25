@@ -35,7 +35,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const limit = await rateLimit(req, "send-contact-email", 5, 3600);
-    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);\n\n    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
+
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
     const body = (await req.json()) as ContactRequest;
