@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare, ClipboardList } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare, ClipboardList, ArrowRight } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -152,6 +152,13 @@ const Navbar = () => {
               </Link>
             ))}
 
+            <Button asChild size="sm" className="font-semibold">
+              <Link to="/apply/goals-masterclass-2026">
+                Register
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+
             {/* Tools Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -277,6 +284,13 @@ const Navbar = () => {
               </Link>
             ))}
             
+            <Link to="/apply/goals-masterclass-2026" onClick={() => setIsOpen(false)}>
+              <Button className="w-full mb-3">
+                Register for GOALS
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+
             {/* Tools Section in Mobile */}
             <div className="py-3 border-t border-border mt-2">
               <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">

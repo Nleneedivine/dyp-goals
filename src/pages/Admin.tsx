@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw, Eye, Download } from "lucide-react";
+import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw, Eye, Download, FileText } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import {
@@ -157,63 +158,41 @@ const Admin = () => {
 
   const loadAdminData = async () => {
     try {
-      // Load all users
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [profilesResult, rolesResult, groupsResult, goalsResult] = await Promise.all([
+        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("user_roles").select("*"),
+        supabase.from("accountability_groups").select("*").order("created_at", { ascending: false }),
+        supabase.from("goal_analyses").select("*").order("created_at", { ascending: false }),
+      ]);
 
-      if (profilesError) throw profilesError;
-      setUsers(profilesData || []);
+      if (profilesResult.error) throw profilesResult.error;
+      if (rolesResult.error) throw rolesResult.error;
+      if (groupsResult.error) throw groupsResult.error;
+      if (goalsResult.error) throw goalsResult.error;
 
-      // Load all user roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("*");
+      const profilesData = profilesResult.data ?? [];
+      const rolesData = rolesResult.data ?? [];
+      const groupsData = groupsResult.data ?? [];
+      const goalsData = goalsResult.data ?? [];
 
-      if (rolesError) throw rolesError;
-      setUserRoles(rolesData || []);
+      setUsers(profilesData);
+      setUserRoles(rolesData);
 
-      // Load all accountability groups
-      const { data: groupsData, error: groupsError } = await supabase
-        .from("accountability_groups")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (groupsError) throw groupsError;
-
-      // Add members to each group
-      const groupsWithMembers = (groupsData || []).map((group) => ({
+      const groupsWithMembers = groupsData.map((group) => ({
         ...group,
-        members: (profilesData || []).filter((p) => p.group_id === group.id),
+        members: profilesData.filter((profile) => profile.group_id === group.id),
       }));
-
       setGroups(groupsWithMembers);
 
-      // Load all goals
-      const { data: goalsData, error: goalsError } = await supabase
-        .from("goal_analyses")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (goalsError) throw goalsError;
-
-      // Manually join with profiles
-      const goalsWithProfiles = await Promise.all(
-        (goalsData || []).map(async (goal) => {
-          if (goal.user_id) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("*")
-              .eq("id", goal.user_id)
-              .single();
-            return { ...goal, profiles: profile };
-          }
-          return { ...goal, profiles: null };
-        })
+      // Reuse the profiles we already loaded instead of making one profile
+      // request per goal submission.
+      const profileById = new Map(profilesData.map((profile) => [profile.id, profile]));
+      setGoals(
+        goalsData.map((goal) => ({
+          ...goal,
+          profiles: goal.user_id ? profileById.get(goal.user_id) ?? null : null,
+        }))
       );
-
-      setGoals(goalsWithProfiles);
     } catch (error: any) {
       toast({
         title: "Error loading admin data",
@@ -871,8 +850,16 @@ const Admin = () => {
             </h1>
           </div>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Monitor all user activity, manage profiles, and oversee goal submissions
+            Monitor all user activity, manage profiles, oversee goal submissions, and run program applications.
           </p>
+          <div className="mt-6 flex justify-center">
+            <Button asChild size="lg" variant="outline">
+              <Link to="/admin/forms">
+                <FileText className="mr-2 h-5 w-5" />
+                Forms & Applications
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}

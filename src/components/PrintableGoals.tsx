@@ -1,4 +1,5 @@
 import { CheckCircle2 } from "lucide-react";
+import { stripAIFormatting } from "@/components/AIFormattedText";
 
 interface RefinedGoal {
   title: string;
@@ -55,19 +56,19 @@ export const PrintableGoals = ({ goals, targetYear = new Date().getFullYear() + 
         {goals.map((goal, index) => (
           <div key={index} className="border-l-4 border-pink-500 pl-4 break-inside-avoid">
             <h2 className="text-2xl font-bold text-gray-900 mb-3">
-              Goal {index + 1}: {goal.title}
+              Goal {index + 1}: {stripAIFormatting(goal.title)}
             </h2>
 
             {/* Description */}
             <div className="mb-4">
               <h3 className="text-sm font-bold text-purple-600 mb-2 uppercase">Description</h3>
-              <p className="text-gray-700 leading-relaxed">{goal.description}</p>
+              <p className="text-gray-700 leading-relaxed">{stripAIFormatting(goal.description)}</p>
             </div>
 
             {/* Timeline */}
             <div className="bg-green-50 border-l-4 border-green-500 p-3 mb-4">
               <p className="text-sm font-bold text-green-700">
-                ⏱ Timeline: {goal.timeline}
+                ⏱ Timeline: {stripAIFormatting(goal.timeline)}
               </p>
             </div>
 
@@ -78,7 +79,7 @@ export const PrintableGoals = ({ goals, targetYear = new Date().getFullYear() + 
                 {goal.actionSteps.map((step, stepIndex) => (
                   <div key={stepIndex} className="flex items-start gap-2">
                     <div className="w-4 h-4 border-2 border-purple-600 rounded mt-1 flex-shrink-0" />
-                    <p className="text-sm text-gray-700 flex-1">{step}</p>
+                    <p className="text-sm text-gray-700 flex-1">{stripAIFormatting(step)}</p>
                   </div>
                 ))}
               </div>
@@ -90,7 +91,7 @@ export const PrintableGoals = ({ goals, targetYear = new Date().getFullYear() + 
               <ul className="space-y-1 ml-4">
                 {goal.successMetrics.map((metric, metricIndex) => (
                   <li key={metricIndex} className="text-sm text-gray-600">
-                    • {metric}
+                    • {stripAIFormatting(metric)}
                   </li>
                 ))}
               </ul>

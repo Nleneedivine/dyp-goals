@@ -1,6 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3";
+import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const RequestSchema = z.object({
   action: z.enum(["start", "track", "upload", "submit"]),
@@ -11,7 +12,7 @@ const RequestSchema = z.object({
   fieldId: z.string().uuid().nullable().optional(),
   eventType: z.enum(["view", "focus", "first_input", "change", "blur", "submit"]).optional(),
   elapsedMs: z.number().int().min(0).max(86400000).optional(),
-  answers: z.record(z.union([z.string(), z.number(), z.boolean(), z.array(z.string()), z.null()])).optional(),
+  answers: z.record(z.union([z.string().max(5000), z.number(), z.boolean(), z.array(z.string().max(500)).max(50), z.null()])).optional(),
   timings: z.record(z.object({ firstInputDelayMs: z.number().int().min(0).nullable(), activeTimeMs: z.number().int().min(0).nullable() })).optional(),
   fileName: z.string().trim().min(1).max(180).optional(),
   contentType: z.enum(["application/pdf", "image/jpeg", "image/png", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]).optional(),
@@ -25,6 +26,20 @@ Deno.serve(async (req) => {
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) return respond({ error: "Invalid form request." }, 400);
     const body = parsed.data;
+    const requestLimit = await rateLimit(req, "program-form-public", 120, 60);
+    if (!requestLimit.allowed) return rateLimitResponse(requestLimit.retryAfterSeconds, corsHeaders);
+    if (body.action === "start") {
+      const startLimit = await rateLimit(req, "program-form-start", 20, 600);
+      if (!startLimit.allowed) return rateLimitResponse(startLimit.retryAfterSeconds, corsHeaders);
+    }
+    if (body.action === "upload") {
+      const uploadLimit = await rateLimit(req, "program-form-upload", 20, 600, body.sessionToken ?? undefined);
+      if (!uploadLimit.allowed) return rateLimitResponse(uploadLimit.retryAfterSeconds, corsHeaders);
+    }
+    if (body.action === "submit") {
+      const submitLimit = await rateLimit(req, "program-form-submit", 5, 600, body.sessionToken ?? undefined);
+      if (!submitLimit.allowed) return rateLimitResponse(submitLimit.retryAfterSeconds, corsHeaders);
+    }
     const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
     const { data: form } = await admin.from("program_forms").select("*").eq("id", body.formId).eq("status", "published").maybeSingle();
     const now = Date.now();
@@ -44,7 +59,17 @@ Deno.serve(async (req) => {
       const { data: uploadField } = await admin.from("program_form_fields").select("id,field_type").eq("id", body.fieldId).eq("form_id", form.id).maybeSingle();
       if (!uploadField || uploadField.field_type !== "file") return respond({ error: "This upload field is not valid." }, 400);
       const extension = body.fileName.includes(".") ? body.fileName.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) : "file";
-      const path = `${form.id}/${session.id}/${body.fieldId}-${crypto.randomUUID()}.${extension || "file"}`;
+      const expectedExtensions: Record<string, string[]> = {
+        "application/pdf": ["pdf"],
+        "image/jpeg": ["jpg", "jpeg"],
+        "image/png": ["png"],
+        "application/msword": ["doc"],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ["docx"],
+      };
+      if (!extension || !expectedExtensions[body.contentType]?.includes(extension)) {
+        return respond({ error: "The file extension does not match the selected file type." }, 400);
+      }
+      const path = `${form.id}/${session.id}/${body.fieldId}-${crypto.randomUUID()}.${extension}`;
       const { data, error } = await admin.storage.from("program-form-uploads").createSignedUploadUrl(path);
       if (error) throw error;
       return respond({ path, token: data.token });
@@ -65,6 +90,10 @@ Deno.serve(async (req) => {
     for (const field of fields ?? []) {
       if (field.field_type === "section") continue;
       const value = answers[field.id];
+      if (field.field_type === "file" && typeof value === "string" && value) {
+        const expectedPrefix = `${form.id}/${session.id}/${field.id}-`;
+        if (!value.startsWith(expectedPrefix) || value.includes("..")) return respond({ error: `${field.label} has an invalid upload reference.` }, 400);
+      }
       if (field.required && (value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0))) return respond({ error: `${field.label} is required.` }, 400);
       if (field.field_type === "email" && typeof value === "string" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return respond({ error: `${field.label} must be a valid email address.` }, 400);
       const maxLength = Number((field.validation_rules as Record<string, unknown>)?.maxLength ?? 5000);

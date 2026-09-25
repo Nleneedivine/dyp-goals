@@ -5,3 +5,18 @@ verify_jwt = true
 
 [functions.refine-goals]
 verify_jwt = true
+
+[functions.generate-time-plan]
+verify_jwt = true
+
+[functions.send-todo-reminder]
+verify_jwt = true
+
+[functions.draft-program-form]
+verify_jwt = true
+
+[functions.program-form-public]
+verify_jwt = false
+
+[functions.send-contact-email]
+verify_jwt = false

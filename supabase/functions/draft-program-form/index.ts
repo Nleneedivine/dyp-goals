@@ -1,6 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3";
+import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const BodySchema = z.object({ description: z.string().trim().min(20).max(4000) });
 
@@ -16,6 +17,8 @@ Deno.serve(async (req) => {
     if (!user) return jsonResponse({ error: "Your session has expired." }, 401);
     const { data: isAdmin } = await client.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) return jsonResponse({ error: "Administrator access is required." }, 403);
+    const limit = await rateLimit(req, "draft-program-form", 10, 60, user.id);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) return jsonResponse({ error: "Describe the program in at least 20 characters." }, 400);
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
@@ -53,7 +56,34 @@ Deno.serve(async (req) => {
       }
     }
     if (!text) return jsonResponse({ error: "AI completed without a form draft." }, 502);
-    return jsonResponse({ draft: JSON.parse(text) });
+
+    const DraftSchema = z.object({
+      title: z.string().trim().min(1).max(160),
+      description: z.string().max(3000),
+      fields: z.array(z.object({
+        field_type: z.enum(["text","textarea","email","phone","number","date","dropdown","multi_select","checkbox","radio","file","rating","section"]),
+        label: z.string().trim().min(1).max(180),
+        helper_text: z.string().max(500),
+        placeholder: z.string().max(300),
+        required: z.boolean(),
+        options: z.array(z.string().max(180)).max(30),
+      })).min(1).max(20),
+    });
+
+    let parsedDraft: unknown;
+    try {
+      parsedDraft = JSON.parse(text);
+    } catch {
+      return jsonResponse({ error: "AI returned malformed JSON." }, 502);
+    }
+
+    const draft = DraftSchema.safeParse(parsedDraft);
+    if (!draft.success) {
+      console.error("AI form draft failed schema validation:", draft.error.flatten());
+      return jsonResponse({ error: "AI returned an invalid form draft." }, 502);
+    }
+
+    return jsonResponse({ draft: draft.data });
   } catch (error) {
     return jsonResponse({ error: error instanceof Error ? error.message : "Unable to draft the form." }, 500);
   }

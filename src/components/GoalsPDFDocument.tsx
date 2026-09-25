@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { stripAIFormatting } from '@/components/AIFormattedText';
 
 interface RefinedGoal {
   title: string;
@@ -138,22 +139,22 @@ export const GoalsPDFDocument = ({ goals, userName = 'Goal Achiever', targetYear
         {goals.map((goal, index) => (
           <View key={index} style={styles.goalSection} wrap={false}>
             <Text style={styles.goalTitle}>
-              Goal {index + 1}: {goal.title}
+              Goal {index + 1}: {stripAIFormatting(goal.title)}
             </Text>
 
             {/* Description */}
             <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>{goal.description}</Text>
+            <Text style={styles.description}>{stripAIFormatting(goal.description)}</Text>
 
             {/* Timeline */}
-            <Text style={styles.timeline}>⏱ Timeline: {goal.timeline}</Text>
+            <Text style={styles.timeline}>⏱ Timeline: {stripAIFormatting(goal.timeline)}</Text>
 
             {/* Action Steps with Checkboxes */}
             <Text style={styles.sectionTitle}>Action Steps</Text>
             {goal.actionSteps.map((step, stepIndex) => (
               <View key={stepIndex} style={styles.checkboxContainer}>
                 <View style={styles.checkbox} />
-                <Text style={styles.stepItem}>{step}</Text>
+                <Text style={styles.stepItem}>{stripAIFormatting(step)}</Text>
               </View>
             ))}
 
@@ -161,7 +162,7 @@ export const GoalsPDFDocument = ({ goals, userName = 'Goal Achiever', targetYear
             <Text style={styles.sectionTitle}>Success Metrics</Text>
             {goal.successMetrics.map((metric, metricIndex) => (
               <Text key={metricIndex} style={styles.metricItem}>
-                • {metric}
+                • {stripAIFormatting(metric)}
               </Text>
             ))}
 

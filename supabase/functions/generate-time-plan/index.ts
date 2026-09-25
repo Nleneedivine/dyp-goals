@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { z } from "npm:zod@3";
+import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,9 +23,58 @@ interface QuestionnaireData {
 
 interface RegenerateSectionRequest {
   sectionType: 'yearly' | 'monthly' | 'weekly' | 'daily';
-  currentData: any;
+  currentData: unknown;
   feedback: string;
   goal: string;
+}
+
+const QuestionnaireSchema = z.object({
+  goal: z.string().trim().min(3).max(12000),
+  specificOutcomes: z.string().trim().max(12000),
+  deadline: z.string().trim().min(1).max(120),
+  milestones: z.string().trim().max(12000),
+  hoursPerWeek: z.number().positive().max(168),
+  dailyWeeklyActivities: z.string().trim().max(12000),
+  constraints: z.string().trim().max(12000),
+  wakeTime: z.string().trim().min(1).max(40),
+  sleepTime: z.string().trim().min(1).max(40),
+  weekendPreference: z.enum(["light", "same", "intense"]),
+});
+
+const RegenerateSectionSchema = z.object({
+  sectionType: z.enum(["yearly", "monthly", "weekly", "daily"]),
+  currentData: z.unknown(),
+  feedback: z.string().trim().min(1).max(4000),
+  goal: z.string().trim().min(3).max(12000),
+});
+
+function parseClockMinutes(value: string) {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([ap]m))?$/i);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridiem = match[3]?.toLowerCase();
+
+  if (minute > 59 || hour > 23) return null;
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return null;
+    if (hour === 12) hour = 0;
+    if (meridiem === "pm") hour += 12;
+  }
+
+  return hour * 60 + minute;
+}
+
+function templateGoalHours(template: { timeBlocks: Array<{ startTime: string; endTime: string; isGoalWork?: boolean }> }) {
+  return template.timeBlocks.reduce((total, block) => {
+    if (!block.isGoalWork) return total;
+    const start = parseClockMinutes(block.startTime);
+    const end = parseClockMinutes(block.endTime);
+    if (start === null || end === null) return total;
+    const durationMinutes = end >= start ? end - start : (24 * 60 - start) + end;
+    return total + durationMinutes / 60;
+  }, 0);
 }
 
 serve(async (req) => {
@@ -31,16 +83,45 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const limit = await rateLimit(req, "generate-time-plan", 10, 60, user.id);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
+
     const body = await req.json();
     
     // Check if this is a section regeneration request
-    if (body.regenerateSection) {
-      return handleSectionRegeneration(body.regenerateSection);
+    if (body?.regenerateSection) {
+      const parsedRegeneration = RegenerateSectionSchema.safeParse(body.regenerateSection);
+      if (!parsedRegeneration.success) {
+        return new Response(
+          JSON.stringify({ error: "Invalid section regeneration request" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return handleSectionRegeneration(parsedRegeneration.data);
     }
     
     // Otherwise, handle full plan generation
-    const { questionnaireData } = body as { questionnaireData: QuestionnaireData };
-    return handleFullPlanGeneration(questionnaireData);
+    const parsedQuestionnaire = QuestionnaireSchema.safeParse(body?.questionnaireData);
+    if (!parsedQuestionnaire.success) {
+      return new Response(
+        JSON.stringify({ error: "Invalid time-plan questionnaire" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    return handleFullPlanGeneration(parsedQuestionnaire.data);
     
   } catch (error) {
     console.error("Error generating time plan:", error);
@@ -63,6 +144,7 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
       "quarters": [
         {
           "quarter": 1,
+          "period": "<Month YYYY - Month YYYY>",
           "focus": "string",
           "milestones": ["string"],
           "keyDeadlines": ["string"]
@@ -73,7 +155,7 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
     monthly: `{
       "months": [
         {
-          "month": "January",
+          "month": "<Month YYYY>",
           "focus": "string",
           "goals": ["string"],
           "weeklyHours": number,
@@ -110,7 +192,8 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
             "endTime": "string",
             "activity": "string",
             "category": "string",
-            "notes": "string"
+            "notes": "string",
+            "isGoalWork": true
           }
         ]
       },
@@ -123,14 +206,20 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
             "endTime": "string",
             "activity": "string",
             "category": "string",
-            "notes": "string"
+            "notes": "string",
+            "isGoalWork": true
           }
         ]
       }
     }`,
   };
 
+  const currentDate = new Date().toISOString().slice(0, 10);
+
   const systemPrompt = `You are an expert productivity coach. You need to regenerate a specific section of a time plan based on user feedback.
+
+CURRENT DATE: ${currentDate}
+Never introduce milestones, months, or deadlines before the current date unless the current plan explicitly describes completed historical work.
 
 You MUST respond with valid JSON only. No markdown, no explanations outside the JSON structure.
 
@@ -198,13 +287,78 @@ Please regenerate the ${request.sectionType} plan section incorporating the user
 
   const sectionData = JSON.parse(cleanedContent);
 
+  const timeBlockSchema = z.object({
+    startTime: z.string().min(1),
+    endTime: z.string().min(1),
+    activity: z.string().min(1),
+    category: z.string().min(1),
+    notes: z.string(),
+    isGoalWork: z.boolean().optional(),
+  });
+  const sectionValidators = {
+    yearly: z.object({
+      mainGoal: z.string().min(1),
+      quarters: z.array(z.object({
+        quarter: z.number(),
+        period: z.string().optional(),
+        focus: z.string().min(1),
+        milestones: z.array(z.string()),
+        keyDeadlines: z.array(z.string()),
+      })),
+      annualTargets: z.array(z.string()),
+    }),
+    monthly: z.object({
+      months: z.array(z.object({
+        month: z.string().min(1),
+        focus: z.string().min(1),
+        goals: z.array(z.string()),
+        weeklyHours: z.number().nonnegative(),
+        keyTasks: z.array(z.string()),
+      })),
+    }),
+    weekly: z.object({
+      totalHoursPerWeek: z.number().nonnegative(),
+      weekdayHours: z.number().nonnegative(),
+      weekendHours: z.number().nonnegative(),
+      sampleWeeks: z.array(z.object({
+        weekNumber: z.number(),
+        theme: z.string().min(1),
+        tasks: z.array(z.object({
+          day: z.string().min(1),
+          activities: z.array(z.string()),
+          hours: z.number().nonnegative(),
+        })),
+        weeklyGoal: z.string().min(1),
+      })),
+    }),
+    daily: z.object({
+      weekdayTemplate: z.object({
+        wakeTime: z.string().min(1),
+        sleepTime: z.string().min(1),
+        timeBlocks: z.array(timeBlockSchema),
+      }),
+      weekendTemplate: z.object({
+        wakeTime: z.string().min(1),
+        sleepTime: z.string().min(1),
+        timeBlocks: z.array(timeBlockSchema),
+      }),
+    }),
+  } as const;
+
+  const validatedSection = sectionValidators[request.sectionType].safeParse(sectionData);
+  if (!validatedSection.success) {
+    console.error("AI regenerated section failed schema validation:", validatedSection.error.flatten());
+    throw new Error("AI returned an invalid regenerated plan section");
+  }
+
   return new Response(
-    JSON.stringify({ sectionData }),
+    JSON.stringify({ sectionData: validatedSection.data }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
 
 async function handleFullPlanGeneration(questionnaireData: QuestionnaireData) {
+  const currentDate = new Date().toISOString().slice(0, 10);
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     throw new Error("LOVABLE_API_KEY is not configured");
@@ -213,6 +367,22 @@ async function handleFullPlanGeneration(questionnaireData: QuestionnaireData) {
   const systemPrompt = `You are an expert productivity coach and time management specialist for DYP (Discover Your Purpose). Your role is to create comprehensive, actionable time plans based on user goals and constraints.
 
 You MUST respond with valid JSON only. No markdown, no explanations outside the JSON structure.
+
+DATE RULES:
+- Today's date is ${currentDate}.
+- Planning starts today. Never create future tasks, milestones, months, or deadlines dated before today.
+- Respect the user's stated deadline exactly; do not invent an earlier starting year or describe a longer project duration than the actual remaining time.
+- Monthly plans must include only months from the current month through the deadline, formatted as "Month YYYY".
+- Quarterly sections are planning phases within the remaining time, not automatically Jan-Mar/Apr-Jun/Jul-Sep/Oct-Dec. Include a human-readable "period" for each phase.
+
+TIME-BUDGET RULES:
+- The requested weekly commitment is a hard cap and target.
+- weeklyPlan.totalHoursPerWeek must equal the user's available hours.
+- weekdayHours + weekendHours must equal totalHoursPerWeek.
+- Each sample week's task hours must add up to the weekly commitment.
+- Do not count sleep, meals, classes, leisure, routines, or other life obligations as goal-work hours.
+- In daily time blocks, set "isGoalWork": true only for blocks that directly advance the user's goal; otherwise false.
+- The daily schedule is a realistic template and must not imply more goal-work time than the weekly plan.
 
 Based on the user's goal, questionnaire responses, and constraints, generate a detailed time plan with four tiers:
 
@@ -235,6 +405,7 @@ Response format:
     "quarters": [
       {
         "quarter": 1,
+        "period": "<Month YYYY - Month YYYY>",
         "focus": "string",
         "milestones": ["string"],
         "keyDeadlines": ["string"]
@@ -245,7 +416,7 @@ Response format:
   "monthlyPlan": {
     "months": [
       {
-        "month": "January",
+        "month": "<Month YYYY>",
         "focus": "string",
         "goals": ["string"],
         "weeklyHours": number,
@@ -282,7 +453,8 @@ Response format:
           "endTime": "string",
           "activity": "string",
           "category": "string",
-          "notes": "string"
+          "notes": "string",
+          "isGoalWork": true
         }
       ]
     },
@@ -295,7 +467,8 @@ Response format:
           "endTime": "string",
           "activity": "string",
           "category": "string",
-          "notes": "string"
+          "notes": "string",
+          "isGoalWork": true
         }
       ]
     }
@@ -303,7 +476,7 @@ Response format:
   "summary": {
     "totalWeeklyCommitment": number,
     "estimatedCompletionDate": "string",
-    "keySuccess factors": ["string"],
+    "keySuccessFactors": ["string"],
     "potentialChallenges": ["string"],
     "recommendations": ["string"]
   }
@@ -311,6 +484,7 @@ Response format:
 
   const userPrompt = `Create a comprehensive time plan for the following goal and constraints:
 
+CURRENT DATE: ${currentDate}
 GOAL: ${questionnaireData.goal}
 
 QUESTIONNAIRE RESPONSES:
@@ -329,7 +503,9 @@ Generate a detailed, realistic, and actionable time plan that:
 - Breaks down the goal into manageable chunks
 - Provides clear daily schedules
 - Accounts for rest and breaks
-- Is achievable within the deadline`;
+- Is achievable within the deadline
+- Starts from the current date, never from a past month
+- Uses the exact weekly-hour commitment consistently across summary, monthly, weekly, and daily views`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -386,8 +562,141 @@ Generate a detailed, realistic, and actionable time plan that:
 
   const timePlan = JSON.parse(cleanedContent);
 
+  const TimePlanSchema = z.object({
+    yearlyPlan: z.object({
+      mainGoal: z.string(),
+      quarters: z.array(z.object({
+        quarter: z.number(),
+        period: z.string().optional(),
+        focus: z.string(),
+        milestones: z.array(z.string()),
+        keyDeadlines: z.array(z.string()),
+      })),
+      annualTargets: z.array(z.string()),
+    }),
+    monthlyPlan: z.object({
+      months: z.array(z.object({
+        month: z.string(),
+        focus: z.string(),
+        goals: z.array(z.string()),
+        weeklyHours: z.number().nonnegative(),
+        keyTasks: z.array(z.string()),
+      })),
+    }),
+    weeklyPlan: z.object({
+      totalHoursPerWeek: z.number().nonnegative(),
+      weekdayHours: z.number().nonnegative(),
+      weekendHours: z.number().nonnegative(),
+      sampleWeeks: z.array(z.object({
+        weekNumber: z.number(),
+        theme: z.string(),
+        tasks: z.array(z.object({
+          day: z.string(),
+          activities: z.array(z.string()),
+          hours: z.number().nonnegative(),
+        })),
+        weeklyGoal: z.string(),
+      })),
+    }),
+    dailyPlan: z.object({
+      weekdayTemplate: z.object({
+        wakeTime: z.string(),
+        sleepTime: z.string(),
+        timeBlocks: z.array(z.object({
+          startTime: z.string(),
+          endTime: z.string(),
+          activity: z.string(),
+          category: z.string(),
+          notes: z.string(),
+          isGoalWork: z.boolean().optional(),
+        })),
+      }),
+      weekendTemplate: z.object({
+        wakeTime: z.string(),
+        sleepTime: z.string(),
+        timeBlocks: z.array(z.object({
+          startTime: z.string(),
+          endTime: z.string(),
+          activity: z.string(),
+          category: z.string(),
+          notes: z.string(),
+          isGoalWork: z.boolean().optional(),
+        })),
+      }),
+    }),
+    summary: z.object({
+      totalWeeklyCommitment: z.number().nonnegative(),
+      estimatedCompletionDate: z.string(),
+      keySuccessFactors: z.array(z.string()),
+      potentialChallenges: z.array(z.string()),
+      recommendations: z.array(z.string()),
+    }),
+  });
+  const parsedPlan = TimePlanSchema.safeParse(timePlan);
+  if (!parsedPlan.success) {
+    console.error("AI time plan failed schema validation:", parsedPlan.error.flatten());
+    throw new Error("AI returned an invalid time plan");
+  }
+  const tolerance = 0.01;
+  const expectedWeeklyHours = questionnaireData.hoursPerWeek;
+  const weekly = parsedPlan.data.weeklyPlan;
+
+  if (Math.abs(parsedPlan.data.summary.totalWeeklyCommitment - expectedWeeklyHours) > tolerance) {
+    throw new Error("AI generated a summary with an inconsistent weekly commitment");
+  }
+  if (Math.abs(weekly.totalHoursPerWeek - expectedWeeklyHours) > tolerance) {
+    throw new Error("AI generated a weekly plan with an inconsistent weekly commitment");
+  }
+  if (Math.abs((weekly.weekdayHours + weekly.weekendHours) - expectedWeeklyHours) > tolerance) {
+    throw new Error("AI generated weekday/weekend hours that do not match the weekly commitment");
+  }
+  for (const sampleWeek of weekly.sampleWeeks) {
+    const taskHours = sampleWeek.tasks.reduce((sum, task) => sum + task.hours, 0);
+    if (Math.abs(taskHours - expectedWeeklyHours) > tolerance) {
+      throw new Error(`AI generated Week ${sampleWeek.weekNumber} with ${taskHours} hours instead of ${expectedWeeklyHours}`);
+    }
+  }
+
+  const weekdayGoalHours = templateGoalHours(parsedPlan.data.dailyPlan.weekdayTemplate);
+  const weekendGoalHours = templateGoalHours(parsedPlan.data.dailyPlan.weekendTemplate);
+  const impliedDailyTemplateHours = weekdayGoalHours * 5 + weekendGoalHours * 2;
+  if (impliedDailyTemplateHours > 0 && Math.abs(impliedDailyTemplateHours - expectedWeeklyHours) > 0.25) {
+    throw new Error(
+      `AI daily templates imply ${impliedDailyTemplateHours.toFixed(2)} goal-work hours per week instead of ${expectedWeeklyHours}`,
+    );
+  }
+  const currentMonthStart = Date.parse(`${currentDate.slice(0, 7)}-01T00:00:00Z`);
+  const deadline = Date.parse(questionnaireData.deadline);
+  const deadlineDate = Number.isFinite(deadline) ? new Date(deadline) : null;
+  const deadlineMonthStart = deadlineDate
+    ? Date.UTC(deadlineDate.getUTCFullYear(), deadlineDate.getUTCMonth(), 1)
+    : null;
+
+  for (const month of parsedPlan.data.monthlyPlan.months) {
+    if (month.weeklyHours - expectedWeeklyHours > tolerance) {
+      throw new Error(`AI generated ${month.month} above the available weekly hours`);
+    }
+
+    const monthStart = Date.parse(`1 ${month.month} UTC`);
+    if (Number.isFinite(monthStart) && monthStart < currentMonthStart) {
+      throw new Error(`AI generated a past planning month: ${month.month}`);
+    }
+    if (deadlineMonthStart !== null && Number.isFinite(monthStart) && monthStart > deadlineMonthStart) {
+      throw new Error(`AI generated ${month.month} after the user's deadline`);
+    }
+  }
+
+  const estimated = Date.parse(parsedPlan.data.summary.estimatedCompletionDate);
+  const today = Date.parse(currentDate);
+  if (Number.isFinite(estimated) && estimated < today) {
+    throw new Error("AI generated an estimated completion date in the past");
+  }
+  if (Number.isFinite(deadline) && Number.isFinite(estimated) && estimated > deadline) {
+    throw new Error("AI generated an estimated completion date after the user's deadline");
+  }
+
   return new Response(
-    JSON.stringify({ timePlan }),
+    JSON.stringify({ timePlan: parsedPlan.data }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }

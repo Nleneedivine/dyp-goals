@@ -43,8 +43,10 @@ serve(async (req) => {
     const limit = await rateLimit(req, "analyze-goals", 10, 60, user.id);
     if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
 
+    const currentYear = new Date().getUTCFullYear();
     const RequestSchema = z.object({
       goals: z.string().trim().min(3).max(12000),
+      targetYear: z.number().int().min(currentYear).max(currentYear + 10).optional(),
     });
     const requestBody = RequestSchema.safeParse(await req.json());
     if (!requestBody.success) {
@@ -54,7 +56,8 @@ serve(async (req) => {
       );
     }
 
-    const { goals } = requestBody.data;
+    const { goals, targetYear } = requestBody.data;
+    const currentDate = new Date().toISOString().slice(0, 10);
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -65,7 +68,15 @@ serve(async (req) => {
 
     const systemPrompt = `You are the DYP AI Coach - an expert goal-setting assistant specializing in helping youth and young adults create SMART goals (Specific, Measurable, Achievable, Relevant, Time-bound).
 
+CURRENT DATE: ${currentDate}
+TARGET YEAR: ${targetYear ?? "not explicitly selected"}
+
 Your task is to analyze the user's goals and provide structured feedback in JSON format.
+
+DATE RULES:
+- Never suggest an action, milestone, or deadline in the past relative to CURRENT DATE.
+- If the user explicitly gives a deadline, preserve it unless clarification is required.
+- If TARGET YEAR is supplied, keep suggested timelines aligned with it unless the user's explicit deadline says otherwise.
 
 Return a JSON object with this exact structure:
 {
@@ -88,7 +99,12 @@ IMPORTANT:
 - Provide 2-3 specific questions per goal
 - Make improved versions actionable and inspiring`;
 
-    const userPrompt = `Analyze these goals and return structured JSON as specified:\n\n${goals}`;
+    const userPrompt = `Current date: ${currentDate}
+Target year: ${targetYear ?? "not explicitly selected"}
+
+Analyze these goals and return structured JSON as specified:
+
+${goals}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
