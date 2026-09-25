@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare, ClipboardList } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users, Clock, ChevronDown, Wrench, Settings, CheckSquare, ClipboardList, ArrowRight } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,6 +151,13 @@ const Navbar = () => {
                 {item.name}
               </Link>
             ))}
+
+            <Button asChild size="sm" className="font-semibold">
+              <Link to="/apply/goals-masterclass-2026">
+                Register
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
 
             {/* Tools Dropdown */}
             <DropdownMenu>
