@@ -143,7 +143,7 @@ const AIGoalsReview = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('analyze-goals', {
-        body: { goals }
+        body: { goals, targetYear }
       });
 
       if (error) throw error;
