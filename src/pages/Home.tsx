@@ -6,7 +6,6 @@ import { Target, Calendar, Users, Sparkles, Trophy, Clock, ArrowRight, CheckCirc
 import heroImage from "@/assets/hero-bg.jpg";
 import goalSettingGuide from "@/assets/goal-setting-guide.png";
 import timeManagement from "@/assets/time-management.png";
-import { getEventTimeDisplay } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProgramForm } from "@/lib/formTypes";
 import { eventBenefits, formatEventDate, formatNaira, type ProgramEvent } from "@/lib/event";
