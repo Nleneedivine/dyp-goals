@@ -56,6 +56,6 @@ begin
     (v_form_id, 'dropdown', 'How did you hear about DYP GOALS?', '', 'Select one', true, 9, '["WhatsApp","Instagram","Facebook","LinkedIn","Friend / referral","School / campus","Other"]'::jsonb),
     (v_form_id, 'section', 'Registration', '', '', true, 10, '[]'::jsonb),
     (v_form_id, 'radio', 'Current registration fee', 'The original price is NGN 35,000. The current discounted price is NGN 5,000.', 'Select one', true, 11, '["NGN 5,000 discounted registration"]'::jsonb),
-    (v_form_id, 'checkbox', 'I understand the program dates', 'The master class runs from 27–29 November 2026.', '', true, 12, '["Yes, I understand"]'::jsonb),
-    (v_form_id, 'checkbox', 'I agree to receive DYP GOALS program updates', 'We will use your contact details to communicate registration and program information.', '', true, 13, '["Yes, I agree"]'::jsonb);
+    (v_form_id, 'checkbox', 'I understand the program dates', 'The master class runs from 27–29 November 2026.', 'Yes, I understand', true, 12, '["Yes, I understand"]'::jsonb),
+    (v_form_id, 'checkbox', 'I agree to receive DYP GOALS program updates', 'We will use your contact details to communicate registration and program information.', 'Yes, I agree', true, 13, '["Yes, I agree"]'::jsonb);
 end $$;
