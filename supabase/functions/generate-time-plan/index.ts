@@ -23,10 +23,30 @@ interface QuestionnaireData {
 
 interface RegenerateSectionRequest {
   sectionType: 'yearly' | 'monthly' | 'weekly' | 'daily';
-  currentData: any;
+  currentData: unknown;
   feedback: string;
   goal: string;
 }
+
+const QuestionnaireSchema = z.object({
+  goal: z.string().trim().min(3).max(12000),
+  specificOutcomes: z.string().trim().max(12000),
+  deadline: z.string().trim().min(1).max(120),
+  milestones: z.string().trim().max(12000),
+  hoursPerWeek: z.number().positive().max(168),
+  dailyWeeklyActivities: z.string().trim().max(12000),
+  constraints: z.string().trim().max(12000),
+  wakeTime: z.string().trim().min(1).max(40),
+  sleepTime: z.string().trim().min(1).max(40),
+  weekendPreference: z.enum(["light", "same", "intense"]),
+});
+
+const RegenerateSectionSchema = z.object({
+  sectionType: z.enum(["yearly", "monthly", "weekly", "daily"]),
+  currentData: z.unknown(),
+  feedback: z.string().trim().min(1).max(4000),
+  goal: z.string().trim().min(3).max(12000),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -53,13 +73,26 @@ serve(async (req) => {
     const body = await req.json();
     
     // Check if this is a section regeneration request
-    if (body.regenerateSection) {
-      return handleSectionRegeneration(body.regenerateSection);
+    if (body?.regenerateSection) {
+      const parsedRegeneration = RegenerateSectionSchema.safeParse(body.regenerateSection);
+      if (!parsedRegeneration.success) {
+        return new Response(
+          JSON.stringify({ error: "Invalid section regeneration request" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return handleSectionRegeneration(parsedRegeneration.data);
     }
     
     // Otherwise, handle full plan generation
-    const { questionnaireData } = body as { questionnaireData: QuestionnaireData };
-    return handleFullPlanGeneration(questionnaireData);
+    const parsedQuestionnaire = QuestionnaireSchema.safeParse(body?.questionnaireData);
+    if (!parsedQuestionnaire.success) {
+      return new Response(
+        JSON.stringify({ error: "Invalid time-plan questionnaire" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    return handleFullPlanGeneration(parsedQuestionnaire.data);
     
   } catch (error) {
     console.error("Error generating time plan:", error);
@@ -93,7 +126,7 @@ async function handleSectionRegeneration(request: RegenerateSectionRequest) {
     monthly: `{
       "months": [
         {
-          "month": "January",
+          "month": "September 2026",
           "focus": "string",
           "goals": ["string"],
           "weeklyHours": number,
