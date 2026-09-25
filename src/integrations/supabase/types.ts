@@ -214,6 +214,147 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_effort_periods: {
+        Row: {
+          created_at: string
+          end_date: string
+          goal_id: string
+          hours_per_week: number
+          id: string
+          label: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          goal_id: string
+          hours_per_week: number
+          id?: string
+          label?: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          goal_id?: string
+          hours_per_week?: number
+          id?: string
+          label?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_effort_periods_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_milestones: {
+        Row: {
+          created_at: string
+          display_order: number
+          due_date: string | null
+          goal_id: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          due_date?: string | null
+          goal_id: string
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          due_date?: string | null
+          goal_id?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          created_at: string
+          description: string
+          end_date: string | null
+          estimated_hours_per_week: number
+          id: string
+          life_area: string
+          priority: string
+          source_analysis_id: string | null
+          start_date: string | null
+          status: string
+          success_definition: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          end_date?: string | null
+          estimated_hours_per_week?: number
+          id?: string
+          life_area?: string
+          priority?: string
+          source_analysis_id?: string | null
+          start_date?: string | null
+          status?: string
+          success_definition?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          end_date?: string | null
+          estimated_hours_per_week?: number
+          id?: string
+          life_area?: string
+          priority?: string
+          source_analysis_id?: string | null
+          start_date?: string | null
+          status?: string
+          success_definition?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_source_analysis_id_fkey"
+            columns: ["source_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "goal_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mentorship_requests: {
         Row: {
           areas: string
