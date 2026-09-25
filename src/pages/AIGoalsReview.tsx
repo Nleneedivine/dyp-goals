@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { pdf } from "@react-pdf/renderer";
 import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
 import { PrintableGoals } from "@/components/PrintableGoals";
+import { AIFormattedText } from "@/components/AIFormattedText";
 import {
   Select,
   SelectContent,
@@ -404,7 +405,7 @@ const AIGoalsReview = () => {
 
                     {/* General Advice */}
                     <div className="bg-muted/30 rounded-lg p-4">
-                      <p className="text-sm text-foreground">{analysis.generalAdvice}</p>
+                      <p className="text-sm text-foreground"><AIFormattedText text={analysis.generalAdvice} /></p>
                     </div>
                   </div>
                 )}
@@ -440,7 +441,7 @@ const AIGoalsReview = () => {
                       <Lightbulb className="h-4 w-4" />
                       Feedback
                     </h4>
-                    <p className="text-foreground">{goal.feedback}</p>
+                    <p className="text-foreground"><AIFormattedText text={goal.feedback} /></p>
                   </div>
 
                   {/* Improved Version */}
@@ -449,7 +450,7 @@ const AIGoalsReview = () => {
                       <CheckCircle2 className="h-4 w-4" />
                       SMART Version
                     </h4>
-                    <p className="text-foreground font-medium">{goal.improvedVersion}</p>
+                    <p className="text-foreground font-medium"><AIFormattedText text={goal.improvedVersion} /></p>
                   </div>
 
                   {/* Questions */}
@@ -464,7 +465,7 @@ const AIGoalsReview = () => {
                         return (
                           <div key={qIndex} className="space-y-2">
                             <Label htmlFor={`q-${questionId}`} className="text-foreground">
-                              • {question}
+                              • <AIFormattedText text={question} />
                             </Label>
                             <Input
                               id={`q-${questionId}`}
@@ -551,7 +552,7 @@ const AIGoalsReview = () => {
                   <CardContent className="space-y-6 pt-6">
                     <div>
                       <h4 className="font-semibold text-primary mb-2">Description</h4>
-                      <p className="text-foreground">{goal.description}</p>
+                      <p className="text-foreground"><AIFormattedText text={goal.description} /></p>
                     </div>
 
                     <div>
@@ -560,7 +561,7 @@ const AIGoalsReview = () => {
                         {goal.actionSteps.map((step, i) => (
                           <li key={i} className="flex items-start gap-2">
                             <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                            <span className="text-foreground">{step}</span>
+                            <span className="text-foreground"><AIFormattedText text={step} /></span>
                           </li>
                         ))}
                       </ul>
@@ -569,13 +570,13 @@ const AIGoalsReview = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-muted/30 rounded-lg p-4">
                         <h4 className="font-semibold text-accent mb-2">Timeline</h4>
-                        <p className="text-foreground">{goal.timeline}</p>
+                        <p className="text-foreground"><AIFormattedText text={goal.timeline} /></p>
                       </div>
                       <div className="bg-muted/30 rounded-lg p-4">
                         <h4 className="font-semibold text-accent mb-2">Success Metrics</h4>
                         <ul className="space-y-1">
                           {goal.successMetrics.map((metric, i) => (
-                            <li key={i} className="text-foreground text-sm">• {metric}</li>
+                            <li key={i} className="text-foreground text-sm">• <AIFormattedText text={metric} /></li>
                           ))}
                         </ul>
                       </div>
