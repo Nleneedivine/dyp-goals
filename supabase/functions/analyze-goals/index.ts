@@ -43,7 +43,18 @@ serve(async (req) => {
     const limit = await rateLimit(req, "analyze-goals", 10, 60, user.id);
     if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
 
-    const { goals } = await req.json();
+    const RequestSchema = z.object({
+      goals: z.string().trim().min(3).max(12000),
+    });
+    const requestBody = RequestSchema.safeParse(await req.json());
+    if (!requestBody.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid goals input' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { goals } = requestBody.data;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
