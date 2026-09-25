@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY_1") ?? Deno.env.get("RESEND_API_KEY");
@@ -33,7 +34,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const limit = await rateLimit(req, "send-contact-email", 5, 3600);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);\n\n    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
     const body = (await req.json()) as ContactRequest;
