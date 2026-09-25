@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.refine-goals]
 verify_jwt = true
+
+[functions.generate-time-plan]
+verify_jwt = true
+
+[functions.send-todo-reminder]
+verify_jwt = true
