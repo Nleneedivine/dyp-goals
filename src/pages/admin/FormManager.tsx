@@ -21,21 +21,35 @@ export default function FormManager() {
 
   const load = async () => {
     const { data, error } = await supabase.from("program_forms").select("*").order("updated_at", { ascending: false });
-    if (error) toast({ title: "Forms could not be loaded", description: error.message, variant: "destructive" });
-    setForms((data ?? []) as ProgramForm[]);
-    const formIds = (data ?? []).map((form) => form.id);
-    if (formIds.length) {
-      const [{ data: sessions }, { data: submissions }] = await Promise.all([
-        supabase.from("program_form_sessions").select("form_id").in("form_id", formIds),
-        supabase.from("program_form_submissions").select("form_id").in("form_id", formIds),
-      ]);
-      const totals: Record<string, { visits: number; submissions: number }> = {};
-      formIds.forEach((id) => { totals[id] = { visits: 0, submissions: 0 }; });
-      sessions?.forEach((row) => { if (totals[row.form_id]) totals[row.form_id].visits += 1; });
-      submissions?.forEach((row) => { if (totals[row.form_id]) totals[row.form_id].submissions += 1; });
-      setPerformance(totals);
+    if (error) {
+      toast({ title: "Forms could not be loaded", description: error.message, variant: "destructive" });
+      setLoading(false);
+      return;
     }
+
+    const loadedForms = (data ?? []) as ProgramForm[];
+    setForms(loadedForms);
+
+    // Render the form list immediately. Performance metrics can arrive
+    // afterwards without blocking the whole page.
     setLoading(false);
+
+    const formIds = loadedForms.map((form) => form.id);
+    if (!formIds.length) {
+      setPerformance({});
+      return;
+    }
+
+    const [{ data: sessions }, { data: submissions }] = await Promise.all([
+      supabase.from("program_form_sessions").select("form_id").in("form_id", formIds),
+      supabase.from("program_form_submissions").select("form_id").in("form_id", formIds),
+    ]);
+
+    const totals: Record<string, { visits: number; submissions: number }> = {};
+    formIds.forEach((id) => { totals[id] = { visits: 0, submissions: 0 }; });
+    sessions?.forEach((row) => { if (totals[row.form_id]) totals[row.form_id].visits += 1; });
+    submissions?.forEach((row) => { if (totals[row.form_id]) totals[row.form_id].submissions += 1; });
+    setPerformance(totals);
   };
   useEffect(() => { void load(); }, []);
 
