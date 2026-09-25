@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { z } from "npm:zod@3";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY_1") ?? Deno.env.get("RESEND_API_KEY");
@@ -39,11 +40,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface ReminderRequest {
-  taskName: string;
-  taskTime: string;
-  taskDate: string;
-}
+const ReminderSchema = z.object({
+  taskName: z.string().trim().min(1).max(200),
+  taskTime: z.string().trim().min(1).max(80),
+  taskDate: z.string().trim().min(1).max(80),
+});
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -64,7 +65,9 @@ const handler = async (req: Request): Promise<Response> => {
     const limit = await rateLimit(req, "send-todo-reminder", 10, 3600, user.id);
     if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
 
-    const { taskName, taskTime, taskDate } = await req.json();
+    const parsed = ReminderSchema.safeParse(await req.json());
+    if (!parsed.success) return new Response(JSON.stringify({ error: "Invalid reminder request" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    const { taskName, taskTime, taskDate } = parsed.data;
     const email = user.email ?? "";
 
     if (!email || !taskName || !taskTime) {
