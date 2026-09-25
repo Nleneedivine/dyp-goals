@@ -258,8 +258,72 @@ Please regenerate the ${request.sectionType} plan section incorporating the user
 
   const sectionData = JSON.parse(cleanedContent);
 
+  const timeBlockSchema = z.object({
+    startTime: z.string().min(1),
+    endTime: z.string().min(1),
+    activity: z.string().min(1),
+    category: z.string().min(1),
+    notes: z.string(),
+    isGoalWork: z.boolean().optional(),
+  });
+  const sectionValidators = {
+    yearly: z.object({
+      mainGoal: z.string().min(1),
+      quarters: z.array(z.object({
+        quarter: z.number(),
+        period: z.string().optional(),
+        focus: z.string().min(1),
+        milestones: z.array(z.string()),
+        keyDeadlines: z.array(z.string()),
+      })),
+      annualTargets: z.array(z.string()),
+    }),
+    monthly: z.object({
+      months: z.array(z.object({
+        month: z.string().min(1),
+        focus: z.string().min(1),
+        goals: z.array(z.string()),
+        weeklyHours: z.number().nonnegative(),
+        keyTasks: z.array(z.string()),
+      })),
+    }),
+    weekly: z.object({
+      totalHoursPerWeek: z.number().nonnegative(),
+      weekdayHours: z.number().nonnegative(),
+      weekendHours: z.number().nonnegative(),
+      sampleWeeks: z.array(z.object({
+        weekNumber: z.number(),
+        theme: z.string().min(1),
+        tasks: z.array(z.object({
+          day: z.string().min(1),
+          activities: z.array(z.string()),
+          hours: z.number().nonnegative(),
+        })),
+        weeklyGoal: z.string().min(1),
+      })),
+    }),
+    daily: z.object({
+      weekdayTemplate: z.object({
+        wakeTime: z.string().min(1),
+        sleepTime: z.string().min(1),
+        timeBlocks: z.array(timeBlockSchema),
+      }),
+      weekendTemplate: z.object({
+        wakeTime: z.string().min(1),
+        sleepTime: z.string().min(1),
+        timeBlocks: z.array(timeBlockSchema),
+      }),
+    }),
+  } as const;
+
+  const validatedSection = sectionValidators[request.sectionType].safeParse(sectionData);
+  if (!validatedSection.success) {
+    console.error("AI regenerated section failed schema validation:", validatedSection.error.flatten());
+    throw new Error("AI returned an invalid regenerated plan section");
+  }
+
   return new Response(
-    JSON.stringify({ sectionData }),
+    JSON.stringify({ sectionData: validatedSection.data }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
@@ -563,13 +627,27 @@ Generate a detailed, realistic, and actionable time plan that:
       throw new Error(`AI generated Week ${sampleWeek.weekNumber} with ${taskHours} hours instead of ${expectedWeeklyHours}`);
     }
   }
+  const currentMonthStart = Date.parse(`${currentDate.slice(0, 7)}-01T00:00:00Z`);
+  const deadline = Date.parse(questionnaireData.deadline);
+  const deadlineDate = Number.isFinite(deadline) ? new Date(deadline) : null;
+  const deadlineMonthStart = deadlineDate
+    ? Date.UTC(deadlineDate.getUTCFullYear(), deadlineDate.getUTCMonth(), 1)
+    : null;
+
   for (const month of parsedPlan.data.monthlyPlan.months) {
     if (month.weeklyHours - expectedWeeklyHours > tolerance) {
       throw new Error(`AI generated ${month.month} above the available weekly hours`);
     }
+
+    const monthStart = Date.parse(`1 ${month.month} UTC`);
+    if (Number.isFinite(monthStart) && monthStart < currentMonthStart) {
+      throw new Error(`AI generated a past planning month: ${month.month}`);
+    }
+    if (deadlineMonthStart !== null && Number.isFinite(monthStart) && monthStart > deadlineMonthStart) {
+      throw new Error(`AI generated ${month.month} after the user's deadline`);
+    }
   }
 
-  const deadline = Date.parse(questionnaireData.deadline);
   const estimated = Date.parse(parsedPlan.data.summary.estimatedCompletionDate);
   const today = Date.parse(currentDate);
   if (Number.isFinite(estimated) && estimated < today) {
