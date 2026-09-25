@@ -52,7 +52,17 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, taskName, taskTime, taskDate }: ReminderRequest = await req.json();
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return new Response(JSON.stringify({ error: "Missing authorization header" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    const authClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+
+    const limit = await rateLimit(req, "send-todo-reminder", 10, 3600, user.id);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
+
+    const { taskName, taskTime, taskDate } = await req.json();
+    const email = user.email ?? "";
 
     if (!email || !taskName || !taskTime) {
       return new Response(
