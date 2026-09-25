@@ -405,8 +405,84 @@ Generate a detailed, realistic, and actionable time plan that:
 
   const timePlan = JSON.parse(cleanedContent);
 
+  const TimePlanSchema = z.object({
+    yearlyPlan: z.object({
+      mainGoal: z.string(),
+      quarters: z.array(z.object({
+        quarter: z.number(),
+        focus: z.string(),
+        milestones: z.array(z.string()),
+        keyDeadlines: z.array(z.string()),
+      })),
+      annualTargets: z.array(z.string()),
+    }),
+    monthlyPlan: z.object({
+      months: z.array(z.object({
+        month: z.string(),
+        focus: z.string(),
+        goals: z.array(z.string()),
+        weeklyHours: z.number().nonnegative(),
+        keyTasks: z.array(z.string()),
+      })),
+    }),
+    weeklyPlan: z.object({
+      totalHoursPerWeek: z.number().nonnegative(),
+      weekdayHours: z.number().nonnegative(),
+      weekendHours: z.number().nonnegative(),
+      sampleWeeks: z.array(z.object({
+        weekNumber: z.number(),
+        theme: z.string(),
+        tasks: z.array(z.object({
+          day: z.string(),
+          activities: z.array(z.string()),
+          hours: z.number().nonnegative(),
+        })),
+        weeklyGoal: z.string(),
+      })),
+    }),
+    dailyPlan: z.object({
+      weekdayTemplate: z.object({
+        wakeTime: z.string(),
+        sleepTime: z.string(),
+        timeBlocks: z.array(z.object({
+          startTime: z.string(),
+          endTime: z.string(),
+          activity: z.string(),
+          category: z.string(),
+          notes: z.string(),
+        })),
+      }),
+      weekendTemplate: z.object({
+        wakeTime: z.string(),
+        sleepTime: z.string(),
+        timeBlocks: z.array(z.object({
+          startTime: z.string(),
+          endTime: z.string(),
+          activity: z.string(),
+          category: z.string(),
+          notes: z.string(),
+        })),
+      }),
+    }),
+    summary: z.object({
+      totalWeeklyCommitment: z.number().nonnegative(),
+      estimatedCompletionDate: z.string(),
+      keySuccessFactors: z.array(z.string()),
+      potentialChallenges: z.array(z.string()),
+      recommendations: z.array(z.string()),
+    }),
+  });
+  const parsedPlan = TimePlanSchema.safeParse(timePlan);
+  if (!parsedPlan.success) {
+    console.error("AI time plan failed schema validation:", parsedPlan.error.flatten());
+    throw new Error("AI returned an invalid time plan");
+  }
+  if (parsedPlan.data.summary.totalWeeklyCommitment > questionnaireData.hoursPerWeek) {
+    throw new Error("AI generated a plan that exceeds the available weekly hours");
+  }
+
   return new Response(
-    JSON.stringify({ timePlan }),
+    JSON.stringify({ timePlan: parsedPlan.data }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
