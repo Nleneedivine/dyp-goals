@@ -47,6 +47,7 @@ serve(async (req) => {
     const RequestSchema = z.object({
       goals: z.string().trim().min(3).max(12000),
       targetYear: z.number().int().min(currentYear).max(currentYear + 10).optional(),
+      planningStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     });
     const requestBody = RequestSchema.safeParse(await req.json());
     if (!requestBody.success) {
@@ -56,8 +57,14 @@ serve(async (req) => {
       );
     }
 
-    const { goals, targetYear } = requestBody.data;
+    const { goals, targetYear, planningStartDate } = requestBody.data;
     const currentDate = new Date().toISOString().slice(0, 10);
+    if (planningStartDate && planningStartDate < currentDate) {
+      return new Response(
+        JSON.stringify({ error: 'Preferred start date cannot be in the past' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -70,11 +77,15 @@ serve(async (req) => {
 
 CURRENT DATE: ${currentDate}
 TARGET YEAR: ${targetYear ?? "not explicitly selected"}
+PREFERRED PLANNING START DATE: ${planningStartDate ?? "not specified; choose a realistic future start"}
 
 Your task is to analyze the user's goals and provide structured feedback in JSON format.
 
 DATE RULES:
 - Never suggest an action, milestone, or deadline in the past relative to CURRENT DATE.
+- A future goal does not have to begin immediately just because CURRENT DATE is now.
+- If PREFERRED PLANNING START DATE is provided, do not suggest execution steps before that date.
+- If no preferred start date is provided, choose a realistic start date on or after CURRENT DATE based on the goal, deadline, and required effort.
 - If the user explicitly gives a deadline, preserve it unless clarification is required.
 - If TARGET YEAR is supplied, keep suggested timelines aligned with it unless the user's explicit deadline says otherwise.
 
@@ -95,12 +106,14 @@ Return a JSON object with this exact structure:
 
 IMPORTANT: 
 - Return ONLY valid JSON, no markdown, no explanations
+- Do not use markdown formatting characters such as **, __, or backticks inside any JSON string value
 - Be encouraging and youth-friendly
 - Provide 2-3 specific questions per goal
 - Make improved versions actionable and inspiring`;
 
     const userPrompt = `Current date: ${currentDate}
 Target year: ${targetYear ?? "not explicitly selected"}
+Preferred planning start date: ${planningStartDate ?? "not specified"}
 
 Analyze these goals and return structured JSON as specified:
 

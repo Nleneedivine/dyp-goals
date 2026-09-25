@@ -46,6 +46,7 @@ const AIGoalsReview = () => {
   const currentYear = new Date().getFullYear();
   const [goals, setGoals] = useState("");
   const [targetYear, setTargetYear] = useState<number>(currentYear + 1);
+  const [planningStartDate, setPlanningStartDate] = useState("");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [responses, setResponses] = useState<Record<number, string>>({});
@@ -143,7 +144,7 @@ const AIGoalsReview = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('analyze-goals', {
-        body: { goals, targetYear }
+        body: { goals, targetYear, planningStartDate: planningStartDate || undefined }
       });
 
       if (error) throw error;
@@ -210,7 +211,8 @@ const AIGoalsReview = () => {
           originalGoals: goals,
           questions: allQuestions,
           responses: allResponses,
-          targetYear
+          targetYear,
+          planningStartDate: planningStartDate || undefined
         }
       });
 
@@ -323,6 +325,23 @@ const AIGoalsReview = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="planningStartDate" className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  Preferred start date <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="planningStartDate"
+                  type="date"
+                  min={new Date().toISOString().slice(0, 10)}
+                  value={planningStartDate}
+                  onChange={(e) => setPlanningStartDate(e.target.value)}
+                  className="bg-background max-w-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use this when you are planning ahead. Leave it blank if you want the AI Coach to choose a realistic start date that is not in the past.
+                </p>
               </div>
               <Textarea
                 value={goals}
@@ -607,7 +626,7 @@ const AIGoalsReview = () => {
             },
             {
               title: "Action Plans",
-              description: "Receive comprehensive action plans with clear steps you can start implementing today.",
+              description: "Receive comprehensive action plans with clear steps sequenced from your chosen or recommended start date.",
               color: "from-accent to-primary",
             },
           ].map((item, index) => (

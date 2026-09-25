@@ -49,6 +49,7 @@ serve(async (req) => {
       questions: z.array(z.string().trim().min(1).max(1500)).max(100),
       responses: z.array(z.string().trim().min(1).max(4000)).max(100),
       targetYear: z.number().int().min(currentYear).max(currentYear + 10).optional(),
+      planningStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     }).refine((value) => value.questions.length === value.responses.length, {
       message: "Each clarification question must have a response",
     });
@@ -61,8 +62,14 @@ serve(async (req) => {
       );
     }
 
-    const { originalGoals, questions, responses, targetYear } = parsedRequest.data;
+    const { originalGoals, questions, responses, targetYear, planningStartDate } = parsedRequest.data;
     const currentDate = new Date().toISOString().slice(0, 10);
+    if (planningStartDate && planningStartDate < currentDate) {
+      return new Response(
+        JSON.stringify({ error: 'Preferred start date cannot be in the past' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -75,16 +82,20 @@ serve(async (req) => {
 
 CURRENT DATE: ${currentDate}
 TARGET YEAR: ${targetYear ?? "not explicitly selected"}
+PREFERRED PLANNING START DATE: ${planningStartDate ?? "not specified; choose a realistic future start"}
 
 Based on the original goals and the user's responses to your questions, create a refined, comprehensive goal plan.
 
 DATE RULES:
 - Never create an action step, milestone, or deadline in the past relative to CURRENT DATE.
+- A future goal may intentionally begin later than CURRENT DATE.
+- If PREFERRED PLANNING START DATE is provided, the first execution step must be on or after that date.
+- If no preferred start date is provided, choose a realistic start date on or after CURRENT DATE based on the deadline and required effort; do not automatically force the first step into the current month.
 - If the user supplied a deadline, preserve it unless their clarification explicitly changes it.
 - If TARGET YEAR is supplied, keep the plan aligned with that year while still respecting any explicit deadline the user wrote.
-- Begin action steps from the current date forward; do not fabricate historical work.
-- Sequence steps realistically within the remaining time.
-- Use specific dates only when useful; otherwise use clear future periods such as "October 2026".
+- Do not fabricate historical work.
+- Sequence steps realistically within the available planning window.
+- Use specific dates only when useful; otherwise use clear future periods such as "November 2026".
 - Do not claim the project has been underway for months or years unless the user actually said so.
 
 Return a JSON object with this structure:
@@ -101,10 +112,12 @@ Return a JSON object with this structure:
   "nextSteps": "<encouraging message about implementing these goals>"
 }
 
-Be specific, actionable, and inspiring. Focus on making goals achievable for youth and young adults.`;
+Be specific, actionable, and inspiring. Focus on making goals achievable for youth and young adults.
+Do not use markdown formatting characters such as **, __, or backticks inside any JSON string value.`;
 
     const userPrompt = `Current date: ${currentDate}
 Target year: ${targetYear ?? "not explicitly selected"}
+Preferred planning start date: ${planningStartDate ?? "not specified"}
 
 Original goals: ${originalGoals}
 
