@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { z } from "npm:zod@3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,7 +40,21 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    const { goals } = await req.json();
+    const limit = await rateLimit(req, "analyze-goals", 10, 60, user.id);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
+
+    const RequestSchema = z.object({
+      goals: z.string().trim().min(3).max(12000),
+    });
+    const requestBody = RequestSchema.safeParse(await req.json());
+    if (!requestBody.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid goals input' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { goals } = requestBody.data;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {
@@ -121,10 +137,24 @@ IMPORTANT:
       throw new Error('AI returned invalid format');
     }
 
-    console.log('Analysis complete');
+    const AnalysisSchema = z.object({
+      overallScore: z.number().min(0).max(100),
+      goals: z.array(z.object({
+        originalGoal: z.string(),
+        score: z.number().min(0).max(100),
+        feedback: z.string(),
+        questions: z.array(z.string()).max(3),
+        improvedVersion: z.string(),
+      })),
+      generalAdvice: z.string(),
+    });
+    const validated = AnalysisSchema.safeParse(analysis);
+    if (!validated.success) throw new Error("AI returned an invalid goal analysis");
+
+    console.log("Analysis complete");
 
     return new Response(
-      JSON.stringify({ analysis }),
+      JSON.stringify({ analysis: validated.data }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
