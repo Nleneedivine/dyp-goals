@@ -149,16 +149,16 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
-AS $$
+AS $
   SELECT
-    (_user_id = auth.uid() OR auth.role() = 'service_role')
+    _user_id = auth.uid()
     AND EXISTS (
       SELECT 1
       FROM public.user_roles
       WHERE user_id = _user_id
         AND role = _role
     )
-$$;
+$;
 
 CREATE OR REPLACE FUNCTION public.get_user_role(_user_id uuid)
 RETURNS public.app_role
