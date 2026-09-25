@@ -23,7 +23,7 @@ interface QuestionnaireData {
 
 interface RegenerateSectionRequest {
   sectionType: 'yearly' | 'monthly' | 'weekly' | 'daily';
-  currentData: unknown;
+  currentData?: unknown;
   feedback: string;
   goal: string;
 }
