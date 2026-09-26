@@ -1,61 +1,72 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Clock,
+  Video,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Calendar as CalendarIcon, Users, ArrowRight, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { eventBenefits, formatEventDate, formatNaira, type ProgramEvent } from "@/lib/event";
+import {
+  eventBenefits,
+  formatEventDate,
+  formatEventTime,
+  formatNaira,
+  type ProgramEvent,
+} from "@/lib/event";
 
 const dayThemes = [
   {
     theme: "Vision Casting",
-    sessions: [
-      { time: "8:00 PM", title: "Opening & Welcome", speaker: "DYP Team" },
-      { time: "8:15 PM", title: "Creating Your Life Vision", speaker: "Lead Coach" },
-      { time: "9:00 PM", title: "Vision to Goals Framework", speaker: "Strategy Coach" },
-      { time: "9:20 PM", title: "Q&A & Closing", speaker: "DYP Team" },
-    ],
-    color: "from-primary to-secondary",
+    description:
+      "Build a clearer picture of the direction you want your year and major life areas to move toward.",
+    focus: ["Vision before goals", "Clarity and direction", "Turning ideas into a usable picture of the future"],
   },
   {
-    theme: "Goal Setting & Planning",
-    sessions: [
-      { time: "8:00 PM", title: "SMART Goals Framework", speaker: "Lead Coach" },
-      { time: "8:30 PM", title: "Breaking Vision into Time Logs", speaker: "Time Coach" },
-      { time: "9:00 PM", title: "AI Goals Analysis Workshop", speaker: "AI Coach Demo" },
-      { time: "9:20 PM", title: "Q&A & Closing", speaker: "DYP Team" },
-    ],
-    color: "from-secondary to-accent",
+    theme: "Practical Goal Setting",
+    description:
+      "Turn vision into goals that are specific enough to plan, review, and act on.",
+    focus: ["Goal clarity", "Breaking goals into meaningful milestones", "Defining what achievement looks like"],
   },
   {
-    theme: "Time Management & Action",
-    sessions: [
-      { time: "8:00 PM", title: "Yearly to Hourly Planning", speaker: "Productivity Coach" },
-      { time: "8:30 PM", title: "Building Your Action Plan", speaker: "Lead Coach" },
-      { time: "9:00 PM", title: "Accountability & Next Steps", speaker: "Community Lead" },
-      { time: "9:20 PM", title: "Closing Ceremony", speaker: "DYP Team" },
-    ],
-    color: "from-accent to-primary",
+    theme: "Practical Time Management",
+    description:
+      "Connect goals to realistic weekly and daily action instead of leaving them as intentions.",
+    focus: ["Planning around real commitments", "Weekly and daily execution", "Review and accountability"],
   },
 ];
 
 const Schedule = () => {
   const [event, setEvent] = useState<ProgramEvent | null>(null);
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
 
   useEffect(() => {
-    supabase.from("program_events").select("*").eq("slug", "goals-masterclass-2026").maybeSingle()
+    void supabase
+      .from("program_events")
+      .select("*")
+      .eq("slug", "goals-masterclass-2026")
+      .maybeSingle()
       .then(({ data }) => setEvent((data ?? null) as ProgramEvent | null));
   }, []);
 
   useEffect(() => {
     if (!event) return;
+
     const tick = () => {
       const difference = new Date(event.starts_at).getTime() - Date.now();
       if (difference <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
       }
+
       setTimeLeft({
         days: Math.floor(difference / 86400000),
         hours: Math.floor((difference / 3600000) % 24),
@@ -63,14 +74,16 @@ const Schedule = () => {
         seconds: Math.floor((difference / 1000) % 60),
       });
     };
+
     tick();
-    const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
   }, [event]);
 
   const dates = useMemo(() => {
     if (!event) return [];
     const start = new Date(event.starts_at);
+
     return [0, 1, 2].map((offset) => {
       const date = new Date(start);
       date.setDate(start.getDate() + offset);
@@ -78,109 +91,125 @@ const Schedule = () => {
     });
   }, [event]);
 
-  const registrationPath = event ? "/apply/" + event.registration_slug : "/apply/goals-masterclass-2026";
+  const registrationPath = event
+    ? "/apply/" + event.registration_slug
+    : "/apply/goals-masterclass-2026";
 
   if (!event) {
-    return <main className="min-h-screen pt-28 page-shell"><div className="mx-auto max-w-4xl animate-pulse rounded-2xl bg-muted p-16" /></main>;
+    return (
+      <main className="min-h-screen px-4 pb-16 pt-28">
+        <div className="container mx-auto max-w-5xl animate-pulse space-y-5">
+          <div className="mx-auto h-14 max-w-2xl rounded bg-muted" />
+          <div className="h-56 rounded-2xl bg-muted" />
+          <div className="h-96 rounded-2xl bg-muted" />
+        </div>
+      </main>
+    );
   }
 
   return (
-    <div className="min-h-screen pt-20 font-poppins">
-      <section className="py-16 container mx-auto px-4">
+    <main className="min-h-screen pb-16 pt-28">
+      <section className="container mx-auto px-4">
         <div className="mx-auto max-w-4xl text-center">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">DYP GOALS Master Class 2026</p>
-          <h1 className="text-5xl font-bold md:text-6xl">Event <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Schedule</span></h1>
-          <p className="mx-auto mt-6 max-w-2xl text-xl text-muted-foreground">
-            Three practical evenings designed to help you move from vision to goals, planning and daily action.
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">
+            DYP GOALS Master Class 2026
           </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <span className="rounded-full bg-primary/10 px-4 py-2 font-medium text-primary">{formatEventDate(event.starts_at)} – {formatEventDate(event.ends_at)}</span>
-            <span className="rounded-full bg-secondary/10 px-4 py-2 font-medium text-secondary">{event.session_start_time} – {event.session_end_time} WAT</span>
+          <h1 className="mt-3 text-4xl font-bold tracking-tight md:text-6xl">
+            Three evenings. One practical progression.
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
+            Vision Casting → Practical Goal Setting → Practical Time Management
+          </p>
+
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <span className="rounded-full border bg-card px-4 py-2 text-sm font-medium">
+              {formatEventDate(event.starts_at)} – {formatEventDate(event.ends_at)}
+            </span>
+            <span className="rounded-full border bg-card px-4 py-2 text-sm font-medium">
+              {formatEventTime(event.session_start_time)} – {formatEventTime(event.session_end_time)} WAT
+            </span>
+            <span className="rounded-full border bg-card px-4 py-2 text-sm font-medium">
+              Virtual
+            </span>
           </div>
+
           <div className="mt-6 flex items-center justify-center gap-3">
-            <span className="text-muted-foreground">Original:</span>
-            <span className="text-lg text-muted-foreground line-through">{formatNaira(event.original_price)}</span>
-            <span className="text-2xl font-bold text-primary">{formatNaira(event.discounted_price)}</span>
+            <span className="text-muted-foreground line-through">
+              {formatNaira(event.original_price)}
+            </span>
+            <span className="text-3xl font-bold text-primary">
+              {formatNaira(event.discounted_price)}
+            </span>
           </div>
         </div>
 
-        <Card className="mx-auto mb-16 mt-12 max-w-4xl border-primary/20 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10">
-          <CardContent className="p-8">
-            <h2 className="mb-8 text-center text-2xl font-semibold">Event Starts In</h2>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <Card className="mx-auto mt-10 max-w-4xl border-primary/20 bg-primary/5">
+          <CardContent className="p-6 sm:p-8">
+            <p className="text-center text-sm font-semibold uppercase tracking-wide text-primary">
+              Event starts in
+            </p>
+            <div className="mt-5 grid grid-cols-4 gap-2 sm:gap-4">
               {[
-                { label: "Days", value: timeLeft.days },
-                { label: "Hours", value: timeLeft.hours },
-                { label: "Minutes", value: timeLeft.minutes },
-                { label: "Seconds", value: timeLeft.seconds },
-              ].map((item) => (
-                <div key={item.label} className="text-center">
-                  <div className="mb-2 rounded-xl bg-card p-6">
-                    <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-4xl font-bold text-transparent md:text-5xl">{item.value}</span>
-                  </div>
-                  <span className="text-muted-foreground">{item.label}</span>
+                ["Days", timeLeft.days],
+                ["Hours", timeLeft.hours],
+                ["Min", timeLeft.minutes],
+                ["Sec", timeLeft.seconds],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-xl border bg-background p-3 text-center sm:p-5">
+                  <p className="text-2xl font-bold sm:text-4xl">
+                    {String(value).padStart(2, "0")}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{label}</p>
                 </div>
               ))}
             </div>
-            <div className="mt-8 text-center">
-              <Button asChild size="lg" className="font-semibold">
-                <Link to={registrationPath}>Register for {formatNaira(event.discounted_price)} <ArrowRight className="ml-2 h-5 w-5" /></Link>
+            <div className="mt-6 text-center">
+              <Button asChild size="lg" className="gap-2">
+                <Link to={registrationPath}>
+                  Register for {formatNaira(event.discounted_price)}
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
               </Button>
             </div>
           </CardContent>
         </Card>
       </section>
 
-      <section className="container mx-auto px-4 pb-16">
-        <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="mb-4 text-xl font-semibold">What you will gain</h2>
-              <div className="space-y-3">
-                {eventBenefits(event.benefits).map((benefit) => (
-                  <div key={benefit} className="flex gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span className="text-muted-foreground">{benefit}</span></div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-primary/15">
-            <CardContent className="p-6">
-              <p className="text-sm font-semibold uppercase text-primary">Registration</p>
-              <h2 className="mt-2 text-2xl font-bold">Join at the current discounted price</h2>
-              <p className="mt-3 text-muted-foreground">Original price {formatNaira(event.original_price)}. Current offer {formatNaira(event.discounted_price)}.</p>
-              <Button asChild className="mt-6 w-full"><Link to={registrationPath}>Start registration <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section className="py-12 container mx-auto px-4">
-        <div className="space-y-12">
-          {dayThemes.map((day, dayIndex) => (
-            <Card key={day.theme} className="overflow-hidden border-border">
-              <div className={"bg-gradient-to-r " + day.color + " p-6"}>
-                <div className="flex items-center justify-between text-primary-foreground">
-                  <div className="flex items-center gap-4">
-                    <CalendarIcon className="h-8 w-8" />
+      <section className="container mx-auto mt-14 max-w-5xl px-4">
+        <div className="space-y-5">
+          {dayThemes.map((day, index) => (
+            <Card key={day.theme} className="overflow-hidden">
+              <CardContent className="p-0">
+                <div className="grid gap-0 lg:grid-cols-[220px_1fr]">
+                  <div className="flex flex-col justify-between bg-primary/8 p-6">
                     <div>
-                      <h3 className="text-2xl font-bold">Day {dayIndex + 1} - {dates[dayIndex] ? formatEventDate(dates[dayIndex].toISOString()) : ""}</h3>
-                      <p className="text-lg opacity-90">{day.theme}</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+                        Day {index + 1}
+                      </p>
+                      <p className="mt-2 text-xl font-bold">
+                        {dates[index] ? formatEventDate(dates[index].toISOString()) : ""}
+                      </p>
+                    </div>
+                    <div className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      {formatEventTime(event.session_start_time)} – {formatEventTime(event.session_end_time)} WAT
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm opacity-90">Session Time</p>
-                    <p className="font-semibold">{event.session_start_time} – {event.session_end_time} WAT</p>
-                  </div>
-                </div>
-              </div>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {day.sessions.map((session) => (
-                    <div key={session.title} className="flex items-start gap-4 rounded-lg p-4 transition-colors hover:bg-muted/50">
-                      <div className="flex min-w-[100px] items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4" /><span className="font-medium">{session.time}</span></div>
-                      <div className="flex-1"><h4 className="text-lg font-semibold">{session.title}</h4><div className="mt-1 flex items-center gap-2 text-muted-foreground"><Users className="h-4 w-4" /><span>{session.speaker}</span></div></div>
+
+                  <div className="p-6 sm:p-8">
+                    <h2 className="text-2xl font-bold">{day.theme}</h2>
+                    <p className="mt-3 max-w-2xl text-muted-foreground">
+                      {day.description}
+                    </p>
+                    <div className="mt-5 grid gap-2 sm:grid-cols-3">
+                      {day.focus.map((item) => (
+                        <div key={item} className="flex gap-2 rounded-lg border bg-muted/15 p-3 text-sm">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          <span>{item}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -188,22 +217,44 @@ const Schedule = () => {
         </div>
       </section>
 
-      <section className="bg-card py-12">
-        <div className="container mx-auto px-4">
-          <Card className="border-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20">
-            <CardContent className="p-8 text-center">
-              <h3 className="mb-4 text-2xl font-bold">Important Notes</h3>
-              <ul className="mx-auto max-w-2xl space-y-2 text-muted-foreground">
-                <li>• All times are shown in West Africa Time (WAT).</li>
-                <li>• Sessions will be recorded and available for replay where applicable.</li>
-                <li>• AI-assisted goals review is part of the DYP GOALS experience.</li>
-                <li>• Q&A sessions follow the core teaching each day.</li>
-              </ul>
+      <section className="container mx-auto mt-14 max-w-5xl px-4">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold">What you will gain</h2>
+              <div className="mt-4 space-y-3">
+                {eventBenefits(event.benefits).map((benefit) => (
+                  <div key={benefit} className="flex gap-3">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                    <span className="text-sm text-muted-foreground">{benefit}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/15">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 text-primary">
+                <Video className="h-5 w-5" />
+                <p className="text-sm font-semibold uppercase tracking-wide">Virtual event</p>
+              </div>
+              <h2 className="mt-3 text-2xl font-bold">Ready to join?</h2>
+              <p className="mt-3 text-muted-foreground">
+                Registration is open at the current discounted price of {formatNaira(event.discounted_price)}.
+                The original listed price is {formatNaira(event.original_price)}.
+              </p>
+              <Button asChild className="mt-6 w-full gap-2">
+                <Link to={registrationPath}>
+                  Start registration
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
       </section>
-    </div>
+    </main>
   );
 };
 

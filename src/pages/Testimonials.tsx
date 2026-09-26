@@ -1,142 +1,66 @@
+import { Link } from "react-router-dom";
+import { ArrowRight, Quote, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, Quote } from "lucide-react";
 
 const Testimonials = () => {
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      age: 22,
-      achievement: "Career Advancement",
-      quote: "DYP GOALS helped me land my dream job! The SMART goal framework and AI coaching made all the difference. I went from confused to confident in just 3 days.",
-      rating: 5,
-      year: "2024 Participant",
-    },
-    {
-      name: "Marcus Williams",
-      age: 19,
-      achievement: "Fitness Transformation",
-      quote: "I lost 30 pounds and gained so much confidence. The accountability groups kept me motivated, and the AI Coach helped me break down my big goal into daily habits.",
-      rating: 5,
-      year: "2024 Participant",
-    },
-    {
-      name: "Priya Patel",
-      age: 24,
-      achievement: "Business Launch",
-      quote: "Started my own business after the masterclass! The vision casting session was life-changing. I finally had clarity on what I wanted to achieve and how to get there.",
-      rating: 5,
-      year: "2024 Participant",
-    },
-    {
-      name: "James Chen",
-      age: 21,
-      achievement: "Academic Excellence",
-      quote: "Graduated with honors thanks to the time management techniques I learned. The AI analysis showed me exactly where I was wasting time and how to fix it.",
-      rating: 5,
-      year: "2024 Participant",
-    },
-    {
-      name: "Aisha Mohammed",
-      age: 20,
-      achievement: "Personal Growth",
-      quote: "Found my purpose and built meaningful relationships. The mentorship program connected me with amazing people who genuinely cared about my success.",
-      rating: 5,
-      year: "2024 Participant",
-    },
-    {
-      name: "Tyler Rodriguez",
-      age: 23,
-      achievement: "Creative Career",
-      quote: "Turned my passion into a career as a content creator. The goal-setting framework made it feel achievable instead of just a dream. Now I'm living it!",
-      rating: 5,
-      year: "2024 Participant",
-    },
-  ];
-
-  const stats = [
-    { number: "2,500+", label: "Participants", color: "from-primary to-secondary" },
-    { number: "94%", label: "Goal Achievement Rate", color: "from-secondary to-accent" },
-    { number: "4.9/5", label: "Average Rating", color: "from-accent to-primary" },
-    { number: "85%", label: "Continue with Mentorship", color: "from-primary to-accent" },
-  ];
-
   return (
-    <div className="min-h-screen pt-20 pb-12 font-poppins">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12 animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Success <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Stories</span>
+    <main className="min-h-screen px-4 pb-16 pt-28">
+      <div className="container mx-auto max-w-5xl">
+        <div className="mx-auto max-w-3xl text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Quote className="h-7 w-7" />
+          </div>
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">
+            Participant stories
+          </p>
+          <h1 className="mt-3 text-4xl font-bold tracking-tight md:text-6xl">
+            Real stories, published responsibly
           </h1>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Real transformations from real people who turned their dreams into reality with DYP GOALS.
+          <p className="mt-5 text-lg leading-8 text-muted-foreground">
+            We only want to publish participant testimonials and outcome claims that we can
+            attribute accurately. Verified stories from DYP GOALS participants will appear
+            here as they are approved for public use.
           </p>
         </div>
 
-        {/* Stats Section */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-16 max-w-6xl mx-auto">
-          {stats.map((stat, index) => (
-            <Card
-              key={index}
-              className="bg-card border-border text-center hover:shadow-xl transition-shadow animate-fade-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <CardContent className="p-6">
-                <div className={`text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
-                  {stat.number}
-                </div>
-                <div className="text-muted-foreground">{stat.label}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Testimonials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-          {testimonials.map((testimonial, index) => (
-            <Card
-              key={index}
-              className="bg-card border-border hover:shadow-xl transition-all hover:-translate-y-2 animate-fade-in"
-              style={{ animationDelay: `${0.1 + index * 0.05}s` }}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-primary text-primary" />
-                  ))}
-                </div>
-                <Quote className="h-8 w-8 text-primary/30 mb-2" />
-                <p className="text-muted-foreground mb-6 italic">"{testimonial.quote}"</p>
-                <div className="border-t border-border pt-4">
-                  <div className="font-semibold text-lg">{testimonial.name}</div>
-                  <div className="text-sm text-muted-foreground">Age {testimonial.age}</div>
-                  <div className="text-sm font-medium text-primary mt-2">{testimonial.achievement}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{testimonial.year}</div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* CTA Section */}
-        <Card className="bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 border-0 max-w-4xl mx-auto mt-16">
-          <CardContent className="p-12 text-center">
-            <h2 className="text-4xl font-bold mb-4">
-              Ready to Write Your <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Success Story</span>?
-            </h2>
-            <p className="text-xl text-muted-foreground mb-8">
-              Join DYP GOALS and become our next success story. Transform your vision into reality.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="/ai-goals">
-                <button className="px-8 py-4 bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-semibold text-lg rounded-lg">
-                  Get Started Today
-                </button>
-              </a>
+        <Card className="mx-auto mt-12 max-w-3xl border-primary/15">
+          <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-start">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Why this page is intentionally simple</h2>
+              <p className="mt-2 leading-7 text-muted-foreground">
+                We do not use invented names, ratings, participant counts, achievement rates,
+                or transformation claims as social proof. When a story is shown here, it should
+                reflect a real participant and a claim DYP has permission to share.
+              </p>
             </div>
           </CardContent>
         </Card>
+
+        <div className="mx-auto mt-10 flex max-w-3xl flex-col gap-3 rounded-2xl border bg-muted/20 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold">Interested in the 2026 GOALS Master Class?</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review the three-day schedule or begin registration.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/schedule">View schedule</Link>
+            </Button>
+            <Button asChild className="gap-2">
+              <Link to="/apply/goals-masterclass-2026">
+                Register
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   );
 };
 
