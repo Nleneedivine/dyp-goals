@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { endOfWeek, format, startOfWeek } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,14 @@ interface SharedPortfolioGoal {
   estimated_hours_per_week: number;
 }
 
+interface SharedMilestone {
+  id: string;
+  goal_id: string;
+  title: string;
+  due_date: string | null;
+  status: string;
+}
+
 interface SharedGoalTask {
   id: string;
   user_id: string;
@@ -94,6 +103,7 @@ const MentorDashboard = () => {
   const [mentorshipRequests, setMentorshipRequests] = useState<MentorshipRequest[]>([]);
   const [sharedPortfolioGoals, setSharedPortfolioGoals] = useState<SharedPortfolioGoal[]>([]);
   const [sharedGoalTasks, setSharedGoalTasks] = useState<SharedGoalTask[]>([]);
+  const [sharedMilestones, setSharedMilestones] = useState<SharedMilestone[]>([]);
   const [sharedWeeklyReviews, setSharedWeeklyReviews] = useState<SharedWeeklyReview[]>([]);
   const [sharingPreferences, setSharingPreferences] = useState<SharingPreference[]>([]);
   const { toast } = useToast();
@@ -173,6 +183,7 @@ const MentorDashboard = () => {
           setMemberGoals([]);
           setSharedPortfolioGoals([]);
           setSharedGoalTasks([]);
+          setSharedMilestones([]);
           setSharedWeeklyReviews([]);
           setSharingPreferences([]);
           return;
@@ -215,10 +226,27 @@ const MentorDashboard = () => {
         ]);
 
         if (legacyGoalsResult.data) setMemberGoals(legacyGoalsResult.data);
-        if (portfolioGoalsResult.data) setSharedPortfolioGoals(portfolioGoalsResult.data as SharedPortfolioGoal[]);
+        const portfolioGoals = (portfolioGoalsResult.data ?? []) as SharedPortfolioGoal[];
+        setSharedPortfolioGoals(portfolioGoals);
         if (tasksResult.data) setSharedGoalTasks(tasksResult.data as SharedGoalTask[]);
         if (reviewsResult.data) setSharedWeeklyReviews(reviewsResult.data as SharedWeeklyReview[]);
         if (sharingResult.data) setSharingPreferences(sharingResult.data as SharingPreference[]);
+
+        if (portfolioGoals.length) {
+          const { data: milestoneData, error: milestoneError } = await supabase
+            .from('goal_milestones')
+            .select('id, goal_id, title, due_date, status')
+            .in('goal_id', portfolioGoals.map((goal) => goal.id))
+            .order('due_date', { ascending: true, nullsFirst: false });
+
+          if (milestoneError) {
+            console.error('Error loading shared milestones:', milestoneError);
+          } else {
+            setSharedMilestones((milestoneData ?? []) as SharedMilestone[]);
+          }
+        } else {
+          setSharedMilestones([]);
+        }
 
         const sharingError =
           portfolioGoalsResult.error ||
@@ -250,6 +278,11 @@ const MentorDashboard = () => {
 
   const getSharedTasks = (userId: string) =>
     sharedGoalTasks.filter((task) => task.user_id === userId);
+
+  const getSharedMilestones = (userId: string) => {
+    const goalIds = new Set(getSharedPortfolioGoals(userId).map((goal) => goal.id));
+    return sharedMilestones.filter((milestone) => goalIds.has(milestone.goal_id));
+  };
 
   const getLatestSharedReview = (userId: string) =>
     sharedWeeklyReviews
