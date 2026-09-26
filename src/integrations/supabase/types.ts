@@ -1470,6 +1470,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_accountability_program_trends: {
+        Args: { p_week_start: string }
+        Returns: Json
+      }
       apply_goal_ai_refinement: {
         Args: {
           p_effort_periods?: Json

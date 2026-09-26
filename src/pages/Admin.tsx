@@ -31,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AccountabilityProgramTrends } from "@/components/AccountabilityProgramTrends";
 import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
 import { pdf } from "@react-pdf/renderer";
 
@@ -907,7 +908,7 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-5 mb-8">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users ({filteredUsers.length})
@@ -923,6 +924,10 @@ const Admin = () => {
             <TabsTrigger value="groups" className="flex items-center gap-2">
               <UsersRound className="h-4 w-4" />
               Groups ({groups.length})
+            </TabsTrigger>
+            <TabsTrigger value="trends" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Trends
             </TabsTrigger>
           </TabsList>
 
@@ -1191,6 +1196,10 @@ const Admin = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="trends">
+            <AccountabilityProgramTrends />
           </TabsContent>
 
           <TabsContent value="groups">
