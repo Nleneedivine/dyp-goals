@@ -30,13 +30,13 @@ const Auth = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate("/");
+        navigate("/journey", { replace: true });
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("/");
+        navigate("/journey", { replace: true });
       }
     });
 
@@ -89,7 +89,7 @@ const Auth = () => {
     try {
       signupSchema.parse({ firstName, lastName, email, password });
 
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/journey`;
 
       const { error } = await supabase.auth.signUp({
         email,
@@ -127,7 +127,7 @@ const Auth = () => {
           <BrandLogo className="mx-auto mb-4" />
           <CardTitle className="text-2xl text-center">Welcome to DYP GOALS</CardTitle>
           <CardDescription className="text-center">
-            Sign in to access your personalized goal coaching
+            Sign in to continue your GOALS journey
           </CardDescription>
         </CardHeader>
         <CardContent>
