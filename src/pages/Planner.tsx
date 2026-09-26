@@ -118,9 +118,14 @@ const savedExecutionContext = (goal?: Goal) => {
   };
 };
 
-export default function Planner({ initialView = "week" }: { initialView?: PlannerView }) {
+export default function Planner({ initialView }: { initialView?: PlannerView }) {
   const { toast } = useToast();
-  const [view, setView] = useState<PlannerView>(initialView);
+  const defaultView: PlannerView =
+    initialView ??
+    (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+      ? "today"
+      : "week");
+  const [view, setView] = useState<PlannerView>(defaultView);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -335,7 +340,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   }, []);
 
   useEffect(() => {
-    setView(initialView);
+    if (initialView) setView(initialView);
   }, [initialView]);
 
   const currentWeekStart = mondayKey(weekAnchor);
