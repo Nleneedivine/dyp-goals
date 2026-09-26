@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -41,6 +43,7 @@ const missingTable = (code?: string) => code === "PGRST205" || code === "42P01";
 
 export default function Vision() {
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
   const [loading, setLoading] = useState(true);
   const [available, setAvailable] = useState(true);
   const [userId, setUserId] = useState("");
