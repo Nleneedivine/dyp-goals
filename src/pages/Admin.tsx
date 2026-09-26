@@ -824,14 +824,6 @@ const Admin = () => {
     setFilteredGoals(filtered);
   };
 
-  const getOverallScore = (analysis: any): number => {
-    try {
-      return analysis?.overallScore || 0;
-    } catch {
-      return 0;
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen pt-20 pb-12 flex items-center justify-center">
@@ -881,7 +873,7 @@ const Admin = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5" />
-                Total Goals Submitted
+                Legacy AI Goal Submissions
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -915,7 +907,7 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="goals" className="flex items-center gap-2">
               <Target className="h-4 w-4" />
-              Goals ({filteredGoals.length})
+              Legacy Goals ({filteredGoals.length})
             </TabsTrigger>
             <TabsTrigger value="mentors" className="flex items-center gap-2">
               <UserCog className="h-4 w-4" />
@@ -1046,7 +1038,7 @@ const Admin = () => {
           <TabsContent value="goals">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>All Goal Submissions</CardTitle>
+                <CardTitle>Legacy Goal Submissions</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -1070,9 +1062,6 @@ const Admin = () => {
                                 <Calendar className="h-3 w-3" />
                                 {format(new Date(goal.created_at), "MMM d, yyyy")}
                               </div>
-                              <Badge variant="outline" className="bg-background">
-                                Score: {getOverallScore(goal.ai_analysis)}%
-                              </Badge>
                               {goal.refined_goals && (
                                 <Badge className="bg-accent text-accent-foreground">
                                   Refined
