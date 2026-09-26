@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvailabilityManager } from "@/components/AvailabilityManager";
 import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
+import { WeekAIPlanner } from "@/components/WeekAIPlanner";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -128,6 +129,10 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
 
   const goalMap = useMemo(
     () => new Map(goals.map((goal) => [goal.id, goal])),
+    [goals],
+  );
+  const goalTitleMap = useMemo(
+    () => new Map(goals.map((goal) => [goal.id, goal.title])),
     [goals],
   );
   const milestoneMap = useMemo(
@@ -856,19 +861,27 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
           </TabsContent>
 
           <TabsContent value="week" className="mt-6 space-y-6">
-            <div className="flex items-center justify-between rounded-xl border bg-card p-3">
-              <Button variant="ghost" size="icon" onClick={() => setWeekAnchor((date) => subWeeks(date, 1))}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="text-center">
-                <p className="font-bold">
-                  {format(parseISO(currentWeekStart), "MMM d")} – {format(parseISO(currentWeekEnd), "MMM d, yyyy")}
-                </p>
-                <p className="text-xs text-muted-foreground">Weekly execution commitments</p>
+            <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-1 items-center justify-between">
+                <Button variant="ghost" size="icon" onClick={() => setWeekAnchor((date) => subWeeks(date, 1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="text-center">
+                  <p className="font-bold">
+                    {format(parseISO(currentWeekStart), "MMM d")} – {format(parseISO(currentWeekEnd), "MMM d, yyyy")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Weekly execution commitments</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setWeekAnchor((date) => addWeeks(date, 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setWeekAnchor((date) => addWeeks(date, 1))}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <WeekAIPlanner
+                weekStart={currentWeekStart}
+                weekEnd={currentWeekEnd}
+                goalTitles={goalTitleMap}
+                onApplied={() => loadPlanner()}
+              />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
@@ -1032,7 +1045,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-2 lg:grid-cols-[1fr_1fr_1.7fr_145px_120px_110px_auto]">
+                <div className="grid gap-2 xl:grid-cols-[1fr_1fr_1fr_1.6fr_145px_120px_110px_auto]">
                   <Select
                     value={taskDraft.goalId}
                     onValueChange={(goalId) => setTaskDraft((current) => ({ ...current, goalId, milestoneId: "none", actionId: "none" }))}
@@ -1040,6 +1053,19 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                     <SelectTrigger><SelectValue placeholder="Goal" /></SelectTrigger>
                     <SelectContent>
                       {planningGoals.map((goal) => <SelectItem key={goal.id} value={goal.id}>{goal.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={taskDraft.milestoneId}
+                    onValueChange={(milestoneId) => setTaskDraft((current) => ({ ...current, milestoneId, actionId: "none" }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Milestone" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No milestone</SelectItem>
+                      {taskGoalMilestones.map((milestone) => (
+                        <SelectItem key={milestone.id} value={milestone.id}>{milestone.title}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
 
