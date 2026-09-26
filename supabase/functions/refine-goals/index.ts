@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { parseAiJsonObject } from "../_shared/aiJson.ts";
 import { z } from "npm:zod@3";
 
 const corsHeaders = {
@@ -267,6 +268,7 @@ Create comprehensive refined goals based on this information.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
+        response_format: { type: 'json_object' },
       }),
     });
 
@@ -294,8 +296,7 @@ Create comprehensive refined goals based on this information.`;
 
     let refined;
     try {
-      const cleanedText = refinedText.replace(/\`\`\`json\n?|\n?\`\`\`/g, '').trim();
-      refined = JSON.parse(cleanedText);
+      refined = parseAiJsonObject(refinedText);
     } catch (parseError) {
       console.error('Failed to parse AI response:', refinedText);
       throw new Error('AI returned invalid format');
