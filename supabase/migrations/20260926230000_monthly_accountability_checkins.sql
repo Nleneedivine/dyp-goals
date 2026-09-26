@@ -1,5 +1,22 @@
 -- Monthly accountability check-ins for the GOALS execution loop.
--- Adds a separate opt-in sharing choice for monthly reflections.
+-- Adds a separate opt-in sharing choice for monthly reflections and an optional month-end reminder.
+
+alter table public.execution_notification_settings
+  add column if not exists monthly_checkin_enabled boolean not null default false,
+  add column if not exists monthly_checkin_time time not null default '18:00';
+
+alter table public.execution_notification_deliveries
+  drop constraint if exists execution_notification_deliveries_notification_type_check;
+
+alter table public.execution_notification_deliveries
+  add constraint execution_notification_deliveries_notification_type_check
+  check (notification_type in (
+    'morning_brief',
+    'evening_debrief',
+    'weekly_review',
+    'deadline_alert',
+    'monthly_checkin'
+  ));
 
 alter table public.accountability_sharing_preferences
   add column if not exists share_monthly_checkins boolean not null default false;
