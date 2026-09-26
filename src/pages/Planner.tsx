@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Download,
   Link2,
   ListTodo,
   MoveRight,
@@ -46,6 +47,7 @@ import { QuickGoalTaskDialog, type QuickGoalTaskValues } from "@/components/Quic
 import { WeeklyActionEditDialog, type WeeklyActionEditValues } from "@/components/WeeklyActionEditDialog";
 import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
 import { useToast } from "@/hooks/use-toast";
+import { downloadTasksIcs } from "@/lib/calendarExport";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -1615,17 +1617,37 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   AI can draft the missing weekly actions and dated tasks only after your portfolio fits inside the capacity you confirmed.
                 </p>
               </div>
-              <AIWeekPlannerDialog
-                weekStart={currentWeekStart}
-                weekEnd={currentWeekEnd}
-                capacityHours={defaultCapacity === null ? null : currentCapacity.hours}
-                goals={goals}
-                milestones={milestones}
-                effortPeriods={effortPeriods}
-                actions={actions}
-                tasks={tasks}
-                onApplied={loadPlanner}
-              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  disabled={!tasksForWeek.some((task) => task.status !== "skipped" && task.status !== "deferred")}
+                  onClick={() =>
+                    downloadTasksIcs(
+                      tasksForWeek.map((task) => ({
+                        ...task,
+                        goalTitle: goalMap.get(task.goal_id)?.title,
+                      })),
+                      `DYP-GOALS-${currentWeekStart}`,
+                    )
+                  }
+                >
+                  <Download className="h-4 w-4" />
+                  Export week
+                </Button>
+                <AIWeekPlannerDialog
+                  weekStart={currentWeekStart}
+                  weekEnd={currentWeekEnd}
+                  capacityHours={defaultCapacity === null ? null : currentCapacity.hours}
+                  goals={goals}
+                  milestones={milestones}
+                  effortPeriods={effortPeriods}
+                  actions={actions}
+                  tasks={tasks}
+                  onApplied={loadPlanner}
+                />
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
