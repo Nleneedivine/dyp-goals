@@ -1067,6 +1067,36 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     .filter((task) => task.status === "planned" || task.status === "completed")
     .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0);
 
+  const selectedDayCompletedTasks = selectedDayTasks.filter(
+    (task) => task.status === "completed",
+  );
+  const selectedDayCompletedMinutes = selectedDayCompletedTasks.reduce(
+    (sum, task) => sum + Number(task.estimated_minutes || 0),
+    0,
+  );
+  const selectedDayRemainingTasks = selectedDayTasks.filter(
+    (task) => task.status === "planned",
+  );
+  const selectedDayRemainingMinutes = selectedDayRemainingTasks.reduce(
+    (sum, task) => sum + Number(task.estimated_minutes || 0),
+    0,
+  );
+  const selectedDayAnytimeTasks = selectedDayRemainingTasks.filter(
+    (task) => !task.scheduled_time,
+  );
+  const selectedDayCompletionPercent = selectedDayTaskMinutes
+    ? Math.round((selectedDayCompletedMinutes / selectedDayTaskMinutes) * 100)
+    : 0;
+
+  const currentClockMinutes = now.getHours() * 60 + now.getMinutes();
+  const selectedDayNextTimedTask = selectedDayRemainingTasks
+    .filter((task) => Boolean(task.scheduled_time))
+    .filter((task) => {
+      if (selectedDayKey !== today || !task.scheduled_time) return true;
+      return timeToMinutes(task.scheduled_time) >= currentClockMinutes;
+    })
+    .sort((a, b) => (a.scheduled_time ?? "").localeCompare(b.scheduled_time ?? ""))[0] ?? null;
+
   const yearStart = dateKey(startOfYear(yearAnchor));
   const yearEnd = dateKey(endOfYear(yearAnchor));
   const yearGoals = planningGoals.filter((goal) =>
@@ -1258,6 +1288,9 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
 
     return total + Math.max(0, currentEnd - currentStart);
   })();
+
+  const selectedDayCalendarLoadMinutes = selectedDayFixedMinutes + selectedDayTaskMinutes;
+  const selectedDayCalendarOverbooked = selectedDayCalendarLoadMinutes > 1440;
 
   const goalTaskProgress = (goalId: string) => {
     const goalTasks = tasks.filter((task) => task.goal_id === goalId && task.status !== "skipped");
@@ -2088,7 +2121,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
               </Card>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Goal work scheduled</p>
@@ -2100,6 +2133,24 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
               </Card>
               <Card>
                 <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold">{hoursLabel(selectedDayCompletedMinutes)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedDayCompletedTasks.length}/{selectedDayTasks.filter((task) => task.status !== "skipped").length} tasks
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Remaining goal work</p>
+                  <p className="text-2xl font-bold">{hoursLabel(selectedDayRemainingMinutes)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedDayAnytimeTasks.length} without a clock time
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className={selectedDayCalendarOverbooked ? "border-amber-500/30 bg-amber-500/5" : ""}>
+                <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Protected commitments</p>
                   <p className="text-2xl font-bold">{hoursLabel(selectedDayFixedMinutes)}</p>
                   <p className="text-xs text-muted-foreground">
@@ -2108,6 +2159,47 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardContent className="space-y-4 pt-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Daily execution progress</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {selectedDayCompletionPercent}% of scheduled goal-task time completed.
+                    </p>
+                  </div>
+                  {selectedDayNextTimedTask ? (
+                    <div className="rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+                      <span className="text-xs text-muted-foreground">Next timed task</span>
+                      <p className="font-medium">
+                        {selectedDayNextTimedTask.scheduled_time?.slice(0, 5)} · {selectedDayNextTimedTask.title}
+                      </p>
+                    </div>
+                  ) : selectedDayAnytimeTasks.length > 0 ? (
+                    <Badge variant="outline">
+                      {selectedDayAnytimeTasks.length} anytime {selectedDayAnytimeTasks.length === 1 ? "task" : "tasks"} remaining
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">No remaining timed task</Badge>
+                  )}
+                </div>
+                <Progress value={selectedDayCompletionPercent} />
+              </CardContent>
+            </Card>
+
+            {selectedDayCalendarOverbooked && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <div>
+                  <p className="font-medium text-amber-800">This day represents more than 24 hours of commitments</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Fixed commitments plus scheduled goal-task estimates total {hoursLabel(selectedDayCalendarLoadMinutes)}.
+                    Check overlaps, task estimates, or dates before relying on this day as executable.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {fixedSegmentsForDate(selectedDayKey).length > 0 && (
               <Card>
