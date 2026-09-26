@@ -12,6 +12,7 @@ create table if not exists public.execution_notification_settings (
     check (weekly_review_day between 1 and 7),
   weekly_review_time time not null default '18:00',
   deadline_alerts_enabled boolean not null default false,
+  deadline_time time not null default '08:00',
   deadline_days_before smallint[] not null default array[7,3,1]::smallint[],
   timezone text not null default 'UTC'
     check (char_length(timezone) between 1 and 80),
