@@ -39,6 +39,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvailabilityManager } from "@/components/AvailabilityManager";
+import { AIWeekPlannerDialog } from "@/components/AIWeekPlannerDialog";
 import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -981,6 +982,26 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
               <Button variant="ghost" size="icon" onClick={() => setWeekAnchor((date) => addWeeks(date, 1))}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold">Build this week from the whole portfolio</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  AI can draft the missing weekly actions and dated tasks only after your portfolio fits inside the capacity you confirmed.
+                </p>
+              </div>
+              <AIWeekPlannerDialog
+                weekStart={currentWeekStart}
+                weekEnd={currentWeekEnd}
+                capacityHours={defaultCapacity === null ? null : currentCapacity.hours}
+                goals={goals}
+                milestones={milestones}
+                effortPeriods={effortPeriods}
+                actions={actions}
+                tasks={tasks}
+                onApplied={loadPlanner}
+              />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
