@@ -337,6 +337,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       .filter(
         (goal) =>
           CONFIRMED_EFFORT.has(goal.effort_source) &&
+          Boolean(goal.start_date && goal.end_date) &&
           overlapsRange(goal.start_date, goal.end_date, weekStart, weekEnd),
       )
       .reduce(
@@ -363,6 +364,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     .filter(
       (goal) =>
         CONFIRMED_EFFORT.has(goal.effort_source) &&
+        Boolean(goal.start_date && goal.end_date) &&
         overlapsRange(goal.start_date, goal.end_date, currentWeekStart, currentWeekEnd),
     )
     .map((goal) => {
@@ -1099,8 +1101,10 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
 
   const yearStart = dateKey(startOfYear(yearAnchor));
   const yearEnd = dateKey(endOfYear(yearAnchor));
-  const yearGoals = planningGoals.filter((goal) =>
-    overlapsRange(goal.start_date, goal.end_date, yearStart, yearEnd),
+  const yearGoals = planningGoals.filter(
+    (goal) =>
+      Boolean(goal.start_date && goal.end_date) &&
+      overlapsRange(goal.start_date, goal.end_date, yearStart, yearEnd),
   );
   const yearMilestones = milestones.filter(
     (milestone) => milestone.due_date && milestone.due_date >= yearStart && milestone.due_date <= yearEnd,
@@ -1120,8 +1124,10 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     const anchor = addMonths(startOfYear(yearAnchor), index);
     const start = dateKey(startOfMonth(anchor));
     const end = dateKey(endOfMonth(anchor));
-    const monthGoalsInYear = planningGoals.filter((goal) =>
-      overlapsRange(goal.start_date, goal.end_date, start, end),
+    const monthGoalsInYear = planningGoals.filter(
+      (goal) =>
+        Boolean(goal.start_date && goal.end_date) &&
+        overlapsRange(goal.start_date, goal.end_date, start, end),
     );
     const monthMilestonesInYear = yearMilestones.filter(
       (milestone) =>
@@ -1153,8 +1159,10 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
 
   const monthStart = dateKey(startOfMonth(monthAnchor));
   const monthEnd = dateKey(endOfMonth(monthAnchor));
-  const monthGoals = planningGoals.filter((goal) =>
-    overlapsRange(goal.start_date, goal.end_date, monthStart, monthEnd),
+  const monthGoals = planningGoals.filter(
+    (goal) =>
+      Boolean(goal.start_date && goal.end_date) &&
+      overlapsRange(goal.start_date, goal.end_date, monthStart, monthEnd),
   );
   const monthMilestones = milestones.filter(
     (milestone) => milestone.due_date && milestone.due_date >= monthStart && milestone.due_date <= monthEnd,
