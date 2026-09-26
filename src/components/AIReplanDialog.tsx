@@ -28,6 +28,7 @@ interface ReplanOption {
   splitTasks?: Array<{
     title: string;
     estimatedMinutes: number;
+    suggestedDate: string;
   }>;
   fallbackTask?: {
     title: string;
@@ -62,6 +63,7 @@ export function AIReplanDialog({
   allTasks,
   onReschedule,
   onApplyFallback,
+  onApplySplit,
 }: {
   currentDate: string;
   queueTasks: GoalTask[];
@@ -72,6 +74,10 @@ export function AIReplanDialog({
   onApplyFallback: (
     task: GoalTask,
     fallback: { title: string; estimatedMinutes: number; suggestedDate: string },
+  ) => Promise<boolean>;
+  onApplySplit: (
+    task: GoalTask,
+    splits: Array<{ title: string; estimatedMinutes: number; suggestedDate: string }>,
   ) => Promise<boolean>;
 }) {
   const { toast } = useToast();
@@ -247,6 +253,27 @@ export function AIReplanDialog({
     });
   };
 
+  const applySplit = async (
+    taskId: string,
+    splits: Array<{ title: string; estimatedMinutes: number; suggestedDate: string }>,
+  ) => {
+    const task = taskMap.get(taskId);
+    if (!task) return;
+
+    const applied = await onApplySplit(task, splits);
+    if (!applied) return;
+
+    setReplan((current) => {
+      if (!current) return current;
+      const suggestions = current.suggestions.filter((suggestion) => suggestion.taskId !== taskId);
+      if (!suggestions.length) {
+        setOpen(false);
+        return null;
+      }
+      return { ...current, suggestions };
+    });
+  };
+
   const reset = () => {
     setLoading(false);
     setReplan(null);
@@ -340,12 +367,27 @@ export function AIReplanDialog({
                         <p className="mt-1 text-xs text-muted-foreground">{option.rationale}</p>
 
                         {option.splitTasks?.length ? (
-                          <div className="mt-3 space-y-1">
-                            {option.splitTasks.map((splitTask, splitIndex) => (
-                              <p key={splitIndex} className="text-xs">
-                                • {splitTask.title} <span className="text-muted-foreground">({splitTask.estimatedMinutes} min)</span>
-                              </p>
-                            ))}
+                          <div className="mt-3 rounded-lg border bg-background p-3">
+                            <div className="space-y-2">
+                              {option.splitTasks.map((splitTask, splitIndex) => (
+                                <div key={splitIndex} className="text-xs">
+                                  <p className="font-medium">• {splitTask.title}</p>
+                                  <p className="ml-3 mt-0.5 text-muted-foreground">
+                                    {splitTask.estimatedMinutes} min · {splitTask.suggestedDate}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                            {option.type === "split" && option.splitTasks.length >= 2 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="mt-3 w-full"
+                                onClick={() => applySplit(task.id, option.splitTasks!)}
+                              >
+                                Replace with these split tasks
+                              </Button>
+                            )}
                           </div>
                         ) : null}
 
