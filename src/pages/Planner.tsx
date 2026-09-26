@@ -39,6 +39,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvailabilityManager } from "@/components/AvailabilityManager";
+import { AIReplanDialog } from "@/components/AIReplanDialog";
 import { AIWeekPlannerDialog } from "@/components/AIWeekPlannerDialog";
 import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
 import { useToast } from "@/hooks/use-toast";
@@ -1357,13 +1358,25 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
             {planningQueue.length > 0 && (
               <Card className="border-amber-500/30 bg-amber-500/5">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <AlertTriangle className="h-5 w-5 text-amber-700" />
-                    Replanning queue
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Missed and deferred tasks stay visible until you deliberately reschedule or skip them.
-                  </p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <AlertTriangle className="h-5 w-5 text-amber-700" />
+                        Replanning queue
+                      </CardTitle>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Missed and deferred tasks stay visible until you deliberately reschedule or skip them.
+                      </p>
+                    </div>
+                    <AIReplanDialog
+                      currentDate={today}
+                      queueTasks={planningQueue}
+                      goals={goals}
+                      milestones={milestones}
+                      allTasks={tasks}
+                      onReschedule={rescheduleTask}
+                    />
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {planningQueue.map((task) => (
