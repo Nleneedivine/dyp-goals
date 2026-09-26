@@ -550,6 +550,93 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   };
 
   const rescheduleTask = async (task: GoalTask, nextDate: string) => {
+    const goal = goalMap.get(task.goal_id);
+    if (!goal) {
+      toast({
+        title: "Goal context is missing",
+        description: "This task cannot be rescheduled until its goal is available.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (goal.start_date && nextDate < goal.start_date) {
+      toast({
+        title: "Date is before the goal starts",
+        description: `Choose ${goal.start_date} or later.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (goal.end_date && nextDate > goal.end_date) {
+      toast({
+        title: "Date is after the goal deadline",
+        description: `This goal currently ends on ${goal.end_date}. Change the goal window first if you want to plan beyond it.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const destinationWeekStart = mondayKey(parseISO(nextDate));
+    const destinationWeekEnd = endOfWeekKey(destinationWeekStart);
+    const destinationCapacity = capacityForWeek(destinationWeekStart, destinationWeekEnd);
+    const taskMinutes = Number(task.estimated_minutes || 0);
+
+    const destinationTaskMinutes = tasks
+      .filter(
+        (item) =>
+          item.id !== task.id &&
+          item.scheduled_date &&
+          item.scheduled_date >= destinationWeekStart &&
+          item.scheduled_date <= destinationWeekEnd &&
+          (item.status === "planned" || item.status === "completed"),
+      )
+      .reduce((sum, item) => sum + Number(item.estimated_minutes || 0), 0);
+
+    const destinationGoalMinutes = tasks
+      .filter(
+        (item) =>
+          item.id !== task.id &&
+          item.goal_id === task.goal_id &&
+          item.scheduled_date &&
+          item.scheduled_date >= destinationWeekStart &&
+          item.scheduled_date <= destinationWeekEnd &&
+          (item.status === "planned" || item.status === "completed"),
+      )
+      .reduce((sum, item) => sum + Number(item.estimated_minutes || 0), 0);
+
+    const warnings: string[] = [];
+
+    if (
+      defaultCapacity !== null &&
+      destinationTaskMinutes + taskMinutes > destinationCapacity.hours * 60 + 1
+    ) {
+      warnings.push(
+        `The destination week would contain ${hoursLabel(destinationTaskMinutes + taskMinutes)} of scheduled goal tasks against ${destinationCapacity.hours.toFixed(1)}h of capacity.`,
+      );
+    }
+
+    if (CONFIRMED_EFFORT.has(goal.effort_source)) {
+      const goalBudgetMinutes = Math.round(
+        effortForGoalDuring(goal, destinationWeekStart, destinationWeekEnd) * 60,
+      );
+      if (destinationGoalMinutes + taskMinutes > goalBudgetMinutes + 1) {
+        warnings.push(
+          `“${goal.title}” would have ${hoursLabel(destinationGoalMinutes + taskMinutes)} scheduled against its ${hoursLabel(goalBudgetMinutes)} confirmed weekly commitment.`,
+        );
+      }
+    }
+
+    if (
+      warnings.length &&
+      !window.confirm(
+        `${warnings.join("\n\n")}\n\nMove the task anyway? The planner will keep the overload visible so you can adjust it deliberately.`,
+      )
+    ) {
+      return;
+    }
+
     await updateTask(task.id, {
       status: "planned",
       deferred_from_date: task.deferred_from_date ?? task.scheduled_date,
@@ -601,6 +688,10 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   const selectedDayTasks = tasks
     .filter((task) => task.scheduled_date === selectedDayKey && task.status !== "deferred")
     .sort((a, b) => (a.scheduled_time ?? "99:99").localeCompare(b.scheduled_time ?? "99:99"));
+
+  const selectedDayTaskMinutes = selectedDayTasks
+    .filter((task) => task.status === "planned" || task.status === "completed")
+    .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0);
 
   const yearStart = dateKey(startOfYear(yearAnchor));
   const yearEnd = dateKey(endOfYear(yearAnchor));
@@ -757,6 +848,9 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
 
     return Array.from(conflicts.values());
   };
+
+  const selectedDayFixedMinutes = fixedSegmentsForDate(selectedDayKey)
+    .reduce((sum, segment) => sum + Math.max(0, segment.end - segment.start), 0);
 
   const goalTaskProgress = (goalId: string) => {
     const goalTasks = tasks.filter((task) => task.goal_id === goalId && task.status !== "skipped");
@@ -1403,6 +1497,27 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 </CardContent>
               </Card>
             )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Goal work scheduled</p>
+                  <p className="text-2xl font-bold">{hoursLabel(selectedDayTaskMinutes)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedDayTasks.filter((task) => task.status === "planned" || task.status === "completed").length} active tasks
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Protected commitments</p>
+                  <p className="text-2xl font-bold">{hoursLabel(selectedDayFixedMinutes)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {fixedSegmentsForDate(selectedDayKey).length} fixed time blocks
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
             {fixedSegmentsForDate(selectedDayKey).length > 0 && (
               <Card>
