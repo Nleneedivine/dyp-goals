@@ -30,10 +30,12 @@ export function WeeklyActionEditDialog({
   action,
   milestones,
   onSave,
+  milestoneLocked = false,
 }: {
   action: WeeklyAction;
   milestones: Milestone[];
   onSave: (values: WeeklyActionEditValues) => Promise<boolean>;
+  milestoneLocked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -101,6 +103,7 @@ export function WeeklyActionEditDialog({
             <Select
               value={draft.milestoneId}
               onValueChange={(milestoneId) => setDraft((current) => ({ ...current, milestoneId }))}
+              disabled={milestoneLocked}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -110,6 +113,11 @@ export function WeeklyActionEditDialog({
                 ))}
               </SelectContent>
             </Select>
+            {milestoneLocked && (
+              <p className="text-xs text-muted-foreground">
+                Milestone is locked because this weekly action already has linked tasks. Create a new weekly action if the execution lineage needs to move to another milestone.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
