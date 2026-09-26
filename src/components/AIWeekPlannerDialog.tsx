@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Json, Tables } from "@/integrations/supabase/types";
 
 type Goal = Tables<"goals">;
 type Milestone = Tables<"goal_milestones">;
@@ -433,7 +433,7 @@ export function AIWeekPlannerDialog({
     setApplying(true);
     const { data, error } = await supabase.rpc("apply_generated_week_plan", {
       p_week_start: weekStart,
-      p_actions: plan.actions,
+      p_actions: plan.actions as unknown as Json,
     });
     setApplying(false);
 
