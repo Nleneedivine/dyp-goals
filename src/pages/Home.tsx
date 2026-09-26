@@ -8,7 +8,7 @@ import goalSettingGuide from "@/assets/goal-setting-guide.png";
 import timeManagement from "@/assets/time-management.png";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProgramForm } from "@/lib/formTypes";
-import { eventBenefits, formatEventDate, formatNaira, type ProgramEvent } from "@/lib/event";
+import { eventBenefits, formatEventDate, formatEventTime, formatNaira, type ProgramEvent } from "@/lib/event";
 
 const Home = () => {
   const [featuredForms, setFeaturedForms] = useState<ProgramForm[]>([]);
@@ -90,7 +90,7 @@ const Home = () => {
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wider text-primary">Next live experience</p>
                 <h2 className="mt-2 text-3xl font-bold">{formatEventDate(event.starts_at)} – {formatEventDate(event.ends_at)}</h2>
-                <p className="mt-2 text-muted-foreground">{event.session_start_time} – {event.session_end_time} WAT · Online</p>
+                <p className="mt-2 text-muted-foreground">{formatEventTime(event.session_start_time)} – {formatEventTime(event.session_end_time)} WAT · Online</p>
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <span className="text-muted-foreground line-through">{formatNaira(event.original_price)}</span>
                   <span className="text-3xl font-bold text-primary">{formatNaira(event.discounted_price)}</span>
