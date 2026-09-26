@@ -251,6 +251,7 @@ export type Database = {
           created_at: string
           deadline_alerts_enabled: boolean
           deadline_days_before: number[]
+          deadline_time: string
           email_enabled: boolean
           evening_debrief_enabled: boolean
           evening_time: string
@@ -267,6 +268,7 @@ export type Database = {
           created_at?: string
           deadline_alerts_enabled?: boolean
           deadline_days_before?: number[]
+          deadline_time?: string
           email_enabled?: boolean
           evening_debrief_enabled?: boolean
           evening_time?: string
@@ -283,6 +285,7 @@ export type Database = {
           created_at?: string
           deadline_alerts_enabled?: boolean
           deadline_days_before?: number[]
+          deadline_time?: string
           email_enabled?: boolean
           evening_debrief_enabled?: boolean
           evening_time?: string
