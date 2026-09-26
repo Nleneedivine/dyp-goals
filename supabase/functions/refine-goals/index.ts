@@ -277,11 +277,11 @@ Create comprehensive refined goals based on this information.`;
       effortRationale: z.string().max(2000).nullable().optional(),
       successDefinition: z.string().max(4000).nullable().optional(),
       executionInsights: z.object({
-        obstacles: z.array(z.string().min(1).max(1000)).max(12),
-        safeguards: z.array(z.string().min(1).max(1000)).max(12),
-        resources: z.array(z.string().min(1).max(1000)).max(12),
-        reviewRhythm: z.array(z.string().min(1).max(1000)).max(12),
-        constraints: z.array(z.string().min(1).max(1000)).max(12),
+        obstacles: z.array(z.string().min(1).max(1000)).max(12).default([]),
+        safeguards: z.array(z.string().min(1).max(1000)).max(12).default([]),
+        resources: z.array(z.string().min(1).max(1000)).max(12).default([]),
+        reviewRhythm: z.array(z.string().min(1).max(1000)).max(12).default([]),
+        constraints: z.array(z.string().min(1).max(1000)).max(12).default([]),
       }).nullable().optional(),
       milestones: z.array(MilestoneSchema).max(20).nullable().optional(),
       effortPeriods: z.array(EffortPeriodSchema).max(24).nullable().optional(),
@@ -305,6 +305,18 @@ Create comprehensive refined goals based on this information.`;
       const first = validated.data.refinedGoals[0];
       const effectiveStart = first.startDate ?? portfolioGoal.startDate ?? null;
       const effectiveEnd = first.endDate ?? portfolioGoal.endDate ?? null;
+
+      if (!first.effortSource) {
+        first.effortSource = portfolioGoal.effortSource === 'user_confirmed' ||
+          portfolioGoal.effortSource === 'ai_estimate_confirmed'
+          ? 'user_confirmed'
+          : 'ai_estimated';
+      }
+      if (!first.effortRationale) {
+        first.effortRationale = first.effortSource === 'user_confirmed'
+          ? 'Uses a weekly commitment already confirmed by the user.'
+          : 'AI estimate based on the goal scope and timeline; user confirmation is required before portfolio planning.';
+      }
 
       if (effectiveStart && effectiveEnd && effectiveEnd < effectiveStart) {
         throw new Error("AI returned an invalid portfolio date window");
