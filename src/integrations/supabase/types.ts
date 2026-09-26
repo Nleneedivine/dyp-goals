@@ -489,6 +489,60 @@ export type Database = {
           },
         ]
       }
+      planner_fixed_blocks: {
+        Row: {
+          active_end_date: string | null
+          active_start_date: string | null
+          category: string
+          created_at: string
+          crosses_midnight: boolean
+          days_of_week: number[]
+          end_time: string
+          id: string
+          notes: string
+          recurrence: string
+          specific_date: string | null
+          start_time: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_end_date?: string | null
+          active_start_date?: string | null
+          category?: string
+          created_at?: string
+          crosses_midnight?: boolean
+          days_of_week?: number[]
+          end_time: string
+          id?: string
+          notes?: string
+          recurrence?: string
+          specific_date?: string | null
+          start_time: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_end_date?: string | null
+          active_start_date?: string | null
+          category?: string
+          created_at?: string
+          crosses_midnight?: boolean
+          days_of_week?: number[]
+          end_time?: string
+          id?: string
+          notes?: string
+          recurrence?: string
+          specific_date?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           coaching_context: Json
