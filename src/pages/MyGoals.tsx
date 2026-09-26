@@ -27,6 +27,8 @@ import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
 import { GoalCapacityChecker, type CapacityReviewWindow } from "@/components/GoalCapacityChecker";
 import { MilestoneEditDialog, type MilestoneEditValues } from "@/components/MilestoneEditDialog";
 import { PortfolioAIReviewDialog } from "@/components/PortfolioAIReviewDialog";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
@@ -620,6 +622,7 @@ function GoalCard({
 
 export default function MyGoals() {
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [milestones, setMilestones] = useState<GoalMilestone[]>([]);
   const [effortPeriods, setEffortPeriods] = useState<GoalEffortPeriod[]>([]);
@@ -834,19 +837,36 @@ export default function MyGoals() {
     <main className="min-h-screen pt-28 pb-16">
       <div className="container mx-auto px-4">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-8">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-              <Layers3 className="h-4 w-4" />
-              Goal portfolio
+          {isUi2 ? (
+            <Ui2PageHeader
+              eyebrow="Goal portfolio"
+              title="My GOALS"
+              description="One portfolio for every goal you are pursuing. Each goal keeps its own dates, priority, milestones and confirmed workload so overlapping goals can share one realistic execution system."
+              icon={Layers3}
+              actions={
+                <Button asChild variant="outline" className="gap-2">
+                  <Link to="/vision">
+                    Vision & life areas
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              }
+            />
+          ) : (
+            <div className="mb-8">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+                <Layers3 className="h-4 w-4" />
+                Goal portfolio
+              </div>
+              <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
+                My <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">GOALS</span>
+              </h1>
+              <p className="mt-4 max-w-3xl text-lg text-muted-foreground">
+                One portfolio for every goal you are pursuing. Each goal gets its own start date, end date, priority,
+                milestones and workload so overlapping goals can eventually share one realistic calendar.
+              </p>
             </div>
-            <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
-              My <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">GOALS</span>
-            </h1>
-            <p className="mt-4 max-w-3xl text-lg text-muted-foreground">
-              One portfolio for every goal you are pursuing. Each goal gets its own start date, end date, priority,
-              milestones and workload so overlapping goals can eventually share one realistic calendar.
-            </p>
-          </div>
+          )}
 
           <Card className="mb-8 border-primary/15">
             <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">

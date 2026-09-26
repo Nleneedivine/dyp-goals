@@ -18,6 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ExecutionAdaptationPanel } from "@/components/ExecutionAdaptationPanel";
 import { ExecutionTrendCard } from "@/components/ExecutionTrendCard";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -40,6 +42,7 @@ const completionPercent = (completed: number, total: number) =>
 
 export default function ProgressDashboard() {
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -263,33 +266,56 @@ export default function ProgressDashboard() {
   return (
     <main className="min-h-screen px-4 pb-16 pt-28">
       <div className="container mx-auto max-w-7xl">
-        <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-              <BarChart3 className="h-4 w-4" />
-              Execution progress
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight md:text-5xl">Are the plans becoming action?</h1>
-            <p className="mt-3 max-w-3xl text-muted-foreground">
-              Progress here comes from saved execution and milestones. It does not assign a subjective goal score or pretend task completion alone proves success.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" className="gap-2">
-              <Link to="/journey">
-                <Target className="h-4 w-4" />
-                Journey
-              </Link>
-            </Button>
-            <Button asChild className="gap-2">
-              <Link to="/plan">
-                Open planner
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
+        {isUi2 ? (
+          <Ui2PageHeader
+            eyebrow="Execution progress"
+            title="Are the plans becoming action?"
+            description="Progress comes from saved execution and milestones. It does not assign a subjective goal score or pretend task completion alone proves success."
+            icon={BarChart3}
+            actions={<>
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/journey">
+                  <Target className="h-4 w-4" />
+                  Journey
+                </Link>
+              </Button>
+              <Button asChild className="gap-2">
+                <Link to="/plan">
+                  Open planner
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </>}
+          />
+        ) : (
+                  <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+                        <BarChart3 className="h-4 w-4" />
+                        Execution progress
+                      </div>
+                      <h1 className="text-4xl font-bold tracking-tight md:text-5xl">Are the plans becoming action?</h1>
+                      <p className="mt-3 max-w-3xl text-muted-foreground">
+                        Progress here comes from saved execution and milestones. It does not assign a subjective goal score or pretend task completion alone proves success.
+                      </p>
+                    </div>
+          
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild variant="outline" className="gap-2">
+                        <Link to="/journey">
+                          <Target className="h-4 w-4" />
+                          Journey
+                        </Link>
+                      </Button>
+                      <Button asChild className="gap-2">
+                        <Link to="/plan">
+                          Open planner
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Card>
