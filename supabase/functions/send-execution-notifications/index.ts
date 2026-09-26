@@ -340,6 +340,20 @@ serve(async (req) => {
             if (type === "weekly_review") {
               const weekStart = addDays(local.date, -(local.weekday - 1));
               const weekEnd = addDays(weekStart, 6);
+
+              const { data: existingReview, error: existingReviewError } = await admin
+                .from("goal_weekly_reviews")
+                .select("id")
+                .eq("user_id", setting.user_id)
+                .eq("week_start", weekStart)
+                .maybeSingle();
+
+              if (existingReviewError) throw existingReviewError;
+              if (existingReview) {
+                skipped += 1;
+                continue;
+              }
+
               const { data: weekTasks, error: weekTasksError } = await admin
                 .from("goal_tasks")
                 .select("status,estimated_minutes")
