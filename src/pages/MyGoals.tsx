@@ -451,7 +451,11 @@ function GoalCard({
               <span className="pointer-events-none absolute right-3 top-2.5 text-xs text-muted-foreground">hrs/week</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Saving this field confirms the weekly effort as your own planning commitment.
+              {goal.effort_source === "ai_estimate_confirmed"
+                ? "AI estimate confirmed by you."
+                : goal.effort_source === "user_confirmed"
+                  ? "Confirmed by you."
+                  : "Not yet confirmed. Saving this field will confirm it as your planning commitment."}
             </p>
           </div>
 
