@@ -79,7 +79,7 @@ create or replace function public.prevent_overlapping_goal_capacity_periods()
 returns trigger
 language plpgsql
 set search_path = public
-as $
+as $function$
 begin
   if exists (
     select 1
@@ -93,7 +93,7 @@ begin
   end if;
   return new;
 end;
-$;
+$function$;
 
 drop trigger if exists prevent_goal_capacity_period_overlap on public.goal_capacity_periods;
 create trigger prevent_goal_capacity_period_overlap
