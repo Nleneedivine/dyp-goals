@@ -51,6 +51,7 @@ export function MonthlyAccountabilityCheckin({
   const selectedDate = parseISO(selectedMonth);
   const selectedMonthEnd = dateKey(endOfMonth(selectedDate));
   const isCurrentMonth = selectedMonth === currentMonthStart;
+  const snapshotEnd = isCurrentMonth ? dateKey(new Date()) : selectedMonthEnd;
 
   const liveStats = useMemo(() => {
     const monthTasks = tasks.filter(
@@ -59,7 +60,7 @@ export function MonthlyAccountabilityCheckin({
         Boolean(
           task.scheduled_date &&
           task.scheduled_date >= selectedMonth &&
-          task.scheduled_date <= selectedMonthEnd,
+          task.scheduled_date <= snapshotEnd,
         ),
     );
     const completedTasks = monthTasks.filter((task) => task.status === "completed");
@@ -68,7 +69,7 @@ export function MonthlyAccountabilityCheckin({
         Boolean(
           milestone.due_date &&
           milestone.due_date >= selectedMonth &&
-          milestone.due_date <= selectedMonthEnd,
+          milestone.due_date <= snapshotEnd,
         ),
     );
     const completedMilestones = monthMilestones.filter(
@@ -91,7 +92,7 @@ export function MonthlyAccountabilityCheckin({
       milestonesDue: monthMilestones.length,
       milestonesCompleted: completedMilestones.length,
     };
-  }, [tasks, milestones, selectedMonth, selectedMonthEnd]);
+  }, [tasks, milestones, selectedMonth, snapshotEnd]);
 
   const effortPercent = liveStats.plannedMinutes
     ? Math.round((liveStats.completedMinutes / liveStats.plannedMinutes) * 100)
@@ -240,7 +241,7 @@ export function MonthlyAccountabilityCheckin({
           <div className="text-center">
             <p className="font-semibold">{format(selectedDate, "MMMM yyyy")}</p>
             <p className="text-xs text-muted-foreground">
-              {isCurrentMonth ? "Current month" : "Past month"}
+              {isCurrentMonth ? `Current month · through ${snapshotEnd}` : "Past month"}
             </p>
           </div>
           <Button
