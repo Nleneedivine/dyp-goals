@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod@3";
 import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { parseAiJsonObject } from "../_shared/aiJson.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -305,6 +306,7 @@ Draft only the missing execution work for this week.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -331,7 +333,7 @@ Draft only the missing execution work for this week.`;
 
     let decoded: unknown;
     try {
-      decoded = JSON.parse(raw.replace(/```json\n?|\n?```/g, "").trim());
+      decoded = parseAiJsonObject(raw);
     } catch {
       console.error("Invalid week plan JSON:", raw);
       throw new Error("AI returned invalid week plan JSON");
