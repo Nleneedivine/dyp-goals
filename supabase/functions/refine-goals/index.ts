@@ -242,14 +242,14 @@ Create comprehensive refined goals based on this information.`;
       actionSteps: z.array(z.string().min(1)).min(1),
       timeline: z.string().min(1),
       successMetrics: z.array(z.string().min(1)).min(1),
-      lifeArea: z.string().max(80).optional(),
+      lifeArea: z.string().max(80).nullable().optional(),
       startDate: DateString.nullable().optional(),
       endDate: DateString.nullable().optional(),
-      priority: z.enum(['primary', 'maintenance', 'later']).optional(),
-      estimatedHoursPerWeek: z.number().min(0).max(168).optional(),
-      successDefinition: z.string().max(4000).optional(),
-      milestones: z.array(MilestoneSchema).max(20).optional(),
-      effortPeriods: z.array(EffortPeriodSchema).max(24).optional(),
+      priority: z.enum(['primary', 'maintenance', 'later']).nullable().optional(),
+      estimatedHoursPerWeek: z.number().min(0).max(168).nullable().optional(),
+      successDefinition: z.string().max(4000).nullable().optional(),
+      milestones: z.array(MilestoneSchema).max(20).nullable().optional(),
+      effortPeriods: z.array(EffortPeriodSchema).max(24).nullable().optional(),
     }).refine(
       (value) => !value.startDate || !value.endDate || value.endDate >= value.startDate,
       { message: "Refined goal end date cannot be before start date" },
@@ -275,7 +275,7 @@ Create comprehensive refined goals based on this information.`;
         throw new Error("AI returned an invalid portfolio date window");
       }
 
-      if (first.milestones) {
+      if (first.milestones?.length) {
         first.milestones = first.milestones.filter((milestone) => {
           if (!milestone.dueDate) return true;
           if (milestone.dueDate < currentDate) return false;
@@ -285,7 +285,7 @@ Create comprehensive refined goals based on this information.`;
         });
       }
 
-      if (first.effortPeriods) {
+      if (first.effortPeriods?.length) {
         first.effortPeriods = first.effortPeriods.filter((period) => {
           if (period.endDate < currentDate) return false;
           if (effectiveEnd && period.startDate > effectiveEnd) return false;
