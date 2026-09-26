@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, User, Mail, Key, Save } from "lucide-react";
+import { Loader2, User, Mail, Key, Save, Archive, History, Sparkles } from "lucide-react";
 
 const Profile = () => {
   const [loading, setLoading] = useState(true);
@@ -205,6 +206,38 @@ const Profile = () => {
                     Save Changes
                   </>
                 )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Archive className="h-6 w-6 text-muted-foreground" />
+                Legacy tools
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Previous GOALS tools are still available for historical work. New planning should use My GOALS and Plan & Today.
+              </p>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link to="/goal-history">
+                  <History className="mr-2 h-4 w-4" />
+                  Goal history
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/ai-goals">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Legacy AI coach
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/legacy/time-plans">
+                  <Archive className="mr-2 h-4 w-4" />
+                  Legacy time plans
+                </Link>
               </Button>
             </CardContent>
           </Card>
