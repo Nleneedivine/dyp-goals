@@ -997,6 +997,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 capacityHours={defaultCapacity === null ? null : currentCapacity.hours}
                 goals={goals}
                 milestones={milestones}
+                effortPeriods={effortPeriods}
                 actions={actions}
                 tasks={tasks}
                 onApplied={loadPlanner}
