@@ -543,6 +543,54 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_weekly_reviews: {
+        Row: {
+          adjustments: string
+          blockers: string
+          completed_minutes: number
+          completed_tasks: number
+          created_at: string
+          id: string
+          per_goal_summary: Json
+          planned_minutes: number
+          planned_tasks: number
+          updated_at: string
+          user_id: string
+          week_start: string
+          wins: string
+        }
+        Insert: {
+          adjustments?: string
+          blockers?: string
+          completed_minutes?: number
+          completed_tasks?: number
+          created_at?: string
+          id?: string
+          per_goal_summary?: Json
+          planned_minutes?: number
+          planned_tasks?: number
+          updated_at?: string
+          user_id: string
+          week_start: string
+          wins?: string
+        }
+        Update: {
+          adjustments?: string
+          blockers?: string
+          completed_minutes?: number
+          completed_tasks?: number
+          created_at?: string
+          id?: string
+          per_goal_summary?: Json
+          planned_minutes?: number
+          planned_tasks?: number
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+          wins?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           coaching_context: Json
@@ -1141,6 +1189,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_goal_weekly_review: {
+        Args: {
+          p_adjustments?: string
+          p_blockers?: string
+          p_week_start: string
+          p_wins?: string
+        }
+        Returns: Database["public"]["Tables"]["goal_weekly_reviews"]["Row"]
+      }
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
       consume_edge_rate_limit: {
         Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
