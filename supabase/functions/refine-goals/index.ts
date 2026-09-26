@@ -87,6 +87,48 @@ serve(async (req) => {
     const { originalGoals, questions, responses, targetYear, planningStartDate, portfolioGoal, coachingHistory } = parsedRequest.data;
     const currentDate = new Date().toISOString().slice(0, 10);
 
+    let planningDirection = "";
+    let lifeAreaFocus = "";
+    const [visionResult, focusResult] = await Promise.all([
+      supabase
+        .from("user_planning_vision")
+        .select("vision_statement,year_theme")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      portfolioGoal?.lifeArea
+        ? supabase
+            .from("life_area_focus")
+            .select("focus_statement")
+            .eq("user_id", user.id)
+            .eq("active", true)
+            .ilike("life_area", portfolioGoal.lifeArea)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    const visionTablePending =
+      visionResult.error?.code === "PGRST205" ||
+      visionResult.error?.code === "42P01" ||
+      focusResult.error?.code === "PGRST205" ||
+      focusResult.error?.code === "42P01";
+
+    if (!visionTablePending) {
+      if (visionResult.error) {
+        console.error("Could not load planning vision for goal refinement:", visionResult.error);
+      } else if (visionResult.data) {
+        planningDirection = [
+          visionResult.data.year_theme ? `Season/year theme: ${visionResult.data.year_theme}` : "",
+          visionResult.data.vision_statement ? `Vision: ${visionResult.data.vision_statement}` : "",
+        ].filter(Boolean).join("\n");
+      }
+
+      if (focusResult.error) {
+        console.error("Could not load life-area focus for goal refinement:", focusResult.error);
+      } else if (focusResult.data?.focus_statement) {
+        lifeAreaFocus = focusResult.data.focus_statement;
+      }
+    }
+
     if (planningStartDate && planningStartDate < currentDate) {
       return new Response(
         JSON.stringify({ error: 'Preferred start date cannot be in the past' }),
@@ -123,6 +165,17 @@ CURRENT DATE: ${currentDate}
 TARGET YEAR: ${targetYear ?? "not explicitly selected"}
 PREFERRED PLANNING START DATE: ${planningStartDate ?? "not specified; choose a realistic future start"}
 ${portfolioContext}
+
+USER-SUPPLIED DIRECTIONAL CONTEXT:
+${planningDirection || "No saved personal vision supplied."}
+${lifeAreaFocus ? `Life-area focus for ${portfolioGoal?.lifeArea ?? "this area"}: ${lifeAreaFocus}` : "No saved focus statement for this life area."}
+
+DIRECTIONAL CONTEXT RULES:
+- Treat this context as background supplied by the user, not permission to change the goal's meaning.
+- Do not judge whether the goal is aligned, worthy, or important.
+- Preserve the user's explicit goal outcome even if the relationship to the broader vision is unclear.
+- Do not invent values, spiritual requirements, priorities, dates, or success criteria from the vision statement.
+- Where useful, use the context to make milestones, resources, or review questions more coherent with what the user already said.
 
 COACHING HISTORY:
 ${coachingHistory?.length

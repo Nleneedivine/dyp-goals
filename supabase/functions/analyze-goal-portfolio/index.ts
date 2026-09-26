@@ -116,6 +116,49 @@ serve(async (req) => {
     const goalIds = new Set(input.goals.map((goal) => goal.id));
     const overloadedWindows = input.capacityWindows.filter((window) => window.overloaded);
 
+    let planningDirection: { visionStatement: string; yearTheme: string } | null = null;
+    let lifeAreaFocus: Array<{ lifeArea: string; focusStatement: string }> = [];
+
+    const [visionResult, focusResult] = await Promise.all([
+      supabase
+        .from("user_planning_vision")
+        .select("vision_statement,year_theme")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("life_area_focus")
+        .select("life_area,focus_statement")
+        .eq("user_id", user.id)
+        .eq("active", true)
+        .order("display_order", { ascending: true }),
+    ]);
+
+    const visionTablePending =
+      visionResult.error?.code === "PGRST205" ||
+      visionResult.error?.code === "42P01" ||
+      focusResult.error?.code === "PGRST205" ||
+      focusResult.error?.code === "42P01";
+
+    if (!visionTablePending) {
+      if (visionResult.error) {
+        console.error("Could not load planning vision for portfolio review:", visionResult.error);
+      } else if (visionResult.data) {
+        planningDirection = {
+          visionStatement: visionResult.data.vision_statement ?? "",
+          yearTheme: visionResult.data.year_theme ?? "",
+        };
+      }
+
+      if (focusResult.error) {
+        console.error("Could not load life-area focus for portfolio review:", focusResult.error);
+      } else {
+        lifeAreaFocus = (focusResult.data ?? []).map((item) => ({
+          lifeArea: item.life_area,
+          focusStatement: item.focus_statement,
+        }));
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -132,6 +175,9 @@ ROLE:
 - If there is no real cross-goal issue, say so rather than manufacturing findings.
 - A finding can require a user decision when there is an unresolved choice, sequencing question, overlap, dependency, or capacity pressure.
 - "strengths" should be descriptive portfolio structure that is already present, not praise or a score.
+- Saved vision and life-area focus are user-supplied background context. Do not use them to rank goals, declare a goal misaligned, or recommend dropping a goal.
+- If the relationship between a goal and the user's stated direction is genuinely unclear and materially affects portfolio coherence, frame that as a neutral clarity question rather than a verdict.
+- Do not invent values, purpose claims, spiritual requirements, or priorities from directional context.
 - Return ONLY valid JSON.
 
 FINDING TYPES:
@@ -167,6 +213,12 @@ ${JSON.stringify(input.goals, null, 2)}
 
 DETERMINISTIC CAPACITY WINDOWS:
 ${JSON.stringify(input.capacityWindows, null, 2)}
+
+USER-SUPPLIED DIRECTIONAL CONTEXT:
+${JSON.stringify({
+  planningDirection,
+  lifeAreaFocus,
+}, null, 2)}
 
 OVERLOADED WINDOW COUNT: ${overloadedWindows.length}
 

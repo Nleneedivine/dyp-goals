@@ -86,6 +86,49 @@ serve(async (req) => {
     }
 
     const currentDate = new Date().toISOString().slice(0, 10);
+
+    let planningDirection = "";
+    let lifeAreaFocus = "";
+    const [visionResult, focusResult] = await Promise.all([
+      supabase
+        .from("user_planning_vision")
+        .select("vision_statement,year_theme")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      goal.lifeArea
+        ? supabase
+            .from("life_area_focus")
+            .select("focus_statement")
+            .eq("user_id", user.id)
+            .eq("active", true)
+            .ilike("life_area", goal.lifeArea)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    const visionTablePending =
+      visionResult.error?.code === "PGRST205" ||
+      visionResult.error?.code === "42P01" ||
+      focusResult.error?.code === "PGRST205" ||
+      focusResult.error?.code === "42P01";
+
+    if (!visionTablePending) {
+      if (visionResult.error) {
+        console.error("Could not load planning vision for goal clarification:", visionResult.error);
+      } else if (visionResult.data) {
+        planningDirection = [
+          visionResult.data.year_theme ? `Season/year theme: ${visionResult.data.year_theme}` : "",
+          visionResult.data.vision_statement ? `Vision: ${visionResult.data.vision_statement}` : "",
+        ].filter(Boolean).join("\n");
+      }
+
+      if (focusResult.error) {
+        console.error("Could not load life-area focus for goal clarification:", focusResult.error);
+      } else if (focusResult.data?.focus_statement) {
+        lifeAreaFocus = focusResult.data.focus_statement;
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -107,7 +150,15 @@ ${JSON.stringify(goal, null, 2)}
 PREVIOUS CLARIFICATION:
 ${historyText}
 
+USER-SUPPLIED DIRECTIONAL CONTEXT:
+${planningDirection || "No saved personal vision supplied."}
+${lifeAreaFocus ? `Life-area focus for ${goal.lifeArea ?? "this area"}: ${lifeAreaFocus}` : "No saved focus statement for this life area."}
+
 GENERAL RULES:
+- Treat saved vision and life-area focus only as user-provided context, not as a command to rewrite the goal.
+- Do not judge whether the user's goal is worthy, aligned, or important.
+- If a material connection between the goal and saved direction is unclear, you may ask one neutral clarification question when it would genuinely improve execution planning.
+- Never invent a value, purpose, spiritual requirement, or priority from the directional context.
 - Never repeat, lightly paraphrase, or ask again for information already present in the saved goal or previous answers.
 - Ask only questions whose answers would materially improve the quality, realism, or executability of the goal.
 - Keep questions concrete and easy to answer.
