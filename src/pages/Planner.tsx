@@ -1945,14 +1945,14 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   </Button>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-4">
                   {Array.from({ length: 7 }, (_, index) => addDays(parseISO(currentWeekStart), index)).map((date) => {
                     const key = dateKey(date);
                     const dayTasks = tasksForWeek
                       .filter((task) => task.scheduled_date === key)
                       .sort((a, b) => (a.scheduled_time ?? "99:99").localeCompare(b.scheduled_time ?? "99:99"));
                     return (
-                      <div key={key} className="rounded-xl border p-3">
+                      <div key={key} className="min-w-[82vw] snap-start rounded-xl border p-3 sm:min-w-[68vw] md:min-w-0">
                         <div className="mb-3 flex items-center justify-between gap-2">
                           <button
                             type="button"
