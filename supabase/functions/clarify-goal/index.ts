@@ -155,6 +155,7 @@ Return exactly:
           { role: "user", content: userPrompt },
         ],
         temperature: 0.2,
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -182,7 +183,11 @@ Return exactly:
 
     let result;
     try {
-      result = JSON.parse(raw.replace(/```json\n?|\n?```/g, "").trim());
+      const cleaned = raw.replace(/```(?:json)?\n?|\n?```/g, "").trim();
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start === -1 || end <= start) throw new Error("No JSON object found");
+      result = JSON.parse(cleaned.slice(start, end + 1));
     } catch {
       console.error("Failed to parse clarify-goal response:", raw);
       throw new Error("AI returned invalid clarification format");
