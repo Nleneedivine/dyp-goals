@@ -133,6 +133,7 @@ ${goals}`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
+        temperature: 0.2,
       }),
     });
 
