@@ -57,20 +57,48 @@ begin
     select
       ag.id as group_id,
       ag.name as group_name,
-      count(distinct p.id)::integer as member_count,
-      count(distinct g.user_id)::integer as members_with_active_goals,
-      count(distinct wr.user_id)::integer as members_reviewed_this_week,
-      coalesce(sum(wr.planned_minutes), 0)::integer as planned_minutes_this_week,
-      coalesce(sum(wr.completed_minutes), 0)::integer as completed_minutes_this_week,
-      count(distinct om.id)::integer as overdue_milestones,
-      count(distinct s.user_id)::integer as members_sharing_with_mentor
+      (
+        select count(*)::integer
+        from profile_base p
+        where p.group_id = ag.id
+      ) as member_count,
+      (
+        select count(distinct g.user_id)::integer
+        from active_goals g
+        join profile_base p on p.id = g.user_id
+        where p.group_id = ag.id
+      ) as members_with_active_goals,
+      (
+        select count(distinct wr.user_id)::integer
+        from weekly_reviews wr
+        join profile_base p on p.id = wr.user_id
+        where p.group_id = ag.id
+      ) as members_reviewed_this_week,
+      (
+        select coalesce(sum(wr.planned_minutes), 0)::integer
+        from weekly_reviews wr
+        join profile_base p on p.id = wr.user_id
+        where p.group_id = ag.id
+      ) as planned_minutes_this_week,
+      (
+        select coalesce(sum(wr.completed_minutes), 0)::integer
+        from weekly_reviews wr
+        join profile_base p on p.id = wr.user_id
+        where p.group_id = ag.id
+      ) as completed_minutes_this_week,
+      (
+        select count(*)::integer
+        from overdue_milestones om
+        join profile_base p on p.id = om.user_id
+        where p.group_id = ag.id
+      ) as overdue_milestones,
+      (
+        select count(*)::integer
+        from sharing s
+        join profile_base p on p.id = s.user_id
+        where p.group_id = ag.id
+      ) as members_sharing_with_mentor
     from public.accountability_groups ag
-    left join profile_base p on p.group_id = ag.id
-    left join active_goals g on g.user_id = p.id
-    left join weekly_reviews wr on wr.user_id = p.id
-    left join overdue_milestones om on om.user_id = p.id
-    left join sharing s on s.user_id = p.id
-    group by ag.id, ag.name
   ),
   group_json as (
     select coalesce(
