@@ -278,6 +278,8 @@ export function GoalCapacityChecker({ goals }: { goals: Goal[] }) {
     setCapacityPeriods((current) => current.filter((period) => period.id !== periodId));
   };
 
+  const today = new Date().toISOString().slice(0, 10);
+
   const planningGoals = useMemo(
     () => goals.filter((goal) => INCLUDED_STATUSES.has(goal.status)),
     [goals],
@@ -299,8 +301,10 @@ export function GoalCapacityChecker({ goals }: { goals: Goal[] }) {
   );
 
   const scheduledGoals = useMemo(
-    () => confirmedGoals.filter((goal) => Boolean(goal.start_date && goal.end_date)),
-    [confirmedGoals],
+    () => confirmedGoals.filter(
+      (goal) => Boolean(goal.start_date && goal.end_date && goal.end_date >= today),
+    ),
+    [confirmedGoals, today],
   );
 
   const periodsByGoal = useMemo(() => {
@@ -317,7 +321,7 @@ export function GoalCapacityChecker({ goals }: { goals: Goal[] }) {
     if (!scheduledGoals.length) return [] as CapacityWindow[];
 
     const horizonStart = scheduledGoals
-      .map((goal) => goal.start_date!)
+      .map((goal) => goal.start_date! < today ? today : goal.start_date!)
       .sort()[0];
     const horizonEnd = scheduledGoals
       .map((goal) => goal.end_date!)
@@ -327,7 +331,7 @@ export function GoalCapacityChecker({ goals }: { goals: Goal[] }) {
     const boundaries = new Set<string>([horizonStart, addDays(horizonEnd, 1)]);
 
     scheduledGoals.forEach((goal) => {
-      boundaries.add(goal.start_date!);
+      boundaries.add(goal.start_date! < today ? today : goal.start_date!);
       boundaries.add(addDays(goal.end_date!, 1));
 
       (periodsByGoal.get(goal.id) ?? []).forEach((period) => {
@@ -406,6 +410,7 @@ export function GoalCapacityChecker({ goals }: { goals: Goal[] }) {
     capacityPeriods,
     capacityConfigured,
     defaultCapacity,
+    today,
   ]);
 
   const overloadedWindows = capacityWindows.filter(
