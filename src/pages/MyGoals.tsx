@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowRight,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -756,6 +758,23 @@ export default function MyGoals() {
           </div>
 
           <GoalCapacityChecker goals={goals} />
+
+          <Card className="mb-8 border-primary/20 bg-primary/5">
+            <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-semibold">Turn the portfolio into an execution plan</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Move from goals and milestones into weekly priorities and daily tasks while preserving the reason behind every action.
+                </p>
+              </div>
+              <Button asChild className="shrink-0 gap-2">
+                <Link to="/plan">
+                  Open planner
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
 
           <Card className="mb-8 border-primary/20">
             <CardHeader>
