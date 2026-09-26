@@ -91,6 +91,33 @@ const hoursLabel = (minutes: number) => {
 const priorityLabel = (priority: string) =>
   priority === "primary" ? "Primary" : priority === "maintenance" ? "Maintenance" : "Later";
 
+const savedExecutionContext = (goal?: Goal) => {
+  const context = goal?.coaching_context;
+  if (!context || typeof context !== "object" || Array.isArray(context)) {
+    return { safeguards: [] as string[], constraints: [] as string[] };
+  }
+
+  const executionInsights = (context as Record<string, unknown>).executionInsights;
+  if (
+    !executionInsights ||
+    typeof executionInsights !== "object" ||
+    Array.isArray(executionInsights)
+  ) {
+    return { safeguards: [] as string[], constraints: [] as string[] };
+  }
+
+  const record = executionInsights as Record<string, unknown>;
+  const strings = (value: unknown) =>
+    Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : [];
+
+  return {
+    safeguards: strings(record.safeguards),
+    constraints: strings(record.constraints),
+  };
+};
+
 export default function Planner({ initialView = "week" }: { initialView?: PlannerView }) {
   const { toast } = useToast();
   const [view, setView] = useState<PlannerView>(initialView);
@@ -2623,27 +2650,49 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {planningQueue.map((task) => (
-                    <div key={task.id} className="rounded-xl border bg-background p-4">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant="outline">
-                              {task.status === "deferred" ? "Deferred" : `Missed ${task.scheduled_date}`}
-                            </Badge>
-                            <Badge variant="secondary">{goalMap.get(task.goal_id)?.title ?? "Goal"}</Badge>
+                  {planningQueue.map((task) => {
+                    const executionContext = savedExecutionContext(goalMap.get(task.goal_id));
+                    return (
+                      <div key={task.id} className="rounded-xl border bg-background p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="outline">
+                                {task.status === "deferred" ? "Deferred" : `Missed ${task.scheduled_date}`}
+                              </Badge>
+                              <Badge variant="secondary">{goalMap.get(task.goal_id)?.title ?? "Goal"}</Badge>
+                            </div>
+                            <p className="mt-2 font-semibold">{task.title}</p>
+
+                            {executionContext.safeguards.length > 0 && (
+                              <div className="mt-3 rounded-lg border border-dashed bg-muted/15 p-3">
+                                <p className="text-xs font-semibold">Safeguards you previously chose</p>
+                                <div className="mt-1 space-y-1">
+                                  {executionContext.safeguards.slice(0, 3).map((safeguard, index) => (
+                                    <p key={index} className="text-xs text-muted-foreground">
+                                      • {safeguard}
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {executionContext.constraints.length > 0 && (
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                Saved constraint: {executionContext.constraints[0]}
+                              </p>
+                            )}
                           </div>
-                          <p className="mt-2 font-semibold">{task.title}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => rescheduleTask(task, today)}>Today</Button>
-                          <Button size="sm" variant="outline" onClick={() => rescheduleTask(task, dateKey(addDays(new Date(), 1)))}>Tomorrow</Button>
-                          <Button size="sm" variant="outline" onClick={() => rescheduleTask(task, dateKey(addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1)))}>Next week</Button>
-                          <Button size="sm" variant="ghost" onClick={() => skipTask(task)}>Skip</Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => rescheduleTask(task, today)}>Today</Button>
+                            <Button size="sm" variant="outline" onClick={() => rescheduleTask(task, dateKey(addDays(new Date(), 1)))}>Tomorrow</Button>
+                            <Button size="sm" variant="outline" onClick={() => rescheduleTask(task, dateKey(addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1)))}>Next week</Button>
+                            <Button size="sm" variant="ghost" onClick={() => skipTask(task)}>Skip</Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
