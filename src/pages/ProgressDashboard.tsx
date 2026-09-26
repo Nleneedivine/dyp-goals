@@ -130,17 +130,35 @@ export default function ProgressDashboard() {
     [executionTasks],
   );
 
-  const plannedMinutes = executionTasks.reduce(
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  const dueExecutionTasks = useMemo(
+    () =>
+      executionTasks.filter(
+        (task) =>
+          task.status === "completed" ||
+          Boolean(task.scheduled_date && task.scheduled_date <= today) ||
+          Boolean(task.deferred_from_date && task.deferred_from_date <= today),
+      ),
+    [executionTasks, today],
+  );
+
+  const dueCompletedTasks = dueExecutionTasks.filter((task) => task.status === "completed");
+  const duePlannedMinutes = dueExecutionTasks.reduce(
     (sum, task) => sum + Number(task.estimated_minutes || 0),
     0,
   );
-  const completedMinutes = completedTasks.reduce(
+  const dueCompletedMinutes = dueCompletedTasks.reduce(
     (sum, task) => sum + Number(task.estimated_minutes || 0),
     0,
+  );
+  const futureScheduledTasks = executionTasks.filter(
+    (task) =>
+      task.status !== "completed" &&
+      Boolean(task.scheduled_date && task.scheduled_date > today),
   );
 
   const completedMilestones = milestones.filter((milestone) => milestone.status === "completed");
-  const today = format(new Date(), "yyyy-MM-dd");
   const currentWeekStart = format(
     startOfWeek(new Date(), { weekStartsOn: 1 }),
     "yyyy-MM-dd",
@@ -188,11 +206,23 @@ export default function ProgressDashboard() {
     const goalCompletedMilestones = goalMilestones.filter(
       (milestone) => milestone.status === "completed",
     );
-    const goalPlannedMinutes = goalTasks.reduce(
+    const dueGoalTasks = goalTasks.filter(
+      (task) =>
+        task.status === "completed" ||
+        Boolean(task.scheduled_date && task.scheduled_date <= today) ||
+        Boolean(task.deferred_from_date && task.deferred_from_date <= today),
+    );
+    const dueGoalCompletedTasks = dueGoalTasks.filter((task) => task.status === "completed");
+    const futureGoalTasks = goalTasks.filter(
+      (task) =>
+        task.status !== "completed" &&
+        Boolean(task.scheduled_date && task.scheduled_date > today),
+    );
+    const goalPlannedMinutes = dueGoalTasks.reduce(
       (sum, task) => sum + Number(task.estimated_minutes || 0),
       0,
     );
-    const goalCompletedMinutes = goalCompletedTasks.reduce(
+    const goalCompletedMinutes = dueGoalCompletedTasks.reduce(
       (sum, task) => sum + Number(task.estimated_minutes || 0),
       0,
     );
@@ -207,8 +237,9 @@ export default function ProgressDashboard() {
 
     return {
       goal,
-      taskTotal: goalTasks.length,
-      taskCompleted: goalCompletedTasks.length,
+      taskTotal: dueGoalTasks.length,
+      taskCompleted: dueGoalCompletedTasks.length,
+      futureTaskCount: futureGoalTasks.length,
       milestoneTotal: goalMilestones.length,
       milestoneCompleted: goalCompletedMilestones.length,
       plannedMinutes: goalPlannedMinutes,
@@ -267,18 +298,18 @@ export default function ProgressDashboard() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Card>
             <CardContent className="pt-5">
-              <p className="text-xs text-muted-foreground">Execution tasks completed</p>
-              <p className="mt-1 text-2xl font-bold">{completedTasks.length}/{executionTasks.length}</p>
+              <p className="text-xs text-muted-foreground">Execution due so far</p>
+              <p className="mt-1 text-2xl font-bold">{dueCompletedTasks.length}/{dueExecutionTasks.length}</p>
               <p className="text-xs text-muted-foreground">
-                {completionPercent(completedTasks.length, executionTasks.length)}% of represented tasks
+                {completionPercent(dueCompletedTasks.length, dueExecutionTasks.length)}% of due/attempted tasks · {futureScheduledTasks.length} future
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-5">
-              <p className="text-xs text-muted-foreground">Execution effort completed</p>
-              <p className="mt-1 text-2xl font-bold">{hoursLabel(completedMinutes)}</p>
-              <p className="text-xs text-muted-foreground">of {hoursLabel(plannedMinutes)} represented by tasks</p>
+              <p className="text-xs text-muted-foreground">Due effort completed</p>
+              <p className="mt-1 text-2xl font-bold">{hoursLabel(dueCompletedMinutes)}</p>
+              <p className="text-xs text-muted-foreground">of {hoursLabel(duePlannedMinutes)} due/attempted represented effort</p>
             </CardContent>
           </Card>
           <Card>
@@ -421,7 +452,7 @@ export default function ProgressDashboard() {
                     <div className="mt-4 space-y-3">
                       <div>
                         <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                          <span>Execution tasks</span>
+                          <span>Execution due so far</span>
                           <span>{summary.taskCompleted}/{summary.taskTotal}</span>
                         </div>
                         <Progress value={taskPercent} />
@@ -437,14 +468,20 @@ export default function ProgressDashboard() {
 
                     <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                       <div className="rounded-lg bg-muted/20 p-3">
-                        <p className="text-muted-foreground">Completed effort</p>
+                        <p className="text-muted-foreground">Completed due effort</p>
                         <p className="mt-1 font-semibold">{hoursLabel(summary.completedMinutes)}</p>
                       </div>
                       <div className="rounded-lg bg-muted/20 p-3">
-                        <p className="text-muted-foreground">Represented effort</p>
+                        <p className="text-muted-foreground">Due represented effort</p>
                         <p className="mt-1 font-semibold">{hoursLabel(summary.plannedMinutes)}</p>
                       </div>
                     </div>
+
+                    {summary.futureTaskCount > 0 && (
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        {summary.futureTaskCount} future scheduled {summary.futureTaskCount === 1 ? "task is" : "tasks are"} excluded from the completion percentage until due.
+                      </p>
+                    )}
 
                     {summary.nextMilestone && (
                       <div className="mt-3 flex items-start gap-2 rounded-lg border bg-muted/10 p-3 text-xs">
