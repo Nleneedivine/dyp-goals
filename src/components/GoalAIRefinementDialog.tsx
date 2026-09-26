@@ -455,83 +455,155 @@ export function GoalAIRefinementDialog({
       capturedAt: new Date().toISOString(),
     } as unknown as Json;
 
+    const suggestedMilestones = (refined.milestones ?? [])
+      .filter((milestone) => {
+        if (!milestone.title.trim()) return false;
+        const dueDate = milestone.dueDate ?? null;
+        if (dueDate && startDate && dueDate < startDate) return false;
+        if (dueDate && endDate && dueDate > endDate) return false;
+        return true;
+      })
+      .map((milestone) => ({
+        title: milestone.title.trim(),
+        dueDate: milestone.dueDate ?? null,
+      }));
+
+    const validPeriods = displayedEffortPeriods.filter((period) => {
+      if (period.endDate < period.startDate) return false;
+      if (startDate && period.startDate < startDate) return false;
+      if (endDate && period.endDate > endDate) return false;
+      return period.hoursPerWeek >= 0 && period.hoursPerWeek <= 168;
+    });
+
+    if (validPeriods.length !== displayedEffortPeriods.length) {
+      toast({
+        title: "Check the suggested workload phases",
+        description: "At least one workload phase falls outside the goal window or has invalid weekly hours.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sortedPeriods = [...validPeriods].sort((a, b) =>
+      a.startDate.localeCompare(b.startDate),
+    );
+    const hasOverlap = sortedPeriods.some(
+      (period, index) =>
+        index > 0 && period.startDate <= sortedPeriods[index - 1].endDate,
+    );
+
+    if (hasOverlap) {
+      toast({
+        title: "Workload phases overlap",
+        description: "The AI returned overlapping workload phases. Build the plan again before applying it so portfolio capacity is not ambiguous.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let usedLegacyFallback = false;
     setApplying(true);
     try {
-      const { error: goalError } = await supabase
-        .from("goals")
-        .update({
-          title: refined.title.trim(),
-          description: refined.description.trim(),
-          life_area: lifeArea,
-          start_date: startDate,
-          end_date: endDate,
-          priority,
-          estimated_hours_per_week: hours,
-          effort_source: effortSource,
-          coaching_context: coachingContext,
-          success_definition: (refined.successDefinition || refined.successMetrics.join("; ")).trim(),
-        })
-        .eq("id", goal.id);
+      const goalPatch = {
+        title: refined.title.trim(),
+        description: refined.description.trim(),
+        lifeArea,
+        startDate,
+        endDate,
+        priority,
+        estimatedHoursPerWeek: hours,
+        effortSource,
+        coachingContext,
+        successDefinition: (refined.successDefinition || refined.successMetrics.join("; ")).trim(),
+      } as unknown as Json;
 
-      if (goalError) throw goalError;
+      const { error: atomicError } = await supabase.rpc("apply_goal_ai_refinement", {
+        p_goal_id: goal.id,
+        p_goal_patch: goalPatch,
+        p_milestones: suggestedMilestones as unknown as Json,
+        p_effort_periods: validPeriods as unknown as Json,
+        p_replace_effort_periods: displayedEffortPeriods.length > 0,
+      });
 
-      const existingMilestoneKeys = new Set(
-        milestones.map((milestone) => `${milestone.title.trim().toLowerCase()}|${milestone.due_date ?? ""}`),
-      );
-      const suggestedMilestones = (refined.milestones ?? [])
-        .filter((milestone) => {
-          if (!milestone.title.trim()) return false;
-          const dueDate = milestone.dueDate ?? null;
-          if (dueDate && startDate && dueDate < startDate) return false;
-          if (dueDate && endDate && dueDate > endDate) return false;
-          return !existingMilestoneKeys.has(`${milestone.title.trim().toLowerCase()}|${dueDate ?? ""}`);
-        })
-        .map((milestone, index) => ({
-          goal_id: goal.id,
-          title: milestone.title.trim(),
-          due_date: milestone.dueDate ?? null,
-          display_order: milestones.length + index,
-        }));
+      if (atomicError) {
+        const rpcUnavailable =
+          atomicError.code === "PGRST202" ||
+          atomicError.code === "42883";
 
-      if (suggestedMilestones.length) {
-        const { error } = await supabase.from("goal_milestones").insert(suggestedMilestones);
-        if (error) throw error;
-      }
+        if (!rpcUnavailable) throw atomicError;
 
-      if (displayedEffortPeriods.length) {
-        const validPeriods = displayedEffortPeriods.filter((period) => {
-          if (period.endDate < period.startDate) return false;
-          if (startDate && period.startDate < startDate) return false;
-          if (endDate && period.endDate > endDate) return false;
-          return period.hoursPerWeek >= 0 && period.hoursPerWeek <= 168;
-        });
+        usedLegacyFallback = true;
 
-        const { data: existingEffortPeriods, error: existingEffortError } = await supabase
-          .from("goal_effort_periods")
-          .select("id")
-          .eq("goal_id", goal.id);
-        if (existingEffortError) throw existingEffortError;
+        // Temporary compatibility path while the atomic RPC migration is pending.
+        // Once the RPC exists, this branch is never used.
+        const { error: goalError } = await supabase
+          .from("goals")
+          .update({
+            title: refined.title.trim(),
+            description: refined.description.trim(),
+            life_area: lifeArea,
+            start_date: startDate,
+            end_date: endDate,
+            priority,
+            estimated_hours_per_week: hours,
+            effort_source: effortSource,
+            coaching_context: coachingContext,
+            success_definition: (refined.successDefinition || refined.successMetrics.join("; ")).trim(),
+          })
+          .eq("id", goal.id);
 
-        if (validPeriods.length) {
-          const { error: effortError } = await supabase.from("goal_effort_periods").insert(
-            validPeriods.map((period) => ({
-              goal_id: goal.id,
-              label: period.label,
-              start_date: period.startDate,
-              end_date: period.endDate,
-              hours_per_week: period.hoursPerWeek,
-            })),
-          );
-          if (effortError) throw effortError;
+        if (goalError) throw goalError;
+
+        const existingMilestoneKeys = new Set(
+          milestones.map((milestone) => `${milestone.title.trim().toLowerCase()}|${milestone.due_date ?? ""}`),
+        );
+        const newMilestones = suggestedMilestones
+          .filter(
+            (milestone) =>
+              !existingMilestoneKeys.has(
+                `${milestone.title.trim().toLowerCase()}|${milestone.dueDate ?? ""}`,
+              ),
+          )
+          .map((milestone, index) => ({
+            goal_id: goal.id,
+            title: milestone.title,
+            due_date: milestone.dueDate,
+            display_order: milestones.length + index,
+          }));
+
+        if (newMilestones.length) {
+          const { error } = await supabase.from("goal_milestones").insert(newMilestones);
+          if (error) throw error;
         }
 
-        const existingIds = (existingEffortPeriods ?? []).map((period) => period.id);
-        if (existingIds.length) {
-          const { error: deleteError } = await supabase
+        if (displayedEffortPeriods.length) {
+          const { data: existingEffortPeriods, error: existingEffortError } = await supabase
             .from("goal_effort_periods")
-            .delete()
-            .in("id", existingIds);
-          if (deleteError) throw deleteError;
+            .select("id")
+            .eq("goal_id", goal.id);
+          if (existingEffortError) throw existingEffortError;
+
+          if (validPeriods.length) {
+            const { error: effortError } = await supabase.from("goal_effort_periods").insert(
+              validPeriods.map((period) => ({
+                goal_id: goal.id,
+                label: period.label,
+                start_date: period.startDate,
+                end_date: period.endDate,
+                hours_per_week: period.hoursPerWeek,
+              })),
+            );
+            if (effortError) throw effortError;
+          }
+
+          const existingIds = (existingEffortPeriods ?? []).map((period) => period.id);
+          if (existingIds.length) {
+            const { error: deleteError } = await supabase
+              .from("goal_effort_periods")
+              .delete()
+              .in("id", existingIds);
+            if (deleteError) throw deleteError;
+          }
         }
       }
 
@@ -545,7 +617,9 @@ export function GoalAIRefinementDialog({
     } catch (error: any) {
       toast({
         title: "Could not apply AI refinement",
-        description: error?.message || "Your existing goal was left unchanged where possible.",
+        description: error?.message || (usedLegacyFallback
+          ? "The temporary compatibility save did not finish. Review the goal before trying again."
+          : "No partial atomic refinement was saved."),
         variant: "destructive",
       });
     } finally {
