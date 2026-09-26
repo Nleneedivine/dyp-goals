@@ -25,6 +25,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { AccountabilitySharingCard } from "@/components/AccountabilitySharingCard";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
 import { GoalCapacityChecker } from "@/components/GoalCapacityChecker";
+import { MilestoneEditDialog, type MilestoneEditValues } from "@/components/MilestoneEditDialog";
 import { PortfolioAIReviewDialog } from "@/components/PortfolioAIReviewDialog";
 
 type Goal = Tables<"goals">;
@@ -362,6 +363,47 @@ function GoalCard({
     onMilestonesChanged();
   };
 
+  const editMilestone = async (
+    milestone: GoalMilestone,
+    values: MilestoneEditValues,
+  ) => {
+    if (values.dueDate && goal.start_date && values.dueDate < goal.start_date) {
+      toast({
+        title: "Milestone falls before the goal starts",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (values.dueDate && goal.end_date && values.dueDate > goal.end_date) {
+      toast({
+        title: "Milestone falls after the goal ends",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const { error } = await supabase
+      .from("goal_milestones")
+      .update({
+        title: values.title,
+        due_date: values.dueDate || null,
+      })
+      .eq("id", milestone.id);
+
+    if (error) {
+      toast({
+        title: "Milestone could not be updated",
+        description: error.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    onMilestonesChanged();
+    return true;
+  };
+
   const dateInvalid = !hasValidDateWindow(draft.start_date || null, draft.end_date || null);
 
   return (
@@ -535,9 +577,17 @@ function GoalCard({
                       </p>
                     )}
                   </div>
-                  <Button type="button" size="icon" variant="ghost" onClick={() => deleteMilestone(milestone.id)} aria-label="Delete milestone">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <MilestoneEditDialog
+                      milestone={milestone}
+                      goalStart={goal.start_date}
+                      goalEnd={goal.end_date}
+                      onSave={(values) => editMilestone(milestone, values)}
+                    />
+                    <Button type="button" size="icon" variant="ghost" onClick={() => deleteMilestone(milestone.id)} aria-label="Delete milestone">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
