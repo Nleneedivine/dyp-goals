@@ -25,6 +25,7 @@ export function AccountabilitySharingCard() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [available, setAvailable] = useState(true);
   const [userId, setUserId] = useState("");
   const [groupName, setGroupName] = useState("");
   const [mentorName, setMentorName] = useState("");
@@ -56,7 +57,11 @@ export function AccountabilitySharingCard() {
           .maybeSingle(),
       ]);
 
-      if (profileResult.error || preferenceResult.error) {
+      const sharingTablePending =
+        preferenceResult.error?.code === "PGRST205" ||
+        preferenceResult.error?.code === "42P01";
+
+      if (profileResult.error || (preferenceResult.error && !sharingTablePending)) {
         toast({
           title: "Accountability sharing could not load",
           description: profileResult.error?.message ?? preferenceResult.error?.message,
@@ -65,6 +70,14 @@ export function AccountabilitySharingCard() {
         setLoading(false);
         return;
       }
+
+      if (sharingTablePending) {
+        setAvailable(false);
+        setLoading(false);
+        return;
+      }
+
+      setAvailable(true);
 
       const preference = preferenceResult.data as SharingPreference | null;
       if (preference) {
@@ -182,6 +195,24 @@ export function AccountabilitySharingCard() {
         <CardContent className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading accountability sharing…
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!available) {
+    return (
+      <Card className="mb-8 border-primary/15">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            Accountability sharing
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
+            Accountability sharing is not active in this workspace yet. Your goals and planner remain private and fully usable; these controls will become available after the database update is applied.
+          </div>
         </CardContent>
       </Card>
     );
