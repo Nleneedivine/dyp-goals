@@ -38,6 +38,7 @@ export function ExecutionNotificationSettings() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [available, setAvailable] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [morningEnabled, setMorningEnabled] = useState(false);
   const [morningTime, setMorningTime] = useState("07:00");
@@ -67,6 +68,11 @@ export function ExecutionNotificationSettings() {
         .maybeSingle();
 
       if (error) {
+        if (error.code === "PGRST205" || error.code === "42P01") {
+          setAvailable(false);
+          setLoading(false);
+          return;
+        }
         toast({
           title: "Notification settings could not load",
           description: error.message,
@@ -76,6 +82,7 @@ export function ExecutionNotificationSettings() {
         return;
       }
 
+      setAvailable(true);
       if (data) {
         setEmailEnabled(data.email_enabled);
         setMorningEnabled(data.morning_brief_enabled);
@@ -190,6 +197,24 @@ export function ExecutionNotificationSettings() {
       <Card>
         <CardContent className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!available) {
+    return (
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-2xl">
+            <Bell className="h-6 w-6 text-primary" />
+            Execution Notifications
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
+            Notification preferences are not active in this workspace yet. Your profile and the rest of GOALS will keep working; these controls will become available after the database update is applied.
+          </div>
         </CardContent>
       </Card>
     );
