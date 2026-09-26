@@ -134,6 +134,17 @@ export function ExecutionNotificationSettings() {
       return;
     }
 
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone.trim() }).format(new Date());
+    } catch {
+      toast({
+        title: "Timezone is not recognized",
+        description: "Use an IANA timezone such as Africa/Lagos, Europe/London or America/New_York.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
