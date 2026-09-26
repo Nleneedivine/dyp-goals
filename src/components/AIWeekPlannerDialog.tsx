@@ -75,6 +75,16 @@ export function AIWeekPlannerDialog({
   const [applying, setApplying] = useState(false);
   const [plan, setPlan] = useState<GeneratedWeekPlan | null>(null);
 
+  const weeklyHoursForGoal = (goal: Goal) => {
+    const phase = effortPeriods.find(
+      (period) =>
+        period.goal_id === goal.id &&
+        period.start_date <= weekEnd &&
+        period.end_date >= weekStart,
+    );
+    return Number(phase?.hours_per_week ?? goal.estimated_hours_per_week ?? 0);
+  };
+
   const eligibleGoals = useMemo(
     () =>
       goals.filter(
@@ -85,18 +95,8 @@ export function AIWeekPlannerDialog({
           (!goal.end_date || goal.end_date >= weekStart) &&
           weeklyHoursForGoal(goal) > 0,
       ),
-    [goals, weekStart, weekEnd],
+    [goals, effortPeriods, weekStart, weekEnd],
   );
-
-  const weeklyHoursForGoal = (goal: Goal) => {
-    const phase = effortPeriods.find(
-      (period) =>
-        period.goal_id === goal.id &&
-        period.start_date <= weekEnd &&
-        period.end_date >= weekStart,
-    );
-    return Number(phase?.hours_per_week ?? goal.estimated_hours_per_week ?? 0);
-  };
 
   const existingWeekActions = useMemo(
     () => actions.filter((action) => action.week_start === weekStart),
