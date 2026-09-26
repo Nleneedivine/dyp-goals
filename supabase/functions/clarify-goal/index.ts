@@ -78,6 +78,13 @@ serve(async (req) => {
     }
 
     const { goal, phase, roundNumber, history } = parsed.data;
+    if (phase === "deeper" && roundNumber > 2) {
+      return new Response(
+        JSON.stringify({ error: "Deeper coaching supports up to 2 rounds" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const currentDate = new Date().toISOString().slice(0, 10);
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -92,7 +99,7 @@ serve(async (req) => {
 
 CURRENT DATE: ${currentDate}
 CLARIFICATION PHASE: ${phase}
-QUESTION ROUND: ${roundNumber} of 3
+QUESTION ROUND: ${roundNumber} of ${phase === "core" ? 3 : 2}
 
 SAVED GOAL:
 ${JSON.stringify(goal, null, 2)}
@@ -123,6 +130,7 @@ DEEPER PHASE:
 - Ask 1-4 OPTIONAL DEVELOPMENT questions only if they would help the user think more strategically.
 - Development questions can explore audience, resources, risks, distribution/customer acquisition, dependencies, skills, tradeoffs, measurement, or likely obstacles depending on the goal.
 - These questions are for coaching depth, not because the plan is blocked.
+- Explore execution strategy, resources, risks, constraints, review rhythms, safeguards, dependencies, or tradeoffs when relevant.
 - If additional questions would add little value, return an empty questions array.
 
 Return exactly:
