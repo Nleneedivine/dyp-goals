@@ -25,6 +25,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { AccountabilitySharingCard } from "@/components/AccountabilitySharingCard";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
 import { GoalCapacityChecker } from "@/components/GoalCapacityChecker";
+import { PortfolioAIReviewDialog } from "@/components/PortfolioAIReviewDialog";
 
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
@@ -759,6 +760,18 @@ export default function MyGoals() {
           </div>
 
           <GoalCapacityChecker goals={goals} />
+
+          <Card className="mb-8 border-primary/20">
+            <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-semibold">Review how your goals interact</h3>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                  Once individual goals are clear, AI can look across the portfolio for possible overlap, dependencies, sequencing questions and deadline tensions. It does not choose priorities for you.
+                </p>
+              </div>
+              <PortfolioAIReviewDialog goals={goals} milestones={milestones} />
+            </CardContent>
+          </Card>
 
           <AccountabilitySharingCard />
 
