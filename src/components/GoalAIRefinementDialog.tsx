@@ -501,6 +501,7 @@ export function GoalAIRefinementDialog({
       return;
     }
 
+    let usedLegacyFallback = false;
     setApplying(true);
     try {
       const goalPatch = {
@@ -530,6 +531,8 @@ export function GoalAIRefinementDialog({
           atomicError.code === "42883";
 
         if (!rpcUnavailable) throw atomicError;
+
+        usedLegacyFallback = true;
 
         // Temporary compatibility path while the atomic RPC migration is pending.
         // Once the RPC exists, this branch is never used.
@@ -614,7 +617,9 @@ export function GoalAIRefinementDialog({
     } catch (error: any) {
       toast({
         title: "Could not apply AI refinement",
-        description: error?.message || "No partial atomic refinement was saved.",
+        description: error?.message || (usedLegacyFallback
+          ? "The temporary compatibility save did not finish. Review the goal before trying again."
+          : "No partial atomic refinement was saved."),
         variant: "destructive",
       });
     } finally {
