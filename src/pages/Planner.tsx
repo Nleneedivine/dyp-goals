@@ -1461,7 +1461,16 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     const duration = Number(task.estimated_minutes || 0);
     if (duration <= 0) return [];
 
+    const minimumStart =
+      task.scheduled_date === today
+        ? Math.min(1440, Math.ceil(currentClockMinutes / 15) * 15)
+        : 0;
+
     return freeWindowsForDate(task.scheduled_date, task.id)
+      .map((window) => ({
+        start: Math.max(window.start, minimumStart),
+        end: window.end,
+      }))
       .filter((window) => window.end - window.start >= duration)
       .slice(0, 4);
   };
