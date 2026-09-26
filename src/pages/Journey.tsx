@@ -53,6 +53,9 @@ export default function Journey() {
   const [reviews, setReviews] = useState<WeeklyReview[]>([]);
   const [fixedBlocks, setFixedBlocks] = useState<FixedBlock[]>([]);
   const [capacity, setCapacity] = useState<number | null>(null);
+  const [visionAvailable, setVisionAvailable] = useState(true);
+  const [visionStatement, setVisionStatement] = useState("");
+  const [lifeAreaFocusCount, setLifeAreaFocusCount] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -154,6 +157,38 @@ export default function Journey() {
         setMilestones([]);
       }
 
+      const [visionResult, lifeAreaResult] = await Promise.all([
+        supabase
+          .from("user_planning_vision")
+          .select("vision_statement")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("life_area_focus")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("active", true),
+      ]);
+
+      const visionPending =
+        visionResult.error?.code === "PGRST205" ||
+        visionResult.error?.code === "42P01" ||
+        lifeAreaResult.error?.code === "PGRST205" ||
+        lifeAreaResult.error?.code === "42P01";
+
+      if (visionPending) {
+        setVisionAvailable(false);
+      } else if (visionResult.error || lifeAreaResult.error) {
+        console.error(
+          "Vision context could not load:",
+          visionResult.error ?? lifeAreaResult.error,
+        );
+      } else {
+        setVisionAvailable(true);
+        setVisionStatement(visionResult.data?.vision_statement ?? "");
+        setLifeAreaFocusCount(lifeAreaResult.count ?? 0);
+      }
+
       setLoading(false);
     };
 
@@ -192,7 +227,29 @@ export default function Journey() {
   const firstExecutionBuilt = actions.length > 0 && tasks.length > 0;
   const reviewLoopStarted = reviews.length > 0;
 
+  const directionCaptured =
+    Boolean(visionStatement.trim()) ||
+    lifeAreaFocusCount > 0 ||
+    planningGoals.length > 0 ||
+    firstExecutionBuilt;
+
   const steps: JourneyStep[] = [
+    {
+      id: "direction",
+      title: "Set your direction",
+      description: "Capture the vision and life-area focus that your goal portfolio is meant to serve.",
+      complete: !visionAvailable || directionCaptured,
+      detail: !visionAvailable
+        ? "Vision context will activate after the pending database update"
+        : visionStatement.trim() || lifeAreaFocusCount > 0
+          ? `${visionStatement.trim() ? "Vision saved" : "Vision not written"} · ${lifeAreaFocusCount} life-area ${lifeAreaFocusCount === 1 ? "focus" : "focuses"}`
+          : planningGoals.length > 0
+            ? "Existing goals preserved; add vision context when useful"
+            : "No vision or life-area focus captured yet",
+      href: "/vision",
+      cta: directionCaptured ? "Review direction" : "Set direction",
+      icon: Compass,
+    },
     {
       id: "goals",
       title: "Capture your goals",

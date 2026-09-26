@@ -300,6 +300,39 @@ export type Database = {
         }
         Relationships: []
       }
+      life_area_focus: {
+        Row: {
+          active: boolean
+          created_at: string
+          display_order: number
+          focus_statement: string
+          id: string
+          life_area: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          display_order?: number
+          focus_statement?: string
+          id?: string
+          life_area: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          display_order?: number
+          focus_statement?: string
+          id?: string
+          life_area?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goal_analyses: {
         Row: {
           ai_analysis: Json
@@ -1384,6 +1417,30 @@ export type Database = {
           user_id?: string
           weekly_plan?: Json | null
           yearly_plan?: Json | null
+        }
+        Relationships: []
+      }
+      user_planning_vision: {
+        Row: {
+          created_at: string
+          updated_at: string
+          user_id: string
+          vision_statement: string
+          year_theme: string
+        }
+        Insert: {
+          created_at?: string
+          updated_at?: string
+          user_id: string
+          vision_statement?: string
+          year_theme?: string
+        }
+        Update: {
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+          vision_statement?: string
+          year_theme?: string
         }
         Relationships: []
       }
