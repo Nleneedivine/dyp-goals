@@ -1189,6 +1189,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_goal_week_plan: {
+        Args: { p_actions: Json; p_week_start: string }
+        Returns: {
+          actions_created: number
+          tasks_created: number
+        }[]
+      }
       save_goal_weekly_review: {
         Args: {
           p_adjustments?: string
