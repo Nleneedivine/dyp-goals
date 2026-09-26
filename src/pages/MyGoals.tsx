@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
+import { GoalCapacityChecker } from "@/components/GoalCapacityChecker";
 
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
@@ -754,6 +755,8 @@ export default function MyGoals() {
             <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Overlapping goals</p><p className="mt-1 text-3xl font-bold">{overlappingGoals}</p><p className="text-xs text-muted-foreground">{scheduledGoals} fully scheduled</p></CardContent></Card>
           </div>
 
+          <GoalCapacityChecker goals={goals} />
+
           <Card className="mb-8 border-primary/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -870,7 +873,7 @@ export default function MyGoals() {
               <div>
                 <h3 className="font-semibold">Built for overlapping goals</h3>
                 <p className="text-sm text-muted-foreground">
-                  AI coaching can now preserve execution insights and confirmed workload phases. The next portfolio stage will compare combined goal demand against your real available time.
+                  Confirmed workloads, changing effort phases, overlapping goals and date-specific capacity can now be compared in one deterministic timeline.
                 </p>
               </div>
             </CardContent>
