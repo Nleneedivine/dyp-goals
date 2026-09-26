@@ -309,6 +309,66 @@ export type Database = {
           },
         ]
       }
+      goal_task_events: {
+        Row: {
+          event_type: string
+          from_scheduled_date: string | null
+          from_scheduled_time: string | null
+          from_status: string | null
+          goal_id: string
+          id: string
+          occurred_at: string
+          task_id: string | null
+          to_scheduled_date: string | null
+          to_scheduled_time: string | null
+          to_status: string | null
+          user_id: string
+        }
+        Insert: {
+          event_type: string
+          from_scheduled_date?: string | null
+          from_scheduled_time?: string | null
+          from_status?: string | null
+          goal_id: string
+          id?: string
+          occurred_at?: string
+          task_id?: string | null
+          to_scheduled_date?: string | null
+          to_scheduled_time?: string | null
+          to_status?: string | null
+          user_id: string
+        }
+        Update: {
+          event_type?: string
+          from_scheduled_date?: string | null
+          from_scheduled_time?: string | null
+          from_status?: string | null
+          goal_id?: string
+          id?: string
+          occurred_at?: string
+          task_id?: string | null
+          to_scheduled_date?: string | null
+          to_scheduled_time?: string | null
+          to_status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_task_events_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_task_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "goal_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_tasks: {
         Row: {
           completed_at: string | null
