@@ -348,7 +348,11 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       .filter((dependency) => goalMap.get(dependency.prerequisite_goal_id)?.status !== "completed");
 
   const currentWeekDependencySignals = planningGoals
-    .filter((goal) => overlapsRange(goal.start_date, goal.end_date, currentWeekStart, currentWeekEnd))
+    .filter(
+      (goal) =>
+        Boolean(goal.start_date && goal.end_date) &&
+        overlapsRange(goal.start_date, goal.end_date, currentWeekStart, currentWeekEnd),
+    )
     .flatMap((goal) =>
       pendingDependenciesForGoal(goal.id).map((dependency) => ({
         dependency,
@@ -362,6 +366,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       .filter(
         (goal) =>
           CONFIRMED_EFFORT.has(goal.effort_source) &&
+          Boolean(goal.start_date && goal.end_date) &&
           overlapsRange(goal.start_date, goal.end_date, weekStart, weekEnd),
       )
       .reduce(
@@ -388,6 +393,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     .filter(
       (goal) =>
         CONFIRMED_EFFORT.has(goal.effort_source) &&
+        Boolean(goal.start_date && goal.end_date) &&
         overlapsRange(goal.start_date, goal.end_date, currentWeekStart, currentWeekEnd),
     )
     .map((goal) => {
@@ -1092,10 +1098,42 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     .filter((task) => task.status === "planned" || task.status === "completed")
     .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0);
 
+  const selectedDayCompletedTasks = selectedDayTasks.filter(
+    (task) => task.status === "completed",
+  );
+  const selectedDayCompletedMinutes = selectedDayCompletedTasks.reduce(
+    (sum, task) => sum + Number(task.estimated_minutes || 0),
+    0,
+  );
+  const selectedDayRemainingTasks = selectedDayTasks.filter(
+    (task) => task.status === "planned",
+  );
+  const selectedDayRemainingMinutes = selectedDayRemainingTasks.reduce(
+    (sum, task) => sum + Number(task.estimated_minutes || 0),
+    0,
+  );
+  const selectedDayAnytimeTasks = selectedDayRemainingTasks.filter(
+    (task) => !task.scheduled_time,
+  );
+  const selectedDayCompletionPercent = selectedDayTaskMinutes
+    ? Math.round((selectedDayCompletedMinutes / selectedDayTaskMinutes) * 100)
+    : 0;
+
+  const currentClockMinutes = now.getHours() * 60 + now.getMinutes();
+  const selectedDayNextTimedTask = selectedDayRemainingTasks
+    .filter((task) => Boolean(task.scheduled_time))
+    .filter((task) => {
+      if (selectedDayKey !== today || !task.scheduled_time) return true;
+      return timeToMinutes(task.scheduled_time) >= currentClockMinutes;
+    })
+    .sort((a, b) => (a.scheduled_time ?? "").localeCompare(b.scheduled_time ?? ""))[0] ?? null;
+
   const yearStart = dateKey(startOfYear(yearAnchor));
   const yearEnd = dateKey(endOfYear(yearAnchor));
-  const yearGoals = planningGoals.filter((goal) =>
-    overlapsRange(goal.start_date, goal.end_date, yearStart, yearEnd),
+  const yearGoals = planningGoals.filter(
+    (goal) =>
+      Boolean(goal.start_date && goal.end_date) &&
+      overlapsRange(goal.start_date, goal.end_date, yearStart, yearEnd),
   );
   const yearMilestones = milestones.filter(
     (milestone) => milestone.due_date && milestone.due_date >= yearStart && milestone.due_date <= yearEnd,
@@ -1111,11 +1149,49 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0);
   const yearCompletedMilestones = yearMilestones.filter((milestone) => milestone.status === "completed");
 
+  const yearMonths = Array.from({ length: 12 }, (_, index) => {
+    const anchor = addMonths(startOfYear(yearAnchor), index);
+    const start = dateKey(startOfMonth(anchor));
+    const end = dateKey(endOfMonth(anchor));
+    const monthGoalsInYear = planningGoals.filter(
+      (goal) =>
+        Boolean(goal.start_date && goal.end_date) &&
+        overlapsRange(goal.start_date, goal.end_date, start, end),
+    );
+    const monthMilestonesInYear = yearMilestones.filter(
+      (milestone) =>
+        milestone.due_date &&
+        milestone.due_date >= start &&
+        milestone.due_date <= end,
+    );
+    const monthTasksInYear = yearTasks.filter(
+      (task) =>
+        task.scheduled_date &&
+        task.scheduled_date >= start &&
+        task.scheduled_date <= end,
+    );
+
+    return {
+      anchor,
+      start,
+      end,
+      goalCount: monthGoalsInYear.length,
+      milestoneCount: monthMilestonesInYear.length,
+      completedMilestones: monthMilestonesInYear.filter((milestone) => milestone.status === "completed").length,
+      taskCount: monthTasksInYear.filter((task) => task.status !== "skipped").length,
+      completedTasks: monthTasksInYear.filter((task) => task.status === "completed").length,
+      minutes: monthTasksInYear
+        .filter((task) => task.status !== "skipped")
+        .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0),
+    };
+  });
 
   const monthStart = dateKey(startOfMonth(monthAnchor));
   const monthEnd = dateKey(endOfMonth(monthAnchor));
-  const monthGoals = planningGoals.filter((goal) =>
-    overlapsRange(goal.start_date, goal.end_date, monthStart, monthEnd),
+  const monthGoals = planningGoals.filter(
+    (goal) =>
+      Boolean(goal.start_date && goal.end_date) &&
+      overlapsRange(goal.start_date, goal.end_date, monthStart, monthEnd),
   );
   const monthMilestones = milestones.filter(
     (milestone) => milestone.due_date && milestone.due_date >= monthStart && milestone.due_date <= monthEnd,
@@ -1123,6 +1199,61 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   const monthTasks = tasks.filter(
     (task) => task.scheduled_date && task.scheduled_date >= monthStart && task.scheduled_date <= monthEnd,
   );
+  const monthExecutionTasks = monthTasks.filter((task) => task.status !== "skipped");
+  const monthCompletedTasks = monthExecutionTasks.filter((task) => task.status === "completed");
+  const monthPlannedMinutes = monthExecutionTasks.reduce(
+    (sum, task) => sum + Number(task.estimated_minutes || 0),
+    0,
+  );
+  const monthCompletedMinutes = monthCompletedTasks.reduce(
+    (sum, task) => sum + Number(task.estimated_minutes || 0),
+    0,
+  );
+  const monthCompletedMilestones = monthMilestones.filter(
+    (milestone) => milestone.status === "completed",
+  );
+
+  const monthWeekSummaries = (() => {
+    const summaries: Array<{
+      start: string;
+      end: string;
+      demand: number;
+      capacity: number | null;
+      scheduled: number;
+      taskCount: number;
+    }> = [];
+    let cursor = startOfWeek(startOfMonth(monthAnchor), { weekStartsOn: 1 });
+    const endCursor = endOfMonth(monthAnchor);
+
+    while (cursor <= endCursor) {
+      const start = dateKey(cursor);
+      const end = endOfWeekKey(start);
+      const weekTasks = tasks.filter(
+        (task) =>
+          task.scheduled_date &&
+          task.scheduled_date >= start &&
+          task.scheduled_date <= end &&
+          task.status !== "skipped" &&
+          task.status !== "deferred",
+      );
+      const scheduled = weekTasks.reduce(
+        (sum, task) => sum + Number(task.estimated_minutes || 0),
+        0,
+      ) / 60;
+      const capacity = defaultCapacity === null ? null : capacityForWeek(start, end).hours;
+      summaries.push({
+        start,
+        end,
+        demand: weeklyGoalDemand(start, end),
+        capacity,
+        scheduled,
+        taskCount: weekTasks.length,
+      });
+      cursor = addWeeks(cursor, 1);
+    }
+
+    return summaries;
+  })();
 
   const actionGoalMilestones = actionDraft.goalId ? milestonesForGoal(actionDraft.goalId) : [];
   const taskGoalMilestones = taskDraft.goalId ? milestonesForGoal(taskDraft.goalId) : [];
@@ -1284,6 +1415,9 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     return total + Math.max(0, currentEnd - currentStart);
   })();
 
+  const selectedDayCalendarLoadMinutes = selectedDayFixedMinutes + selectedDayTaskMinutes;
+  const selectedDayCalendarOverbooked = selectedDayCalendarLoadMinutes > 1440;
+
   const goalTaskProgress = (goalId: string) => {
     const goalTasks = tasks.filter((task) => task.goal_id === goalId && task.status !== "skipped");
     const completed = goalTasks.filter((task) => task.status === "completed").length;
@@ -1436,6 +1570,48 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
               </Card>
             </div>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Year roadmap by month</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Drill from annual direction into the month where milestones and execution are actually happening.
+                </p>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {yearMonths.map((month) => (
+                  <button
+                    key={month.start}
+                    type="button"
+                    onClick={() => openMonthAt(month.start)}
+                    className="rounded-xl border p-4 text-left transition-colors hover:bg-muted/25"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold">{format(month.anchor, "MMMM")}</p>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <div className="rounded-lg bg-muted/20 p-2">
+                        <span className="block font-medium text-foreground">{month.goalCount}</span>
+                        active goals
+                      </div>
+                      <div className="rounded-lg bg-muted/20 p-2">
+                        <span className="block font-medium text-foreground">{month.completedMilestones}/{month.milestoneCount}</span>
+                        milestones
+                      </div>
+                      <div className="rounded-lg bg-muted/20 p-2">
+                        <span className="block font-medium text-foreground">{month.completedTasks}/{month.taskCount}</span>
+                        tasks
+                      </div>
+                      <div className="rounded-lg bg-muted/20 p-2">
+                        <span className="block font-medium text-foreground">{hoursLabel(month.minutes)}</span>
+                        represented
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
             {yearGoals.length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="py-14 text-center text-muted-foreground">
@@ -1525,6 +1701,75 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Execution completed</p>
+                  <p className="text-2xl font-bold">{monthCompletedTasks.length}/{monthExecutionTasks.length}</p>
+                  <p className="text-xs text-muted-foreground">{hoursLabel(monthCompletedMinutes)} of {hoursLabel(monthPlannedMinutes)} represented effort</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Milestones completed</p>
+                  <p className="text-2xl font-bold">{monthCompletedMilestones.length}/{monthMilestones.length}</p>
+                  <p className="text-xs text-muted-foreground">dated checkpoints this month</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Goals in focus</p>
+                  <p className="text-2xl font-bold">{monthGoals.length}</p>
+                  <p className="text-xs text-muted-foreground">goals overlapping this month</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Month → Week bridge</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Compare each week's confirmed goal demand, available capacity and execution already scheduled before drilling into the week.
+                </p>
+              </CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {monthWeekSummaries.map((week) => {
+                  const pressure = week.capacity !== null && week.demand > week.capacity + 0.01;
+                  const scheduledPressure = week.capacity !== null && week.scheduled > week.capacity + 0.01;
+                  return (
+                    <button
+                      key={week.start}
+                      type="button"
+                      onClick={() => openWeekAt(week.start)}
+                      className={`rounded-xl border p-4 text-left transition-colors hover:bg-muted/25 ${pressure || scheduledPressure ? "border-amber-500/30 bg-amber-500/5" : ""}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold">
+                          {format(parseISO(week.start), "MMM d")} – {format(parseISO(week.end), "MMM d")}
+                        </p>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                        <div className="rounded-lg bg-background/70 p-2">
+                          <p className="text-muted-foreground">Demand</p>
+                          <p className="font-semibold">{week.demand.toFixed(1)}h</p>
+                        </div>
+                        <div className="rounded-lg bg-background/70 p-2">
+                          <p className="text-muted-foreground">Capacity</p>
+                          <p className="font-semibold">{week.capacity === null ? "—" : `${week.capacity.toFixed(1)}h`}</p>
+                        </div>
+                        <div className="rounded-lg bg-background/70 p-2">
+                          <p className="text-muted-foreground">Scheduled</p>
+                          <p className="font-semibold">{week.scheduled.toFixed(1)}h</p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">{week.taskCount} scheduled tasks</p>
+                    </button>
+                  );
+                })}
+              </CardContent>
+            </Card>
 
             <div className="grid gap-4 lg:grid-cols-3">
               <Card>
@@ -1668,6 +1913,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   goals={goals}
                   milestones={milestones}
                   effortPeriods={effortPeriods}
+                  dependencies={dependencies}
                   actions={actions}
                   tasks={tasks}
                   onApplied={loadPlanner}
@@ -2148,7 +2394,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
               </Card>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Goal work scheduled</p>
@@ -2160,6 +2406,24 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
               </Card>
               <Card>
                 <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold">{hoursLabel(selectedDayCompletedMinutes)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedDayCompletedTasks.length}/{selectedDayTasks.filter((task) => task.status !== "skipped").length} tasks
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Remaining goal work</p>
+                  <p className="text-2xl font-bold">{hoursLabel(selectedDayRemainingMinutes)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedDayAnytimeTasks.length} without a clock time
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className={selectedDayCalendarOverbooked ? "border-amber-500/30 bg-amber-500/5" : ""}>
+                <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Protected commitments</p>
                   <p className="text-2xl font-bold">{hoursLabel(selectedDayFixedMinutes)}</p>
                   <p className="text-xs text-muted-foreground">
@@ -2168,6 +2432,47 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardContent className="space-y-4 pt-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Daily execution progress</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {selectedDayCompletionPercent}% of scheduled goal-task time completed.
+                    </p>
+                  </div>
+                  {selectedDayNextTimedTask ? (
+                    <div className="rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+                      <span className="text-xs text-muted-foreground">Next timed task</span>
+                      <p className="font-medium">
+                        {selectedDayNextTimedTask.scheduled_time?.slice(0, 5)} · {selectedDayNextTimedTask.title}
+                      </p>
+                    </div>
+                  ) : selectedDayAnytimeTasks.length > 0 ? (
+                    <Badge variant="outline">
+                      {selectedDayAnytimeTasks.length} anytime {selectedDayAnytimeTasks.length === 1 ? "task" : "tasks"} remaining
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">No remaining timed task</Badge>
+                  )}
+                </div>
+                <Progress value={selectedDayCompletionPercent} />
+              </CardContent>
+            </Card>
+
+            {selectedDayCalendarOverbooked && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <div>
+                  <p className="font-medium text-amber-800">This day represents more than 24 hours of commitments</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Fixed commitments plus scheduled goal-task estimates total {hoursLabel(selectedDayCalendarLoadMinutes)}.
+                    Check overlaps, task estimates, or dates before relying on this day as executable.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {fixedSegmentsForDate(selectedDayKey).length > 0 && (
               <Card>
