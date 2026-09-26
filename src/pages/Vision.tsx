@@ -131,12 +131,6 @@ export default function Vision() {
     [goalAreas],
   );
 
-  const goalAreaCount = useMemo(() => {
-    const counts = new Map<string, number>();
-    goalAreas.forEach((area) => counts.set(area, 0));
-    return counts;
-  }, [goalAreas]);
-
   const saveVision = async () => {
     if (!userId) return;
     if (vision.length > 12000 || yearTheme.length > 240) {
