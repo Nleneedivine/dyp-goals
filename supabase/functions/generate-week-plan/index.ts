@@ -30,6 +30,12 @@ const MilestoneSchema = z.object({
   status: z.string().max(40),
 });
 
+const DependencySchema = z.object({
+  prerequisiteGoalId: z.string().uuid(),
+  dependentGoalId: z.string().uuid(),
+  note: z.string().max(1000).default(""),
+});
+
 const ExistingActionSchema = z.object({
   goalId: z.string().uuid(),
   milestoneId: z.string().uuid().nullable(),
@@ -59,6 +65,7 @@ const RequestSchema = z.object({
   capacityHours: z.number().min(0).max(168),
   goals: z.array(GoalSchema).min(1).max(30),
   milestones: z.array(MilestoneSchema).max(200),
+  dependencies: z.array(DependencySchema).max(100).default([]),
   existingActions: z.array(ExistingActionSchema).max(200).default([]),
   existingTasks: z.array(ExistingTaskSchema).max(400).default([]),
   recentReviews: z.array(ReviewSchema).max(4).default([]),
@@ -222,7 +229,8 @@ NON-NEGOTIABLE RULES:
 - Never exceed remainingMinutes for any goal.
 - Never exceed the remaining weekly capacity.
 - Existing actions/tasks are already planned; do not duplicate them.
-- Use the user's milestones, coaching safeguards, resources, constraints, and review lessons when they materially improve the plan.
+- Use the user's milestones, coaching safeguards, resources, constraints, review lessons, and USER-CONFIRMED goal dependencies when they materially improve the plan.
+- Dependencies are advisory sequencing context, not permission to omit a goal. If a dependent goal can still make useful progress before its prerequisite is complete, plan that useful progress; otherwise surface a warning rather than silently dropping it.
 - Preserve explicit frequencies and commitments. Do not intensify them.
 - Keep tasks concrete and executable.
 - Schedule only a DATE, not an exact clock time. Fixed commitments and detailed time-slotting are handled separately.
@@ -269,6 +277,9 @@ ${JSON.stringify(goalsWithBudget, null, 2)}
 
 MILESTONES:
 ${JSON.stringify(input.milestones, null, 2)}
+
+USER-CONFIRMED GOAL DEPENDENCIES:
+${JSON.stringify(input.dependencies, null, 2)}
 
 EXISTING WEEKLY ACTIONS:
 ${JSON.stringify(input.existingActions, null, 2)}
