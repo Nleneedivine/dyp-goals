@@ -848,6 +848,23 @@ export default function MyGoals() {
             </p>
           </div>
 
+          <Card className="mb-8 border-primary/15">
+            <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-semibold">Keep goals connected to a larger direction</h3>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                  Capture your personal vision and life-area focus above the portfolio so individual goals do not become isolated projects.
+                </p>
+              </div>
+              <Button asChild variant="outline" className="shrink-0 gap-2">
+                <Link to="/vision">
+                  Vision & life areas
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Portfolio goals</p><p className="mt-1 text-3xl font-bold">{goals.length}</p></CardContent></Card>
             <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Active now</p><p className="mt-1 text-3xl font-bold text-primary">{activeNow.length}</p></CardContent></Card>
