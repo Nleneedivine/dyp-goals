@@ -24,13 +24,13 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { AccountabilitySharingCard } from "@/components/AccountabilitySharingCard";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
-import { GoalCapacityChecker } from "@/components/GoalCapacityChecker";
-import { GoalDependenciesCard } from "@/components/GoalDependenciesCard";
+import { GoalCapacityChecker, type CapacityReviewWindow } from "@/components/GoalCapacityChecker";
 import { MilestoneEditDialog, type MilestoneEditValues } from "@/components/MilestoneEditDialog";
 import { PortfolioAIReviewDialog } from "@/components/PortfolioAIReviewDialog";
 
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
+type GoalEffortPeriod = Tables<"goal_effort_periods">;
 
 type GoalPriority = "primary" | "maintenance" | "later";
 type GoalStatus = "draft" | "active" | "paused" | "completed" | "archived";
@@ -622,6 +622,8 @@ export default function MyGoals() {
   const { toast } = useToast();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [milestones, setMilestones] = useState<GoalMilestone[]>([]);
+  const [effortPeriods, setEffortPeriods] = useState<GoalEffortPeriod[]>([]);
+  const [capacityReviewWindows, setCapacityReviewWindows] = useState<CapacityReviewWindow[]>([]);
   const [bulkInput, setBulkInput] = useState("");
   const [draftGoals, setDraftGoals] = useState<DraftGoal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -657,20 +659,43 @@ export default function MyGoals() {
 
     if (!loadedGoals.length) {
       setMilestones([]);
+      setEffortPeriods([]);
       setLoading(false);
       return;
     }
 
-    const { data: milestoneRows, error: milestoneError } = await supabase
-      .from("goal_milestones")
-      .select("*")
-      .in("goal_id", loadedGoals.map((goal) => goal.id))
-      .order("display_order", { ascending: true });
+    const goalIds = loadedGoals.map((goal) => goal.id);
+    const [milestoneResult, effortResult] = await Promise.all([
+      supabase
+        .from("goal_milestones")
+        .select("*")
+        .in("goal_id", goalIds)
+        .order("display_order", { ascending: true }),
+      supabase
+        .from("goal_effort_periods")
+        .select("*")
+        .in("goal_id", goalIds)
+        .order("start_date", { ascending: true }),
+    ]);
 
-    if (milestoneError) {
-      toast({ title: "Milestones could not be loaded", description: milestoneError.message, variant: "destructive" });
+    if (milestoneResult.error) {
+      toast({
+        title: "Milestones could not be loaded",
+        description: milestoneResult.error.message,
+        variant: "destructive",
+      });
     } else {
-      setMilestones(milestoneRows ?? []);
+      setMilestones(milestoneResult.data ?? []);
+    }
+
+    if (effortResult.error) {
+      toast({
+        title: "Goal workload phases could not be loaded",
+        description: effortResult.error.message,
+        variant: "destructive",
+      });
+    } else {
+      setEffortPeriods(effortResult.data ?? []);
     }
 
     setLoading(false);
@@ -762,7 +787,27 @@ export default function MyGoals() {
     return true;
   });
 
-  const currentWeeklyDemand = activeNow.reduce((sum, goal) => sum + Number(goal.estimated_hours_per_week || 0), 0);
+  const currentWeeklyDemand = activeNow
+    .filter(
+      (goal) =>
+        goal.effort_source === "user_confirmed" ||
+        goal.effort_source === "ai_estimate_confirmed",
+    )
+    .reduce((sum, goal) => {
+      const currentPhase = effortPeriods.find(
+        (period) =>
+          period.goal_id === goal.id &&
+          period.start_date <= today &&
+          period.end_date >= today,
+      );
+      return sum + Number(currentPhase?.hours_per_week ?? goal.estimated_hours_per_week ?? 0);
+    }, 0);
+
+  const unconfirmedActiveGoals = activeNow.filter(
+    (goal) =>
+      goal.effort_source !== "user_confirmed" &&
+      goal.effort_source !== "ai_estimate_confirmed",
+  ).length;
   const scheduledGoals = goals.filter((goal) => goal.start_date && goal.end_date).length;
   const overlappingGoals = useMemo(
     () => goals.filter((goal, index) => goals.some((other, otherIndex) => index !== otherIndex && overlaps(goal, other))).length,
@@ -806,11 +851,14 @@ export default function MyGoals() {
           <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Portfolio goals</p><p className="mt-1 text-3xl font-bold">{goals.length}</p></CardContent></Card>
             <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Active now</p><p className="mt-1 text-3xl font-bold text-primary">{activeNow.length}</p></CardContent></Card>
-            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Current goal demand</p><p className="mt-1 text-3xl font-bold">{currentWeeklyDemand.toFixed(1)}h</p><p className="text-xs text-muted-foreground">per week</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Current confirmed demand</p><p className="mt-1 text-3xl font-bold">{currentWeeklyDemand.toFixed(1)}h</p><p className="text-xs text-muted-foreground">{unconfirmedActiveGoals > 0 ? `${unconfirmedActiveGoals} active ${unconfirmedActiveGoals === 1 ? "goal is" : "goals are"} not counted until workload is confirmed` : "phase-aware hours per week"}</p></CardContent></Card>
             <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Overlapping goals</p><p className="mt-1 text-3xl font-bold">{overlappingGoals}</p><p className="text-xs text-muted-foreground">{scheduledGoals} fully scheduled</p></CardContent></Card>
           </div>
 
-          <GoalCapacityChecker goals={goals} />
+          <GoalCapacityChecker
+            goals={goals}
+            onReviewWindowsChange={setCapacityReviewWindows}
+          />
 
           <Card className="mb-8 border-primary/20">
             <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -820,7 +868,11 @@ export default function MyGoals() {
                   Once individual goals are clear, AI can look across the portfolio for possible overlap, dependencies, sequencing questions and deadline tensions. It does not choose priorities for you.
                 </p>
               </div>
-              <PortfolioAIReviewDialog goals={goals} milestones={milestones} />
+              <PortfolioAIReviewDialog
+                goals={goals}
+                milestones={milestones}
+                capacityWindows={capacityReviewWindows}
+              />
             </CardContent>
           </Card>
 
