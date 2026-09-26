@@ -20,6 +20,7 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Goal = Tables<"goals">;
 type Milestone = Tables<"goal_milestones">;
+type GoalEffortPeriod = Tables<"goal_effort_periods">;
 type WeeklyAction = Tables<"goal_weekly_actions">;
 type GoalTask = Tables<"goal_tasks">;
 
@@ -53,6 +54,7 @@ export function AIWeekPlannerDialog({
   capacityHours,
   goals,
   milestones,
+  effortPeriods,
   actions,
   tasks,
   onApplied,
@@ -62,6 +64,7 @@ export function AIWeekPlannerDialog({
   capacityHours: number | null;
   goals: Goal[];
   milestones: Milestone[];
+  effortPeriods: GoalEffortPeriod[];
   actions: WeeklyAction[];
   tasks: GoalTask[];
   onApplied: () => void | Promise<void>;
@@ -80,10 +83,20 @@ export function AIWeekPlannerDialog({
           CONFIRMED_EFFORT.has(goal.effort_source) &&
           (!goal.start_date || goal.start_date <= weekEnd) &&
           (!goal.end_date || goal.end_date >= weekStart) &&
-          Number(goal.estimated_hours_per_week || 0) > 0,
+          weeklyHoursForGoal(goal) > 0,
       ),
     [goals, weekStart, weekEnd],
   );
+
+  const weeklyHoursForGoal = (goal: Goal) => {
+    const phase = effortPeriods.find(
+      (period) =>
+        period.goal_id === goal.id &&
+        period.start_date <= weekEnd &&
+        period.end_date >= weekStart,
+    );
+    return Number(phase?.hours_per_week ?? goal.estimated_hours_per_week ?? 0);
+  };
 
   const existingWeekActions = useMemo(
     () => actions.filter((action) => action.week_start === weekStart),
@@ -100,7 +113,7 @@ export function AIWeekPlannerDialog({
   );
 
   const committedMinutes = eligibleGoals.reduce(
-    (sum, goal) => sum + Math.round(Number(goal.estimated_hours_per_week || 0) * 60),
+    (sum, goal) => sum + Math.round(weeklyHoursForGoal(goal) * 60),
     0,
   );
   const capacityMinutes = capacityHours === null ? null : Math.round(capacityHours * 60);
@@ -184,7 +197,7 @@ export function AIWeekPlannerDialog({
           priority: goal.priority,
           startDate: goal.start_date,
           endDate: goal.end_date,
-          weeklyHours: Number(goal.estimated_hours_per_week || 0),
+          weeklyHours: weeklyHoursForGoal(goal),
           coachingContext: goal.coaching_context,
         })),
         milestones: relevantMilestones.map((milestone) => ({
@@ -321,7 +334,7 @@ export function AIWeekPlannerDialog({
     const goalBudgets = new Map(
       eligibleGoals.map((goal) => [
         goal.id,
-        Math.round(Number(goal.estimated_hours_per_week || 0) * 60),
+        Math.round(weeklyHoursForGoal(goal) * 60),
       ]),
     );
     for (const task of existingWeekTasks) {
