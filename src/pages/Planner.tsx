@@ -55,6 +55,7 @@ type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
 type GoalEffortPeriod = Tables<"goal_effort_periods">;
 type GoalCapacityPeriod = Tables<"goal_capacity_periods">;
+type GoalDependency = Tables<"goal_dependencies">;
 type WeeklyAction = Tables<"goal_weekly_actions">;
 type GoalTask = Tables<"goal_tasks">;
 type FixedBlock = Tables<"planner_fixed_blocks">;
@@ -102,6 +103,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   const [actions, setActions] = useState<WeeklyAction[]>([]);
   const [tasks, setTasks] = useState<GoalTask[]>([]);
   const [fixedBlocks, setFixedBlocks] = useState<FixedBlock[]>([]);
+  const [dependencies, setDependencies] = useState<GoalDependency[]>([]);
 
   const now = new Date();
   const today = dateKey(now);
@@ -181,6 +183,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       capacitySettingsResult,
       capacityPeriodsResult,
       fixedBlocksResult,
+      dependenciesResult,
     ] = await Promise.all([
       supabase
         .from("goals")
@@ -215,7 +218,16 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
         .select("*")
         .eq("user_id", user.id)
         .order("start_time", { ascending: true }),
+      supabase
+        .from("goal_dependencies")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
     ]);
+
+    const dependencyTablePending =
+      dependenciesResult.error?.code === "PGRST205" ||
+      dependenciesResult.error?.code === "42P01";
 
     const firstError =
       goalsResult.error ||
@@ -223,7 +235,8 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       tasksResult.error ||
       capacitySettingsResult.error ||
       capacityPeriodsResult.error ||
-      fixedBlocksResult.error;
+      fixedBlocksResult.error ||
+      (dependencyTablePending ? null : dependenciesResult.error);
 
     if (firstError) {
       setLoading(false);
@@ -246,6 +259,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     );
     setCapacityPeriods(capacityPeriodsResult.data ?? []);
     setFixedBlocks(fixedBlocksResult.data ?? []);
+    setDependencies(dependencyTablePending ? [] : dependenciesResult.data ?? []);
 
     if (!loadedGoals.length) {
       setMilestones([]);
@@ -331,6 +345,25 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       hasOverride: Boolean(override),
     };
   };
+
+  const pendingDependenciesForGoal = (goalId: string) =>
+    dependencies
+      .filter((dependency) => dependency.dependent_goal_id === goalId)
+      .filter((dependency) => goalMap.get(dependency.prerequisite_goal_id)?.status !== "completed");
+
+  const currentWeekDependencySignals = planningGoals
+    .filter(
+      (goal) =>
+        Boolean(goal.start_date && goal.end_date) &&
+        overlapsRange(goal.start_date, goal.end_date, currentWeekStart, currentWeekEnd),
+    )
+    .flatMap((goal) =>
+      pendingDependenciesForGoal(goal.id).map((dependency) => ({
+        dependency,
+        dependent: goal,
+        prerequisite: goalMap.get(dependency.prerequisite_goal_id) ?? null,
+      })),
+    );
 
   const weeklyGoalDemand = (weekStart: string, weekEnd: string) =>
     planningGoals
@@ -1884,6 +1917,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   goals={goals}
                   milestones={milestones}
                   effortPeriods={effortPeriods}
+                  dependencies={dependencies}
                   actions={actions}
                   tasks={tasks}
                   onApplied={loadPlanner}
@@ -1916,6 +1950,30 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 </CardContent>
               </Card>
             </div>
+
+            {currentWeekDependencySignals.length > 0 && (
+              <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 p-4">
+                <div className="flex items-start gap-2">
+                  <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900">Confirmed dependencies to keep in view</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      These are relationships you explicitly saved. They do not block execution automatically.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {currentWeekDependencySignals.map(({ dependency, prerequisite, dependent }) => (
+                        <div key={dependency.id} className="text-xs">
+                          <span className="font-medium">{dependent.title}</span>
+                          <span className="text-muted-foreground"> depends on </span>
+                          <span className="font-medium">{prerequisite?.title ?? "another goal"}</span>
+                          {dependency.note ? <span className="text-muted-foreground"> · {dependency.note}</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {(capacityOverloaded || scheduleOverloaded) && (
               <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-800">
@@ -1974,6 +2032,17 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                               : `${hoursLabel(allocation.remainingMinutes)} not yet scheduled`}
                           </div>
                         </div>
+
+                        {pendingDependenciesForGoal(allocation.goal.id).length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {pendingDependenciesForGoal(allocation.goal.id).map((dependency) => (
+                              <Badge key={dependency.id} variant="outline" className="gap-1">
+                                <Link2 className="h-3 w-3" />
+                                depends on {goalMap.get(dependency.prerequisite_goal_id)?.title ?? "goal"}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
 
                         {allocation.nextMilestone && (
                           <p className="mt-3 text-xs text-muted-foreground">

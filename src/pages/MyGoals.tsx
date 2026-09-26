@@ -876,6 +876,8 @@ export default function MyGoals() {
             </CardContent>
           </Card>
 
+          <GoalDependenciesCard goals={goals} />
+
           <AccountabilitySharingCard />
 
           <Card className="mb-8 border-primary/20 bg-primary/5">

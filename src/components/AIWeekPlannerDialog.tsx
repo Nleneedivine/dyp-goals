@@ -21,6 +21,7 @@ import type { Json, Tables } from "@/integrations/supabase/types";
 type Goal = Tables<"goals">;
 type Milestone = Tables<"goal_milestones">;
 type GoalEffortPeriod = Tables<"goal_effort_periods">;
+type GoalDependency = Tables<"goal_dependencies">;
 type WeeklyAction = Tables<"goal_weekly_actions">;
 type GoalTask = Tables<"goal_tasks">;
 
@@ -55,6 +56,7 @@ export function AIWeekPlannerDialog({
   goals,
   milestones,
   effortPeriods,
+  dependencies,
   actions,
   tasks,
   onApplied,
@@ -65,6 +67,7 @@ export function AIWeekPlannerDialog({
   goals: Goal[];
   milestones: Milestone[];
   effortPeriods: GoalEffortPeriod[];
+  dependencies: GoalDependency[];
   actions: WeeklyAction[];
   tasks: GoalTask[];
   onApplied: () => void | Promise<void>;
@@ -232,6 +235,17 @@ export function AIWeekPlannerDialog({
           dueDate: milestone.due_date,
           status: milestone.status,
         })),
+        dependencies: dependencies
+          .filter(
+            (dependency) =>
+              eligibleIds.has(dependency.prerequisite_goal_id) ||
+              eligibleIds.has(dependency.dependent_goal_id),
+          )
+          .map((dependency) => ({
+            prerequisiteGoalId: dependency.prerequisite_goal_id,
+            dependentGoalId: dependency.dependent_goal_id,
+            note: dependency.note,
+          })),
         existingActions: existingWeekActions.map((action) => ({
           goalId: action.goal_id,
           milestoneId: action.milestone_id,
