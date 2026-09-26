@@ -36,6 +36,7 @@ export type Database = {
         Update: {
           created_at?: string
           share_goals?: boolean
+          share_monthly_checkins?: boolean
           share_tasks?: boolean
           share_weekly_reviews?: boolean
           updated_at?: string
