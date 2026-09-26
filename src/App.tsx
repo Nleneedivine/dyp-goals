@@ -32,6 +32,8 @@ import FormManager from "./pages/admin/FormManager";
 import FormBuilder from "./pages/admin/FormBuilder";
 import FormAnalytics from "./pages/admin/FormAnalytics";
 import PublicForm from "./pages/PublicForm";
+import AdminAppearance from "./pages/admin/AdminAppearance";
+import { UiModeProvider } from "./components/UiModeProvider";
 
 const queryClient = new QueryClient();
 
@@ -40,7 +42,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <UiModeProvider>
+        <BrowserRouter>
         <div className="min-h-screen bg-background text-foreground">
           <Navbar />
           <Routes>
@@ -87,12 +90,14 @@ const App = () => (
               <Route path="/admin/forms" element={<AdminRoute><FormManager /></AdminRoute>} />
               <Route path="/admin/forms/:formId/edit" element={<AdminRoute><FormBuilder /></AdminRoute>} />
               <Route path="/admin/forms/:formId/analytics" element={<AdminRoute><FormAnalytics /></AdminRoute>} />
+              <Route path="/admin/appearance" element={<AdminRoute><AdminAppearance /></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
           </Routes>
           <Footer />
         </div>
-      </BrowserRouter>
+        </BrowserRouter>
+      </UiModeProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

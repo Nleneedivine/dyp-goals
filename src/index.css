@@ -89,3 +89,164 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* UI 2.0 preview ---------------------------------------------------------
+   Scoped behind html.ui2 so the current production UI remains untouched.
+   The first pass upgrades shared primitives only; product-specific patterns
+   can progressively opt in without creating a second frontend.
+------------------------------------------------------------------------ */
+@layer base {
+  html.ui2 {
+    --radius: 0.875rem;
+    --ui2-radius-sm: 0.625rem;
+    --ui2-radius-md: 0.875rem;
+    --ui2-radius-lg: 1.125rem;
+    --ui2-radius-xl: 1.5rem;
+    --ui2-radius-2xl: 1.75rem;
+    --ui2-control-height: 3rem;
+    --ui2-shadow-soft: 0 18px 50px -32px hsl(var(--color-primary-dark) / 0.32);
+    --ui2-shadow-float: 0 24px 70px -34px hsl(var(--color-primary-dark) / 0.42);
+    --ui2-surface-hover: hsl(var(--muted) / 0.72);
+  }
+
+  html.ui2 body {
+    letter-spacing: -0.005em;
+  }
+}
+
+@layer components {
+  .ui2 [data-ui="button"] {
+    min-height: 2.75rem;
+    border-radius: var(--ui2-radius-md);
+    padding-left: 1rem;
+    padding-right: 1rem;
+    font-weight: 600;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease,
+      transform 120ms ease;
+  }
+
+  .ui2 [data-ui="button"]:active:not(:disabled) {
+    transform: scale(0.985);
+  }
+
+  .ui2 [data-ui="button"] svg {
+    width: 1.125rem;
+    height: 1.125rem;
+    stroke-width: 1.8;
+  }
+
+  .ui2 [data-ui="card"] {
+    border-radius: var(--ui2-radius-lg);
+    border-color: hsl(var(--border) / 0.72);
+    box-shadow: var(--ui2-shadow-soft);
+  }
+
+  .ui2 [data-ui="input"],
+  .ui2 [data-ui="select-trigger"] {
+    min-height: var(--ui2-control-height);
+    border-radius: var(--ui2-radius-md);
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+    border-color: hsl(var(--border) / 0.82);
+    background: hsl(var(--background));
+    box-shadow: 0 1px 0 hsl(var(--foreground) / 0.025);
+  }
+
+  .ui2 [data-ui="input"]:focus-visible,
+  .ui2 [data-ui="select-trigger"]:focus {
+    border-color: hsl(var(--ring) / 0.58);
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.12);
+  }
+
+  .ui2 [data-ui="menu-content"],
+  .ui2 [data-ui="select-content"] {
+    min-width: 14rem;
+    border-radius: var(--ui2-radius-xl);
+    border-color: hsl(var(--border) / 0.72);
+    padding: 0.5rem;
+    box-shadow: var(--ui2-shadow-float);
+  }
+
+  .ui2 [data-ui="menu-item"],
+  .ui2 [data-ui="select-item"] {
+    min-height: 3rem;
+    border-radius: var(--ui2-radius-md);
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+    padding-right: 0.875rem;
+    font-size: 0.9375rem;
+    line-height: 1.35rem;
+  }
+
+  .ui2 [data-ui="menu-item"] {
+    gap: 0.875rem;
+    padding-left: 0.875rem;
+  }
+
+  .ui2 [data-ui="menu-item"] svg,
+  .ui2 [data-ui="select-item"] svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke-width: 1.75;
+  }
+
+  .ui2 [data-ui="dialog-overlay"] {
+    background: hsl(170 24% 5% / 0.62);
+    backdrop-filter: blur(5px);
+  }
+
+  .ui2 [data-ui="dialog-content"] {
+    width: calc(100% - 1.5rem);
+    border-radius: var(--ui2-radius-2xl);
+    border-color: hsl(var(--border) / 0.7);
+    padding: 1.75rem;
+    box-shadow: 0 32px 100px -38px hsl(170 30% 4% / 0.62);
+  }
+
+  .ui2 [data-ui="dialog-close"] {
+    display: inline-flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: hsl(var(--muted) / 0.8);
+    opacity: 1;
+  }
+
+  .ui2 [data-ui="dialog-close"] svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke-width: 1.75;
+  }
+
+  .ui2-preview-badge {
+    display: inline-flex;
+    min-height: 1.75rem;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--primary) / 0.2);
+    background: hsl(var(--primary) / 0.08);
+    padding: 0.25rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: hsl(var(--primary));
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 640px) {
+  .ui2 [data-ui="menu-content"],
+  .ui2 [data-ui="select-content"] {
+    max-width: calc(100vw - 1rem);
+  }
+
+  .ui2 [data-ui="dialog-content"] {
+    padding: 1.25rem;
+  }
+}

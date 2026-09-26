@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3 } from "lucide-react";
+import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -235,6 +235,12 @@ const Navbar = () => {
                             Admin
                           </Link>
                         </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/appearance" className="cursor-pointer flex items-center gap-2">
+                            <Palette className="h-4 w-4" />
+                            Interface preview
+                          </Link>
+                        </DropdownMenuItem>
                       </>
                     )}
                     <DropdownMenuSeparator />
@@ -358,15 +364,26 @@ const Navbar = () => {
                   </Link>
                 )}
                 {isAdmin && (
-                  <Link
-                    to="/admin"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Button variant="outline" className="w-full gap-2 mb-2">
-                      <Settings className="h-4 w-4" />
-                      Admin
-                    </Button>
-                  </Link>
+                  <>
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Button variant="outline" className="w-full gap-2 mb-2">
+                        <Settings className="h-4 w-4" />
+                        Admin
+                      </Button>
+                    </Link>
+                    <Link
+                      to="/admin/appearance"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Button variant="outline" className="w-full gap-2 mb-2">
+                        <Palette className="h-4 w-4" />
+                        Interface preview
+                      </Button>
+                    </Link>
+                  </>
                 )}
                 <Button
                   onClick={() => {
