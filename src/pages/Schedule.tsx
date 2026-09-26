@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   eventBenefits,
   formatEventDate,
+  formatEventTime,
   formatNaira,
   type ProgramEvent,
 } from "@/lib/event";
@@ -125,7 +126,7 @@ const Schedule = () => {
               {formatEventDate(event.starts_at)} – {formatEventDate(event.ends_at)}
             </span>
             <span className="rounded-full border bg-card px-4 py-2 text-sm font-medium">
-              {event.session_start_time} – {event.session_end_time} WAT
+              {formatEventTime(event.session_start_time)} – {formatEventTime(event.session_end_time)} WAT
             </span>
             <span className="rounded-full border bg-card px-4 py-2 text-sm font-medium">
               Virtual
@@ -191,7 +192,7 @@ const Schedule = () => {
                     </div>
                     <div className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      {event.session_start_time} – {event.session_end_time} WAT
+                      {formatEventTime(event.session_start_time)} – {formatEventTime(event.session_end_time)} WAT
                     </div>
                   </div>
 
