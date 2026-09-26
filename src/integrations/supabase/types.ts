@@ -1413,6 +1413,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_goal_ai_refinement: {
+        Args: {
+          p_effort_periods?: Json
+          p_goal_id: string
+          p_goal_patch: Json
+          p_milestones?: Json
+          p_replace_effort_periods?: boolean
+        }
+        Returns: Database["public"]["Tables"]["goals"]["Row"]
+      }
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
         Returns: Json
