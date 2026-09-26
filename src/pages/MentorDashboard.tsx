@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { endOfWeek, format, startOfWeek } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   Target, 
-  TrendingUp, 
   MessageSquare, 
   Loader2, 
   Calendar,
@@ -55,6 +54,14 @@ interface SharedPortfolioGoal {
   estimated_hours_per_week: number;
 }
 
+interface SharedMilestone {
+  id: string;
+  goal_id: string;
+  title: string;
+  due_date: string | null;
+  status: string;
+}
+
 interface SharedGoalTask {
   id: string;
   user_id: string;
@@ -94,6 +101,7 @@ const MentorDashboard = () => {
   const [mentorshipRequests, setMentorshipRequests] = useState<MentorshipRequest[]>([]);
   const [sharedPortfolioGoals, setSharedPortfolioGoals] = useState<SharedPortfolioGoal[]>([]);
   const [sharedGoalTasks, setSharedGoalTasks] = useState<SharedGoalTask[]>([]);
+  const [sharedMilestones, setSharedMilestones] = useState<SharedMilestone[]>([]);
   const [sharedWeeklyReviews, setSharedWeeklyReviews] = useState<SharedWeeklyReview[]>([]);
   const [sharingPreferences, setSharingPreferences] = useState<SharingPreference[]>([]);
   const { toast } = useToast();
@@ -173,6 +181,7 @@ const MentorDashboard = () => {
           setMemberGoals([]);
           setSharedPortfolioGoals([]);
           setSharedGoalTasks([]);
+          setSharedMilestones([]);
           setSharedWeeklyReviews([]);
           setSharingPreferences([]);
           return;
@@ -215,10 +224,27 @@ const MentorDashboard = () => {
         ]);
 
         if (legacyGoalsResult.data) setMemberGoals(legacyGoalsResult.data);
-        if (portfolioGoalsResult.data) setSharedPortfolioGoals(portfolioGoalsResult.data as SharedPortfolioGoal[]);
+        const portfolioGoals = (portfolioGoalsResult.data ?? []) as SharedPortfolioGoal[];
+        setSharedPortfolioGoals(portfolioGoals);
         if (tasksResult.data) setSharedGoalTasks(tasksResult.data as SharedGoalTask[]);
         if (reviewsResult.data) setSharedWeeklyReviews(reviewsResult.data as SharedWeeklyReview[]);
         if (sharingResult.data) setSharingPreferences(sharingResult.data as SharingPreference[]);
+
+        if (portfolioGoals.length) {
+          const { data: milestoneData, error: milestoneError } = await supabase
+            .from('goal_milestones')
+            .select('id, goal_id, title, due_date, status')
+            .in('goal_id', portfolioGoals.map((goal) => goal.id))
+            .order('due_date', { ascending: true, nullsFirst: false });
+
+          if (milestoneError) {
+            console.error('Error loading shared milestones:', milestoneError);
+          } else {
+            setSharedMilestones((milestoneData ?? []) as SharedMilestone[]);
+          }
+        } else {
+          setSharedMilestones([]);
+        }
 
         const sharingError =
           portfolioGoalsResult.error ||
@@ -251,10 +277,35 @@ const MentorDashboard = () => {
   const getSharedTasks = (userId: string) =>
     sharedGoalTasks.filter((task) => task.user_id === userId);
 
+  const getSharedMilestones = (userId: string) => {
+    const goalIds = new Set(getSharedPortfolioGoals(userId).map((goal) => goal.id));
+    return sharedMilestones.filter((milestone) => goalIds.has(milestone.goal_id));
+  };
+
   const getLatestSharedReview = (userId: string) =>
     sharedWeeklyReviews
       .filter((review) => review.user_id === userId)
       .sort((a, b) => b.week_start.localeCompare(a.week_start))[0] ?? null;
+
+  const today = format(new Date(), "yyyy-MM-dd");
+  const currentWeekStart = format(
+    startOfWeek(new Date(), { weekStartsOn: 1 }),
+    "yyyy-MM-dd",
+  );
+  const currentWeekEnd = format(
+    endOfWeek(new Date(), { weekStartsOn: 1 }),
+    "yyyy-MM-dd",
+  );
+
+  const optedInMembers = sharingPreferences.filter(
+    (preference) => preference.share_goals,
+  ).length;
+  const activeSharedGoals = sharedPortfolioGoals.filter(
+    (goal) => goal.status === "draft" || goal.status === "active",
+  ).length;
+  const sharedReviewsThisWeek = sharedWeeklyReviews.filter(
+    (review) => review.week_start === currentWeekStart,
+  ).length;
 
   if (isLoading) {
     return (
@@ -276,7 +327,7 @@ const MentorDashboard = () => {
             Mentor <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Track your mentees' progress and support their goal achievement journey.
+            Review only the goal and execution context each member explicitly chose to share, then support their next accountability conversation.
           </p>
         </div>
 
@@ -303,8 +354,8 @@ const MentorDashboard = () => {
                   <Target className="h-6 w-6 text-secondary-foreground" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Goals Submitted</p>
-                  <p className="text-2xl font-bold">{memberGoals.length}</p>
+                  <p className="text-sm text-muted-foreground">Sharing execution</p>
+                  <p className="text-2xl font-bold">{optedInMembers}/{groupMembers.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -317,8 +368,8 @@ const MentorDashboard = () => {
                   <Award className="h-6 w-6 text-accent-foreground" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Refined Goals</p>
-                  <p className="text-2xl font-bold">{memberGoals.filter(g => g.refined_goals).length}</p>
+                  <p className="text-sm text-muted-foreground">Shared active goals</p>
+                  <p className="text-2xl font-bold">{activeSharedGoals}</p>
                 </div>
               </div>
             </CardContent>
@@ -331,8 +382,8 @@ const MentorDashboard = () => {
                   <MessageSquare className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Pending Requests</p>
-                  <p className="text-2xl font-bold">{mentorshipRequests.filter(r => r.status === 'pending').length}</p>
+                  <p className="text-sm text-muted-foreground">Reviews this week</p>
+                  <p className="text-2xl font-bold">{sharedReviewsThisWeek}</p>
                 </div>
               </div>
             </CardContent>
@@ -382,6 +433,7 @@ const MentorDashboard = () => {
                   const sharing = getSharingPreference(member.id);
                   const portfolioGoals = getSharedPortfolioGoals(member.id);
                   const sharedTasks = getSharedTasks(member.id);
+                  const memberMilestones = getSharedMilestones(member.id);
                   const latestReview = getLatestSharedReview(member.id);
                   const activeSharedTasks = sharedTasks.filter(
                     (task) => task.status === 'planned' || task.status === 'completed',
@@ -389,6 +441,28 @@ const MentorDashboard = () => {
                   const completedSharedTasks = activeSharedTasks.filter(
                     (task) => task.status === 'completed',
                   );
+                  const currentWeekTasks = activeSharedTasks.filter(
+                    (task) =>
+                      task.scheduled_date &&
+                      task.scheduled_date >= currentWeekStart &&
+                      task.scheduled_date <= currentWeekEnd,
+                  );
+                  const currentWeekCompletedTasks = currentWeekTasks.filter(
+                    (task) => task.status === 'completed',
+                  );
+                  const overdueSharedMilestones = memberMilestones.filter(
+                    (milestone) =>
+                      milestone.status !== 'completed' &&
+                      Boolean(milestone.due_date && milestone.due_date < today),
+                  );
+                  const nextSharedMilestone =
+                    memberMilestones
+                      .filter(
+                        (milestone) =>
+                          milestone.status !== 'completed' &&
+                          Boolean(milestone.due_date && milestone.due_date >= today),
+                      )
+                      .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''))[0] ?? null;
                   
                   return (
                     <Card key={member.id} className="bg-card border-border">
@@ -472,11 +546,40 @@ const MentorDashboard = () => {
                               </div>
 
                               {sharing.share_tasks && (
-                                <div>
-                                  <p className="text-xs font-medium">Shared task execution</p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    {completedSharedTasks.length}/{activeSharedTasks.length} visible tasks completed
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="rounded-lg bg-muted/20 p-3">
+                                    <p className="text-xs text-muted-foreground">This week</p>
+                                    <p className="mt-1 text-lg font-bold">
+                                      {currentWeekCompletedTasks.length}/{currentWeekTasks.length}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">visible tasks complete</p>
+                                  </div>
+                                  <div className="rounded-lg bg-muted/20 p-3">
+                                    <p className="text-xs text-muted-foreground">All visible tasks</p>
+                                    <p className="mt-1 text-lg font-bold">
+                                      {completedSharedTasks.length}/{activeSharedTasks.length}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">complete</p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {overdueSharedMilestones.length > 0 && (
+                                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                                  <p className="text-xs font-medium">
+                                    {overdueSharedMilestones.length} overdue shared {overdueSharedMilestones.length === 1 ? 'milestone' : 'milestones'}
                                   </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    This is a deadline signal from the member's shared plan, not a priority judgment.
+                                  </p>
+                                </div>
+                              )}
+
+                              {nextSharedMilestone && (
+                                <div className="rounded-lg bg-muted/20 p-3">
+                                  <p className="text-xs text-muted-foreground">Next shared milestone</p>
+                                  <p className="mt-1 text-xs font-medium">{nextSharedMilestone.title}</p>
+                                  <p className="mt-1 text-[11px] text-muted-foreground">{nextSharedMilestone.due_date}</p>
                                 </div>
                               )}
 
@@ -484,11 +587,21 @@ const MentorDashboard = () => {
                                 <div className="rounded-lg bg-muted/20 p-3">
                                   <p className="text-xs font-medium">Latest weekly review · {latestReview.week_start}</p>
                                   <p className="mt-1 text-xs text-muted-foreground">
-                                    {latestReview.completed_tasks}/{latestReview.planned_tasks} tasks · {(latestReview.completed_minutes / 60).toFixed(1)}h/{(latestReview.planned_minutes / 60).toFixed(1)}h
+                                    {latestReview.completed_tasks}/{latestReview.planned_tasks} tasks · {(latestReview.completed_minutes / 60).toFixed(1)}h/{(latestReview.planned_minutes / 60).toFixed(1)}h represented effort
                                   </p>
+                                  {latestReview.wins && (
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                      Wins: {latestReview.wins}
+                                    </p>
+                                  )}
                                   {latestReview.blockers && (
                                     <p className="mt-2 text-xs text-muted-foreground">
                                       Blockers: {latestReview.blockers}
+                                    </p>
+                                  )}
+                                  {latestReview.adjustments && (
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                      Member's adjustment: {latestReview.adjustments}
                                     </p>
                                   )}
                                 </div>
