@@ -18,6 +18,7 @@ export function GoalDependenciesCard({ goals }: { goals: Goal[] }) {
   const [dependencies, setDependencies] = useState<GoalDependency[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [available, setAvailable] = useState(true);
   const [prerequisiteGoalId, setPrerequisiteGoalId] = useState("");
   const [dependentGoalId, setDependentGoalId] = useState("");
   const [note, setNote] = useState("");
@@ -49,6 +50,11 @@ export function GoalDependenciesCard({ goals }: { goals: Goal[] }) {
     setLoading(false);
 
     if (error) {
+      if (error.code === "PGRST205" || error.code === "42P01") {
+        setAvailable(false);
+        setDependencies([]);
+        return;
+      }
       toast({
         title: "Goal dependencies could not load",
         description: error.message,
@@ -57,6 +63,7 @@ export function GoalDependenciesCard({ goals }: { goals: Goal[] }) {
       return;
     }
 
+    setAvailable(true);
     setDependencies(data ?? []);
   };
 
@@ -201,7 +208,11 @@ export function GoalDependenciesCard({ goals }: { goals: Goal[] }) {
       </CardHeader>
 
       <CardContent className="space-y-5">
-        {loading ? (
+        {!available && !loading ? (
+          <div className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
+            Goal dependency storage is not active in this workspace yet. The rest of your portfolio and planner will keep working; this section will become available after the database update is applied.
+          </div>
+        ) : loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading dependencies…
