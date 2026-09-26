@@ -1041,6 +1041,21 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     [tasks, today],
   );
 
+  const deadlineHorizon = dateKey(addDays(now, 14));
+  const incompleteDatedMilestones = milestones.filter(
+    (milestone) => milestone.status !== "completed" && Boolean(milestone.due_date),
+  );
+  const overdueMilestones = incompleteDatedMilestones
+    .filter((milestone) => milestone.due_date! < today)
+    .sort((a, b) => a.due_date!.localeCompare(b.due_date!));
+  const upcomingMilestones = incompleteDatedMilestones
+    .filter(
+      (milestone) =>
+        milestone.due_date! >= today &&
+        milestone.due_date! <= deadlineHorizon,
+    )
+    .sort((a, b) => a.due_date!.localeCompare(b.due_date!));
+
   const selectedDayKey = dateKey(dayAnchor);
   const selectedDayTasks = tasks
     .filter((task) => task.scheduled_date === selectedDayKey && task.status !== "deferred")
@@ -1058,6 +1073,17 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   const yearMilestones = milestones.filter(
     (milestone) => milestone.due_date && milestone.due_date >= yearStart && milestone.due_date <= yearEnd,
   );
+  const yearTasks = tasks.filter(
+    (task) => task.scheduled_date && task.scheduled_date >= yearStart && task.scheduled_date <= yearEnd,
+  );
+  const yearCompletedTasks = yearTasks.filter((task) => task.status === "completed");
+  const yearPlannedMinutes = yearTasks
+    .filter((task) => task.status !== "skipped")
+    .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0);
+  const yearCompletedMinutes = yearCompletedTasks
+    .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0);
+  const yearCompletedMilestones = yearMilestones.filter((milestone) => milestone.status === "completed");
+
 
   const monthStart = dateKey(startOfMonth(monthAnchor));
   const monthEnd = dateKey(endOfMonth(monthAnchor));
@@ -1206,8 +1232,30 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     return Array.from(conflicts.values());
   };
 
-  const selectedDayFixedMinutes = fixedSegmentsForDate(selectedDayKey)
-    .reduce((sum, segment) => sum + Math.max(0, segment.end - segment.start), 0);
+  const selectedDayFixedMinutes = (() => {
+    const segments = fixedSegmentsForDate(selectedDayKey)
+      .map((segment) => ({ start: segment.start, end: segment.end }))
+      .sort((a, b) => a.start - b.start);
+
+    if (!segments.length) return 0;
+
+    let total = 0;
+    let currentStart = segments[0].start;
+    let currentEnd = segments[0].end;
+
+    for (let index = 1; index < segments.length; index += 1) {
+      const segment = segments[index];
+      if (segment.start <= currentEnd) {
+        currentEnd = Math.max(currentEnd, segment.end);
+      } else {
+        total += Math.max(0, currentEnd - currentStart);
+        currentStart = segment.start;
+        currentEnd = segment.end;
+      }
+    }
+
+    return total + Math.max(0, currentEnd - currentStart);
+  })();
 
   const goalTaskProgress = (goalId: string) => {
     const goalTasks = tasks.filter((task) => task.goal_id === goalId && task.status !== "skipped");
@@ -1253,6 +1301,59 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
               blocks={fixedBlocks}
               onChange={setFixedBlocks}
             />
+            {overdueMilestones.length > 0 && (
+              <Badge variant="outline" className="w-fit gap-2 border-destructive/30 px-3 py-2 text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                {overdueMilestones.length} overdue {overdueMilestones.length === 1 ? "milestone" : "milestones"}
+              </Badge>
+            )}
+            {upcomingMilestones.length > 0 && (
+              <Badge variant="outline" className="w-fit gap-2 px-3 py-2">
+                <CalendarDays className="h-4 w-4" />
+                {upcomingMilestones.length} due in 14 days
+              </Badge>
+            )}
+            {(overdueMilestones.length > 0 || upcomingMilestones.length > 0) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <CalendarDays className="h-5 w-5 text-primary" />
+                    Deadline signals
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Upcoming and overdue milestones from your saved goals. These are date signals, not a priority ranking.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {[...overdueMilestones, ...upcomingMilestones].slice(0, 8).map((milestone) => {
+                    const overdue = Boolean(milestone.due_date && milestone.due_date < today);
+                    return (
+                      <button
+                        key={milestone.id}
+                        type="button"
+                        onClick={() => milestone.due_date && openWeekAt(milestone.due_date)}
+                        className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/25"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant={overdue ? "outline" : "secondary"} className={overdue ? "border-destructive/30 text-destructive" : ""}>
+                              {overdue ? "Overdue" : "Due soon"}
+                            </Badge>
+                            <Badge variant="outline">{goalMap.get(milestone.goal_id)?.title ?? "Goal"}</Badge>
+                          </div>
+                          <p className="mt-2 font-medium">{milestone.title}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                          {milestone.due_date}
+                          <ChevronRight className="h-4 w-4" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
             {planningQueue.length > 0 && (
               <Badge variant="outline" className="w-fit gap-2 border-amber-500/30 px-3 py-2 text-amber-700">
                 <AlertTriangle className="h-4 w-4" />
@@ -1282,6 +1383,30 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
               <Button variant="ghost" size="icon" onClick={() => setYearAnchor((date) => addYears(date, 1))}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Execution tasks completed</p>
+                  <p className="text-2xl font-bold">{yearCompletedTasks.length}/{yearTasks.filter((task) => task.status !== "skipped").length}</p>
+                  <p className="text-xs text-muted-foreground">scheduled tasks in this year</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Execution effort completed</p>
+                  <p className="text-2xl font-bold">{hoursLabel(yearCompletedMinutes)}</p>
+                  <p className="text-xs text-muted-foreground">of {hoursLabel(yearPlannedMinutes)} represented by tasks</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="text-xs text-muted-foreground">Milestones completed</p>
+                  <p className="text-2xl font-bold">{yearCompletedMilestones.length}/{yearMilestones.length}</p>
+                  <p className="text-xs text-muted-foreground">dated checkpoints in this year</p>
+                </CardContent>
+              </Card>
             </div>
 
             {yearGoals.length === 0 ? (
@@ -1330,7 +1455,17 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                                   onClick={() => milestone.due_date && openMonthAt(milestone.due_date)}
                                   className="flex w-full items-start justify-between gap-3 rounded-lg border bg-muted/15 p-3 text-left text-sm transition-colors hover:bg-muted/30"
                                 >
-                                  <span>{milestone.title}</span>
+                                  <span>
+                                    {milestone.title}
+                                    <span className="mt-1 flex flex-wrap gap-1">
+                                      {milestone.status === "completed" && (
+                                        <Badge variant="secondary" className="text-[10px]">Completed</Badge>
+                                      )}
+                                      {milestone.status !== "completed" && milestone.due_date && milestone.due_date < today && (
+                                        <Badge variant="outline" className="border-destructive/30 text-[10px] text-destructive">Overdue</Badge>
+                                      )}
+                                    </span>
+                                  </span>
                                   <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                                     {milestone.due_date}
                                     <ChevronRight className="h-3.5 w-3.5" />
