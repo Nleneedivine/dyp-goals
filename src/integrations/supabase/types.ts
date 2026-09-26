@@ -1249,6 +1249,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_generated_week_plan: {
+        Args: { p_actions: Json; p_week_start: string }
+        Returns: Json
+      }
       apply_goal_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
         Returns: {
