@@ -19,6 +19,13 @@ declare
   v_task_date date;
   v_action_count integer := 0;
   v_task_count integer := 0;
+  v_capacity_minutes integer;
+  v_existing_total integer := 0;
+  v_incoming_total integer := 0;
+  v_goal_budget_minutes integer;
+  v_existing_goal_minutes integer;
+  v_incoming_goal_minutes integer;
+  v_goal_record record;
 begin
   if v_user_id is null then
     raise exception 'Authentication required';
@@ -35,6 +42,90 @@ begin
   if jsonb_array_length(p_actions) > 40 then
     raise exception 'A generated week plan cannot contain more than 40 weekly actions';
   end if;
+
+  select round(coalesce(
+    (
+      select cp.hours_per_week
+      from public.goal_capacity_periods cp
+      where cp.user_id = v_user_id
+        and cp.start_date <= v_week_end
+        and cp.end_date >= p_week_start
+      order by cp.start_date
+      limit 1
+    ),
+    (
+      select cs.default_hours_per_week
+      from public.goal_capacity_settings cs
+      where cs.user_id = v_user_id
+    )
+  ) * 60)::integer
+  into v_capacity_minutes;
+
+  if v_capacity_minutes is null then
+    raise exception 'Weekly capacity must be set before applying a generated plan';
+  end if;
+
+  select coalesce(sum(t.estimated_minutes), 0)::integer
+  into v_existing_total
+  from public.goal_tasks t
+  where t.user_id = v_user_id
+    and t.scheduled_date between p_week_start and v_week_end
+    and t.status in ('planned','completed');
+
+  select coalesce(sum((task.value->>'estimatedMinutes')::integer), 0)::integer
+  into v_incoming_total
+  from jsonb_array_elements(p_actions) action(value)
+  cross join lateral jsonb_array_elements(coalesce(action.value->'tasks', '[]'::jsonb)) task(value);
+
+  if v_existing_total + v_incoming_total > v_capacity_minutes then
+    raise exception 'Generated week plan would exceed confirmed weekly capacity';
+  end if;
+
+  for v_goal_record in
+    select distinct (action.value->>'goalId')::uuid as goal_id
+    from jsonb_array_elements(p_actions) action(value)
+  loop
+    select round(coalesce(
+      (
+        select ep.hours_per_week
+        from public.goal_effort_periods ep
+        where ep.goal_id = v_goal_record.goal_id
+          and ep.start_date <= v_week_end
+          and ep.end_date >= p_week_start
+        order by ep.start_date
+        limit 1
+      ),
+      g.estimated_hours_per_week
+    ) * 60)::integer
+    into v_goal_budget_minutes
+    from public.goals g
+    where g.id = v_goal_record.goal_id
+      and g.user_id = v_user_id
+      and g.status in ('draft','active')
+      and g.effort_source in ('user_confirmed','ai_estimate_confirmed');
+
+    if v_goal_budget_minutes is null then
+      raise exception 'Generated plan references an unavailable or unconfirmed goal';
+    end if;
+
+    select coalesce(sum(t.estimated_minutes), 0)::integer
+    into v_existing_goal_minutes
+    from public.goal_tasks t
+    where t.user_id = v_user_id
+      and t.goal_id = v_goal_record.goal_id
+      and t.scheduled_date between p_week_start and v_week_end
+      and t.status in ('planned','completed');
+
+    select coalesce(sum((task.value->>'estimatedMinutes')::integer), 0)::integer
+    into v_incoming_goal_minutes
+    from jsonb_array_elements(p_actions) action(value)
+    cross join lateral jsonb_array_elements(coalesce(action.value->'tasks', '[]'::jsonb)) task(value)
+    where (action.value->>'goalId')::uuid = v_goal_record.goal_id;
+
+    if v_existing_goal_minutes + v_incoming_goal_minutes > v_goal_budget_minutes then
+      raise exception 'Generated plan would exceed a goal''s confirmed weekly commitment';
+    end if;
+  end loop;
 
   for v_action in select value from jsonb_array_elements(p_actions)
   loop
