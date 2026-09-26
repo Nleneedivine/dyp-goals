@@ -6,6 +6,9 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY_1") ?? Deno.env.get("RESEND_
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const APP_URL = Deno.env.get("APP_URL") ?? "https://dyp-goals.lovable.app";
+const FROM_EMAIL =
+  Deno.env.get("DYP_EXECUTION_FROM_EMAIL") ??
+  "DYP GOALS <onboarding@resend.dev>";
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 
 const corsHeaders = {
@@ -108,7 +111,7 @@ async function sendEmail(to: string, subject: string, html: string) {
       "X-Connection-Api-Key": RESEND_API_KEY,
     },
     body: JSON.stringify({
-      from: "DYP GOALS <onboarding@resend.dev>",
+      from: FROM_EMAIL,
       to: [to],
       subject,
       html,
