@@ -15,6 +15,13 @@
       "when": 1790410261571,
       "tag": "0001_planner_fixed_blocks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790410283686,
+      "tag": "0002_weekly_execution_reviews",
+      "breakpoints": true
     }
   ]
 }
