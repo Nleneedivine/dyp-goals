@@ -84,6 +84,11 @@ const OptionSchema = z.object({
     title: z.string().min(1).max(240),
     estimatedMinutes: z.number().int().min(5).max(1440),
   })).max(6).optional(),
+  fallbackTask: z.object({
+    title: z.string().min(1).max(240),
+    estimatedMinutes: z.number().int().min(5).max(1440),
+    suggestedDate: DateString,
+  }).optional(),
 });
 
 const SuggestionSchema = z.object({
@@ -164,7 +169,8 @@ ROLE BOUNDARIES:
 - A reschedule suggestion must use a date on or after CURRENT DATE.
 - Do not suggest dates after a goal's known deadline unless the option is explicitly "review_workload".
 - Avoid simply pushing every missed task to tomorrow. Consider upcoming workload and milestones.
-- "fallback" means using an already-grounded safeguard/minimum routine from coaching context; do not invent a personal safeguard as if the user chose it.
+- "fallback" means using an already-grounded safeguard/minimum routine from coaching context; do not invent a personal safeguard as if the user chose it. When you offer fallback, include fallbackTask with a concrete smaller task, its realistic duration, and a date on or after CURRENT DATE.
+- A fallback task must not be longer than the original task when the original task has a positive duration.
 - "split" may break a large task into smaller concrete pieces, but the total estimated minutes should stay approximately equal to the original.
 - Return 1 to 3 genuinely different options per queue task.
 - Return ONLY valid JSON.
@@ -184,7 +190,12 @@ Schema:
           "suggestedDate": "YYYY-MM-DD or null",
           "splitTasks": [
             {"title": "smaller task", "estimatedMinutes": 20}
-          ]
+          ],
+          "fallbackTask": {
+            "title": "grounded minimum-version task",
+            "estimatedMinutes": 15,
+            "suggestedDate": "YYYY-MM-DD"
+          }
         }
       ]
     }
@@ -282,6 +293,26 @@ Give reviewable replanning options for every queue task.`;
               throw new Error("AI suggested a reschedule after the goal deadline");
             }
           }
+        }
+
+        if (option.type === "fallback") {
+          if (!option.fallbackTask) {
+            throw new Error("AI fallback option is missing a concrete fallback task");
+          }
+          if (option.fallbackTask.suggestedDate < input.currentDate) {
+            throw new Error("AI suggested a fallback task in the past");
+          }
+          if (goal?.endDate && option.fallbackTask.suggestedDate > goal.endDate) {
+            throw new Error("AI suggested a fallback task after the goal deadline");
+          }
+          if (
+            task.estimatedMinutes > 0 &&
+            option.fallbackTask.estimatedMinutes > task.estimatedMinutes
+          ) {
+            throw new Error("AI fallback increased the original task workload");
+          }
+        } else if (option.fallbackTask) {
+          option.fallbackTask = undefined;
         }
 
         if (option.type === "split" && option.splitTasks?.length) {

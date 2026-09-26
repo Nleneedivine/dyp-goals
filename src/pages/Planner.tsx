@@ -1041,6 +1041,137 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     });
   };
 
+  const applyFallbackTask = async (
+    task: GoalTask,
+    fallback: { title: string; estimatedMinutes: number; suggestedDate: string },
+  ) => {
+    const goal = goalMap.get(task.goal_id);
+    if (!goal) {
+      toast({
+        title: "Goal context is missing",
+        description: "This fallback cannot be applied until its goal is available.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const title = fallback.title.trim();
+    const minutes = Number(fallback.estimatedMinutes || 0);
+    const nextDate = fallback.suggestedDate;
+
+    if (!title || !nextDate || !Number.isFinite(minutes) || minutes < 5 || minutes > 1440) {
+      toast({
+        title: "Fallback task is invalid",
+        description: "Review the suggested fallback and try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (Number(task.estimated_minutes || 0) > 0 && minutes > Number(task.estimated_minutes || 0)) {
+      toast({
+        title: "Fallback would increase the task workload",
+        description: "A fallback should be a smaller executable version of the original task.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (nextDate < today) {
+      toast({
+        title: "Fallback date is in the past",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (goal.start_date && nextDate < goal.start_date) {
+      toast({
+        title: "Fallback date is before the goal starts",
+        description: `Choose ${goal.start_date} or later.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (goal.end_date && nextDate > goal.end_date) {
+      toast({
+        title: "Fallback date is after the goal deadline",
+        description: `This goal currently ends on ${goal.end_date}.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const destinationWeekStart = mondayKey(parseISO(nextDate));
+    const destinationWeekEnd = endOfWeekKey(destinationWeekStart);
+    const destinationCapacity = capacityForWeek(destinationWeekStart, destinationWeekEnd);
+
+    const destinationTaskMinutes = tasks
+      .filter(
+        (item) =>
+          item.id !== task.id &&
+          item.scheduled_date &&
+          item.scheduled_date >= destinationWeekStart &&
+          item.scheduled_date <= destinationWeekEnd &&
+          (item.status === "planned" || item.status === "completed"),
+      )
+      .reduce((sum, item) => sum + Number(item.estimated_minutes || 0), 0);
+
+    const destinationGoalMinutes = tasks
+      .filter(
+        (item) =>
+          item.id !== task.id &&
+          item.goal_id === task.goal_id &&
+          item.scheduled_date &&
+          item.scheduled_date >= destinationWeekStart &&
+          item.scheduled_date <= destinationWeekEnd &&
+          (item.status === "planned" || item.status === "completed"),
+      )
+      .reduce((sum, item) => sum + Number(item.estimated_minutes || 0), 0);
+
+    const warnings: string[] = [];
+
+    if (
+      defaultCapacity !== null &&
+      destinationTaskMinutes + minutes > destinationCapacity.hours * 60 + 1
+    ) {
+      warnings.push(
+        `This fallback would put ${hoursLabel(destinationTaskMinutes + minutes)} of scheduled goal work into a week with ${destinationCapacity.hours.toFixed(1)}h of capacity.`,
+      );
+    }
+
+    if (CONFIRMED_EFFORT.has(goal.effort_source)) {
+      const goalBudgetMinutes = Math.round(
+        effortForGoalDuring(goal, destinationWeekStart, destinationWeekEnd) * 60,
+      );
+      if (destinationGoalMinutes + minutes > goalBudgetMinutes + 1) {
+        warnings.push(
+          `“${goal.title}” would have ${hoursLabel(destinationGoalMinutes + minutes)} scheduled against its ${hoursLabel(goalBudgetMinutes)} confirmed weekly commitment.`,
+        );
+      }
+    }
+
+    if (
+      warnings.length &&
+      !window.confirm(
+        `${warnings.join("\n\n")}\n\nUse the fallback anyway? The planner will keep the pressure visible so you can adjust it deliberately.`,
+      )
+    ) {
+      return false;
+    }
+
+    return updateTask(task.id, {
+      title,
+      estimated_minutes: minutes,
+      status: "planned",
+      deferred_from_date: task.deferred_from_date ?? task.scheduled_date,
+      scheduled_date: nextDate,
+      scheduled_time: null,
+      completed_at: null,
+    });
+  };
+
   const deleteTask = async (taskId: string) => {
     const { error } = await supabase.from("goal_tasks").delete().eq("id", taskId);
     if (error) {
@@ -2450,6 +2581,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                       milestones={milestones}
                       allTasks={tasks}
                       onReschedule={rescheduleTask}
+                      onApplyFallback={applyFallbackTask}
                     />
                   </div>
                 </CardHeader>
