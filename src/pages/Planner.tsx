@@ -225,6 +225,10 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
         .order("created_at", { ascending: true }),
     ]);
 
+    const dependencyTablePending =
+      dependenciesResult.error?.code === "PGRST205" ||
+      dependenciesResult.error?.code === "42P01";
+
     const firstError =
       goalsResult.error ||
       actionsResult.error ||
@@ -232,7 +236,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       capacitySettingsResult.error ||
       capacityPeriodsResult.error ||
       fixedBlocksResult.error ||
-      dependenciesResult.error;
+      (dependencyTablePending ? null : dependenciesResult.error);
 
     if (firstError) {
       setLoading(false);
@@ -255,7 +259,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     );
     setCapacityPeriods(capacityPeriodsResult.data ?? []);
     setFixedBlocks(fixedBlocksResult.data ?? []);
-    setDependencies(dependenciesResult.data ?? []);
+    setDependencies(dependencyTablePending ? [] : dependenciesResult.data ?? []);
 
     if (!loadedGoals.length) {
       setMilestones([]);
