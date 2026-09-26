@@ -309,62 +309,43 @@ export type Database = {
           },
         ]
       }
-      goal_task_events: {
+      goal_milestones: {
         Row: {
-          event_type: string
-          from_scheduled_date: string | null
-          from_scheduled_time: string | null
-          from_status: string | null
+          created_at: string
+          display_order: number
+          due_date: string | null
           goal_id: string
           id: string
-          occurred_at: string
-          task_id: string | null
-          to_scheduled_date: string | null
-          to_scheduled_time: string | null
-          to_status: string | null
-          user_id: string
+          status: string
+          title: string
+          updated_at: string
         }
         Insert: {
-          event_type: string
-          from_scheduled_date?: string | null
-          from_scheduled_time?: string | null
-          from_status?: string | null
+          created_at?: string
+          display_order?: number
+          due_date?: string | null
           goal_id: string
           id?: string
-          occurred_at?: string
-          task_id?: string | null
-          to_scheduled_date?: string | null
-          to_scheduled_time?: string | null
-          to_status?: string | null
-          user_id: string
+          status?: string
+          title: string
+          updated_at?: string
         }
         Update: {
-          event_type?: string
-          from_scheduled_date?: string | null
-          from_scheduled_time?: string | null
-          from_status?: string | null
+          created_at?: string
+          display_order?: number
+          due_date?: string | null
           goal_id?: string
           id?: string
-          occurred_at?: string
-          task_id?: string | null
-          to_scheduled_date?: string | null
-          to_scheduled_time?: string | null
-          to_status?: string | null
-          user_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "goal_task_events_goal_id_fkey"
+            foreignKeyName: "goal_milestones_goal_id_fkey"
             columns: ["goal_id"]
             isOneToOne: false
             referencedRelation: "goals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "goal_task_events_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "goal_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -507,101 +488,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      goal_milestones: {
-        Row: {
-          created_at: string
-          display_order: number
-          due_date: string | null
-          goal_id: string
-          id: string
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          display_order?: number
-          due_date?: string | null
-          goal_id: string
-          id?: string
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          display_order?: number
-          due_date?: string | null
-          goal_id?: string
-          id?: string
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "goal_milestones_goal_id_fkey"
-            columns: ["goal_id"]
-            isOneToOne: false
-            referencedRelation: "goals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      planner_fixed_blocks: {
-        Row: {
-          active_end_date: string | null
-          active_start_date: string | null
-          category: string
-          created_at: string
-          crosses_midnight: boolean
-          days_of_week: number[]
-          end_time: string
-          id: string
-          notes: string
-          recurrence: string
-          specific_date: string | null
-          start_time: string
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          active_end_date?: string | null
-          active_start_date?: string | null
-          category?: string
-          created_at?: string
-          crosses_midnight?: boolean
-          days_of_week?: number[]
-          end_time: string
-          id?: string
-          notes?: string
-          recurrence?: string
-          specific_date?: string | null
-          start_time: string
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          active_end_date?: string | null
-          active_start_date?: string | null
-          category?: string
-          created_at?: string
-          crosses_midnight?: boolean
-          days_of_week?: number[]
-          end_time?: string
-          id?: string
-          notes?: string
-          recurrence?: string
-          specific_date?: string | null
-          start_time?: string
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       goal_weekly_reviews: {
         Row: {
@@ -780,6 +666,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      planner_fixed_blocks: {
+        Row: {
+          active_end_date: string | null
+          active_start_date: string | null
+          category: string
+          created_at: string
+          crosses_midnight: boolean
+          days_of_week: number[]
+          end_time: string
+          id: string
+          notes: string
+          recurrence: string
+          specific_date: string | null
+          start_time: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_end_date?: string | null
+          active_start_date?: string | null
+          category?: string
+          created_at?: string
+          crosses_midnight?: boolean
+          days_of_week?: number[]
+          end_time: string
+          id?: string
+          notes?: string
+          recurrence?: string
+          specific_date?: string | null
+          start_time: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_end_date?: string | null
+          active_start_date?: string | null
+          category?: string
+          created_at?: string
+          crosses_midnight?: boolean
+          days_of_week?: number[]
+          end_time?: string
+          id?: string
+          notes?: string
+          recurrence?: string
+          specific_date?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -1249,21 +1189,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      apply_generated_week_plan: {
-        Args: {
-          p_actions: Json
-          p_week_start: string
-        }
-        Returns: Json
-      }
-      save_goal_weekly_review: {
-        Args: {
-          p_adjustments?: string
-          p_blockers?: string
-          p_week_start: string
-          p_wins?: string
-        }
-        Returns: Database["public"]["Tables"]["goal_weekly_reviews"]["Row"]
+      apply_goal_week_plan: {
+        Args: { p_actions: Json; p_week_start: string }
+        Returns: {
+          actions_created: number
+          tasks_created: number
+        }[]
       }
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
       consume_edge_rate_limit: {
@@ -1298,6 +1229,35 @@ export type Database = {
       is_chat_group_member: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
+      }
+      save_goal_weekly_review: {
+        Args: {
+          p_adjustments?: string
+          p_blockers?: string
+          p_week_start: string
+          p_wins?: string
+        }
+        Returns: {
+          adjustments: string
+          blockers: string
+          completed_minutes: number
+          completed_tasks: number
+          created_at: string
+          id: string
+          per_goal_summary: Json
+          planned_minutes: number
+          planned_tasks: number
+          updated_at: string
+          user_id: string
+          week_start: string
+          wins: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "goal_weekly_reviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       users_share_group: {
         Args: { _profile_id: string; _viewer_id: string }
