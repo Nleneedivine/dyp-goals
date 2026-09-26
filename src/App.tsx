@@ -25,6 +25,8 @@ import TimePlanner from "./pages/TimePlanner";
 import TimePlansDashboard from "./pages/TimePlansDashboard";
 import Planner from "./pages/Planner";
 import MyGoals from "./pages/MyGoals";
+import Journey from "./pages/Journey";
+import ProgressDashboard from "./pages/ProgressDashboard";
 import FormManager from "./pages/admin/FormManager";
 import FormBuilder from "./pages/admin/FormBuilder";
 import FormAnalytics from "./pages/admin/FormAnalytics";
@@ -48,6 +50,8 @@ const App = () => (
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
               <Route path="/my-goals" element={<ProtectedRoute><MyGoals /></ProtectedRoute>} />
+              <Route path="/journey" element={<ProtectedRoute><Journey /></ProtectedRoute>} />
+              <Route path="/progress" element={<ProtectedRoute><ProgressDashboard /></ProtectedRoute>} />
               <Route path="/plan" element={<ProtectedRoute><Planner /></ProtectedRoute>} />
               <Route path="/mentorship" element={<ProtectedRoute><Mentorship /></ProtectedRoute>} />
               <Route path="/testimonials" element={<ProtectedRoute><Testimonials /></ProtectedRoute>} />

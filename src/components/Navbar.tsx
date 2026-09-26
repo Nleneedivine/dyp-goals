@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3 } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -106,8 +106,10 @@ const Navbar = () => {
   ];
 
   const toolsNavItems = [
+    { name: "Journey", path: "/journey", icon: Compass },
     { name: "My GOALS", path: "/my-goals", icon: Target },
     { name: "Plan & Today", path: "/plan", icon: ListTodo },
+    { name: "Progress", path: "/progress", icon: BarChart3 },
     { name: "AI Coach", path: "/ai-goals", icon: Sparkles },
     { name: "Mentorship", path: "/mentorship", icon: Users },
   ];
