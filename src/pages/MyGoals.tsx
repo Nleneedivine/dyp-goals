@@ -25,6 +25,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { AccountabilitySharingCard } from "@/components/AccountabilitySharingCard";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
 import { GoalCapacityChecker } from "@/components/GoalCapacityChecker";
+import { GoalDependenciesCard } from "@/components/GoalDependenciesCard";
 import { MilestoneEditDialog, type MilestoneEditValues } from "@/components/MilestoneEditDialog";
 import { PortfolioAIReviewDialog } from "@/components/PortfolioAIReviewDialog";
 
@@ -822,6 +823,8 @@ export default function MyGoals() {
               <PortfolioAIReviewDialog goals={goals} milestones={milestones} />
             </CardContent>
           </Card>
+
+          <GoalDependenciesCard goals={goals} />
 
           <AccountabilitySharingCard />
 
