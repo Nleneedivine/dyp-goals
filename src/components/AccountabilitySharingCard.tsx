@@ -13,12 +13,14 @@ interface SharingState {
   share_goals: boolean;
   share_tasks: boolean;
   share_weekly_reviews: boolean;
+  share_monthly_checkins: boolean;
 }
 
 const EMPTY_SHARING: SharingState = {
   share_goals: false,
   share_tasks: false,
   share_weekly_reviews: false,
+  share_monthly_checkins: false,
 };
 
 export function AccountabilitySharingCard() {
@@ -85,6 +87,7 @@ export function AccountabilitySharingCard() {
           share_goals: preference.share_goals,
           share_tasks: preference.share_tasks,
           share_weekly_reviews: preference.share_weekly_reviews,
+          share_monthly_checkins: preference.share_monthly_checkins,
         });
       }
 
@@ -186,6 +189,14 @@ export function AccountabilitySharingCard() {
       ...sharing,
       share_goals: checked ? true : sharing.share_goals,
       share_weekly_reviews: checked,
+    });
+  };
+
+  const toggleMonthlyCheckins = (checked: boolean) => {
+    void saveSharing({
+      ...sharing,
+      share_goals: checked ? true : sharing.share_goals,
+      share_monthly_checkins: checked,
     });
   };
 
@@ -298,6 +309,20 @@ export function AccountabilitySharingCard() {
                   <p className="font-medium">Share weekly execution reviews</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Includes saved execution totals plus the wins, blockers and adjustments you wrote. Enabling this also enables goal context.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-4">
+                <Checkbox
+                  checked={sharing.share_monthly_checkins}
+                  disabled={saving}
+                  onCheckedChange={(checked) => toggleMonthlyCheckins(checked === true)}
+                />
+                <div>
+                  <p className="font-medium">Share monthly accountability check-ins</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Includes the monthly execution snapshot plus the wins, blockers, adjustments and next-month focus you chose to save. Enabling this also enables goal context.
                   </p>
                 </div>
               </label>
