@@ -17,7 +17,8 @@ type NotificationType =
   | "morning_brief"
   | "evening_debrief"
   | "weekly_review"
-  | "deadline_alert";
+  | "deadline_alert"
+  | "monthly_checkin";
 
 function decodeJwtPayload(token: string) {
   const payload = token.split(".")[1];
@@ -237,6 +238,14 @@ serve(async (req) => {
           isDue(local.hour, local.minute, setting.deadline_time)
         ) dueTypes.push("deadline_alert");
 
+        const tomorrow = addDays(local.date, 1);
+        const isLastDayOfMonth = tomorrow.slice(0, 7) !== local.date.slice(0, 7);
+        if (
+          setting.monthly_checkin_enabled &&
+          isLastDayOfMonth &&
+          isDue(local.hour, local.minute, setting.monthly_checkin_time)
+        ) dueTypes.push("monthly_checkin");
+
         if (!dueTypes.length) {
           skipped += 1;
           continue;
@@ -379,6 +388,65 @@ serve(async (req) => {
                   `<p>This week currently contains <strong>${(weekTasks ?? []).length}</strong> represented execution tasks.</p><p>Completed represented effort: <strong>${(completedMinutes / 60).toFixed(1)}h</strong> of <strong>${(plannedMinutes / 60).toFixed(1)}h</strong>.</p><p>Save your wins, blockers and adjustments so the next plan can learn from actual execution.</p>`,
                   "Open Weekly Review",
                   "/plan",
+                ),
+              );
+            }
+
+            if (type === "monthly_checkin") {
+              const monthStart = `${local.date.slice(0, 7)}-01`;
+
+              const { data: existingCheckin, error: existingCheckinError } = await admin
+                .from("goal_monthly_checkins")
+                .select("id")
+                .eq("user_id", setting.user_id)
+                .eq("month_start", monthStart)
+                .maybeSingle();
+
+              if (existingCheckinError) throw existingCheckinError;
+              if (existingCheckin) {
+                skipped += 1;
+                continue;
+              }
+
+              const { data: monthTasks, error: monthTasksError } = await admin
+                .from("goal_tasks")
+                .select("status,estimated_minutes")
+                .eq("user_id", setting.user_id)
+                .gte("scheduled_date", monthStart)
+                .lte("scheduled_date", local.date)
+                .neq("status", "skipped");
+
+              if (monthTasksError) throw monthTasksError;
+
+              const completedMonthTasks = (monthTasks ?? []).filter(
+                (task) => task.status === "completed",
+              );
+              const plannedMinutes = (monthTasks ?? []).reduce(
+                (sum, task) => sum + Number(task.estimated_minutes || 0),
+                0,
+              );
+              const completedMinutes = completedMonthTasks.reduce(
+                (sum, task) => sum + Number(task.estimated_minutes || 0),
+                0,
+              );
+
+              const dueThisMonth = milestones.filter(
+                (milestone) =>
+                  Boolean(
+                    milestone.due_date &&
+                    milestone.due_date >= monthStart &&
+                    milestone.due_date <= local.date,
+                  ),
+              );
+
+              await sendEmail(
+                email,
+                "Time for your DYP GOALS monthly accountability check-in",
+                emailShell(
+                  "Monthly accountability check-in",
+                  `<p>This month currently contains <strong>${(monthTasks ?? []).length}</strong> represented execution tasks, with <strong>${completedMonthTasks.length}</strong> marked complete.</p><p>Completed represented effort: <strong>${(completedMinutes / 60).toFixed(1)}h</strong> of <strong>${(plannedMinutes / 60).toFixed(1)}h</strong>.</p><p><strong>${dueThisMonth.length}</strong> incomplete dated milestone${dueThisMonth.length === 1 ? "" : "s"} are still due in this month's saved plan.</p><p>Save your wins, blockers, adjustments and next-month focus so the accountability conversation is based on what actually happened.</p>`,
+                  "Open Progress",
+                  "/progress",
                 ),
               );
             }
