@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ExecutionAdaptationPanel } from "@/components/ExecutionAdaptationPanel";
 import { ExecutionTrendCard } from "@/components/ExecutionTrendCard";
+import { MonthlyAccountabilityCheckin } from "@/components/MonthlyAccountabilityCheckin";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -415,6 +416,13 @@ export default function ProgressDashboard() {
         />
 
         <ExecutionTrendCard reviews={reviews} />
+
+        <div className="mt-6">
+          <MonthlyAccountabilityCheckin
+            tasks={tasks}
+            milestones={milestones}
+          />
+        </div>
 
         <Card className="mt-6">
           <CardHeader>
