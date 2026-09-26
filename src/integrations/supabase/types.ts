@@ -216,6 +216,87 @@ export type Database = {
         }
         Relationships: []
       }
+      execution_notification_deliveries: {
+        Row: {
+          delivered_at: string
+          error_message: string
+          id: string
+          notification_type: string
+          reference_key: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          delivered_at?: string
+          error_message?: string
+          id?: string
+          notification_type: string
+          reference_key: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          delivered_at?: string
+          error_message?: string
+          id?: string
+          notification_type?: string
+          reference_key?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      execution_notification_settings: {
+        Row: {
+          created_at: string
+          deadline_alerts_enabled: boolean
+          deadline_days_before: number[]
+          email_enabled: boolean
+          evening_debrief_enabled: boolean
+          evening_time: string
+          morning_brief_enabled: boolean
+          morning_time: string
+          timezone: string
+          updated_at: string
+          user_id: string
+          weekly_review_day: number
+          weekly_review_enabled: boolean
+          weekly_review_time: string
+        }
+        Insert: {
+          created_at?: string
+          deadline_alerts_enabled?: boolean
+          deadline_days_before?: number[]
+          email_enabled?: boolean
+          evening_debrief_enabled?: boolean
+          evening_time?: string
+          morning_brief_enabled?: boolean
+          morning_time?: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+          weekly_review_day?: number
+          weekly_review_enabled?: boolean
+          weekly_review_time?: string
+        }
+        Update: {
+          created_at?: string
+          deadline_alerts_enabled?: boolean
+          deadline_days_before?: number[]
+          email_enabled?: boolean
+          evening_debrief_enabled?: boolean
+          evening_time?: string
+          morning_brief_enabled?: boolean
+          morning_time?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+          weekly_review_day?: number
+          weekly_review_enabled?: boolean
+          weekly_review_time?: string
+        }
+        Relationships: []
+      }
       goal_analyses: {
         Row: {
           ai_analysis: Json
