@@ -174,6 +174,18 @@ serve(async (req) => {
     const totalRemainingGoalMinutes = goalsWithBudget
       .reduce((sum, goal) => sum + goal.remainingMinutes, 0);
 
+    if (totalRemainingGoalMinutes > remainingCapacityMinutes + 1) {
+      return new Response(JSON.stringify({
+        error: "EXISTING_SCHEDULE_OVER_CAPACITY",
+        message: "Existing scheduled work leaves less room than your remaining confirmed goal commitments. Review the current week before asking AI to fill the remaining plan.",
+        remainingGoalMinutes: totalRemainingGoalMinutes,
+        remainingCapacityMinutes,
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (totalRemainingGoalMinutes === 0 || remainingCapacityMinutes === 0) {
       return new Response(JSON.stringify({
         plan: {
@@ -359,6 +371,13 @@ Draft only the missing execution work for this week.`;
       if (minutes > (remainingByGoal.get(goalId) ?? 0) + 1) {
         throw new Error("AI exceeded a goal's confirmed remaining weekly commitment");
       }
+    }
+
+    const omittedGoal = goalsWithBudget.find(
+      (goal) => goal.remainingMinutes > 0 && !generatedByGoal.has(goal.id),
+    );
+    if (omittedGoal) {
+      throw new Error("AI omitted a confirmed goal that still has weekly execution budget");
     }
 
     if (generatedTotal > remainingCapacityMinutes + 1) {
