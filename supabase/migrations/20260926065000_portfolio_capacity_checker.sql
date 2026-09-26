@@ -75,6 +75,31 @@ create policy "Users can delete own goal capacity periods"
 on public.goal_capacity_periods for delete to authenticated
 using (user_id = auth.uid());
 
+create or replace function public.prevent_overlapping_goal_capacity_periods()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  if exists (
+    select 1
+    from public.goal_capacity_periods p
+    where p.user_id = new.user_id
+      and p.id <> new.id
+      and p.start_date <= new.end_date
+      and p.end_date >= new.start_date
+  ) then
+    raise exception 'Goal capacity periods cannot overlap';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists prevent_goal_capacity_period_overlap on public.goal_capacity_periods;
+create trigger prevent_goal_capacity_period_overlap
+before insert or update on public.goal_capacity_periods
+for each row execute function public.prevent_overlapping_goal_capacity_periods();
+
 drop trigger if exists update_goal_capacity_settings_updated_at on public.goal_capacity_settings;
 create trigger update_goal_capacity_settings_updated_at
 before update on public.goal_capacity_settings
