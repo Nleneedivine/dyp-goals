@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import type { CapacityReviewWindow } from "@/components/GoalCapacityChecker";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -67,9 +68,11 @@ const findingLabel: Record<FindingType, string> = {
 export function PortfolioAIReviewDialog({
   goals,
   milestones,
+  capacityWindows,
 }: {
   goals: Goal[];
   milestones: Milestone[];
+  capacityWindows: CapacityReviewWindow[];
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -121,7 +124,7 @@ export function PortfolioAIReviewDialog({
               })),
             coachingContext: goal.coaching_context,
           })),
-          capacityWindows: [],
+          capacityWindows,
         },
       },
     );
@@ -194,7 +197,7 @@ export function PortfolioAIReviewDialog({
             <p className="mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
               Individual AI coaching checks each goal. This review checks what
               becomes visible only when the goals are placed beside one another.
-              Capacity arithmetic remains in the deterministic capacity checker.
+              Capacity arithmetic remains in the deterministic checker; its current windows are passed to this review as read-only facts.
             </p>
             <Button className="mt-4 gap-2" onClick={runReview}>
               <Search className="h-4 w-4" />

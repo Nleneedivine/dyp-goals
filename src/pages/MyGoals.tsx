@@ -24,7 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { AccountabilitySharingCard } from "@/components/AccountabilitySharingCard";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
-import { GoalCapacityChecker } from "@/components/GoalCapacityChecker";
+import { GoalCapacityChecker, type CapacityReviewWindow } from "@/components/GoalCapacityChecker";
 import { MilestoneEditDialog, type MilestoneEditValues } from "@/components/MilestoneEditDialog";
 import { PortfolioAIReviewDialog } from "@/components/PortfolioAIReviewDialog";
 
@@ -623,6 +623,7 @@ export default function MyGoals() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [milestones, setMilestones] = useState<GoalMilestone[]>([]);
   const [effortPeriods, setEffortPeriods] = useState<GoalEffortPeriod[]>([]);
+  const [capacityReviewWindows, setCapacityReviewWindows] = useState<CapacityReviewWindow[]>([]);
   const [bulkInput, setBulkInput] = useState("");
   const [draftGoals, setDraftGoals] = useState<DraftGoal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -854,7 +855,10 @@ export default function MyGoals() {
             <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Overlapping goals</p><p className="mt-1 text-3xl font-bold">{overlappingGoals}</p><p className="text-xs text-muted-foreground">{scheduledGoals} fully scheduled</p></CardContent></Card>
           </div>
 
-          <GoalCapacityChecker goals={goals} />
+          <GoalCapacityChecker
+            goals={goals}
+            onReviewWindowsChange={setCapacityReviewWindows}
+          />
 
           <Card className="mb-8 border-primary/20">
             <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -864,7 +868,11 @@ export default function MyGoals() {
                   Once individual goals are clear, AI can look across the portfolio for possible overlap, dependencies, sequencing questions and deadline tensions. It does not choose priorities for you.
                 </p>
               </div>
-              <PortfolioAIReviewDialog goals={goals} milestones={milestones} />
+              <PortfolioAIReviewDialog
+                goals={goals}
+                milestones={milestones}
+                capacityWindows={capacityReviewWindows}
+              />
             </CardContent>
           </Card>
 

@@ -37,6 +37,15 @@ interface CapacityWindow {
   contributors: GoalContribution[];
   capacityLabel: string;
 }
+export interface CapacityReviewWindow {
+  label: string;
+  startDate: string;
+  endDate: string;
+  capacityHours: number;
+  demandHours: number;
+  marginHours: number;
+  overloaded: boolean;
+}
 
 const INCLUDED_STATUSES = new Set(["draft", "active"]);
 const CONFIRMED_EFFORT_SOURCES = new Set(["user_confirmed", "ai_estimate_confirmed"]);
@@ -82,7 +91,13 @@ const windowsEquivalent = (a: CapacityWindow, b: CapacityWindow) => {
   });
 };
 
-export function GoalCapacityChecker({ goals }: { goals: Goal[] }) {
+export function GoalCapacityChecker({
+  goals,
+  onReviewWindowsChange,
+}: {
+  goals: Goal[];
+  onReviewWindowsChange?: (windows: CapacityReviewWindow[]) => void;
+}) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [savingCapacity, setSavingCapacity] = useState(false);
@@ -420,6 +435,28 @@ export function GoalCapacityChecker({ goals }: { goals: Goal[] }) {
   const tightestMargin = capacityConfigured && capacityWindows.length
     ? Math.min(...capacityWindows.map((window) => window.capacity - window.demand))
     : null;
+
+  useEffect(() => {
+    if (!onReviewWindowsChange) return;
+
+    if (!capacityConfigured) {
+      onReviewWindowsChange([]);
+      return;
+    }
+
+    onReviewWindowsChange(
+      capacityWindows.map((window) => ({
+        label: window.capacityLabel,
+        startDate: window.startDate,
+        endDate: window.endDate,
+        capacityHours: window.capacity,
+        demandHours: window.demand,
+        marginHours: window.capacity - window.demand,
+        overloaded: window.demand > window.capacity + EPSILON,
+      })),
+    );
+  }, [capacityConfigured, capacityWindows, onReviewWindowsChange]);
+
 
   if (loading) {
     return (
