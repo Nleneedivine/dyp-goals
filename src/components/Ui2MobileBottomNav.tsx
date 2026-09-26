@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 const items = [
   { label: "Journey", path: "/journey", icon: Compass },
   { label: "Goals", path: "/my-goals", icon: Target },
-  { label: "Plan", path: "/plan", icon: ListTodo },
+  { label: "Today", path: "/todo", icon: ListTodo },
   { label: "Progress", path: "/progress", icon: BarChart3 },
   { label: "Profile", path: "/profile", icon: User },
 ];
@@ -21,7 +21,7 @@ export function Ui2MobileBottomNav() {
         {items.map((item) => {
           const active =
             location.pathname === item.path ||
-            (item.path === "/plan" && location.pathname === "/todo");
+            (item.path === "/todo" && location.pathname === "/plan");
           const Icon = item.icon;
 
           return (
