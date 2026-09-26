@@ -87,6 +87,8 @@ serve(async (req) => {
       capacityPeriodsResult,
       actionsResult,
       tasksResult,
+      fixedBlocksResult,
+      recentReviewsResult,
     ] = await Promise.all([
       supabase
         .from("goals")
@@ -115,6 +117,17 @@ serve(async (req) => {
         .eq("user_id", user.id)
         .gte("scheduled_date", weekStart)
         .lte("scheduled_date", weekEnd),
+      supabase
+        .from("planner_fixed_blocks")
+        .select("id,title,category,recurrence,days_of_week,specific_date,active_start_date,active_end_date,start_time,end_time,crosses_midnight")
+        .eq("user_id", user.id),
+      supabase
+        .from("goal_weekly_reviews")
+        .select("week_start,planned_tasks,completed_tasks,planned_minutes,completed_minutes,per_goal_summary,wins,blockers,adjustments")
+        .eq("user_id", user.id)
+        .lt("week_start", weekStart)
+        .order("week_start", { ascending: false })
+        .limit(3),
     ]);
 
     const firstError =
@@ -122,9 +135,70 @@ serve(async (req) => {
       capacitySettingsResult.error ||
       capacityPeriodsResult.error ||
       actionsResult.error ||
-      tasksResult.error;
+      tasksResult.error ||
+      fixedBlocksResult.error ||
+      recentReviewsResult.error;
 
     if (firstError) throw new Error(firstError.message);
+
+    const fixedBlocks = fixedBlocksResult.data ?? [];
+    const recentReviews = recentReviewsResult.data ?? [];
+
+    const isoWeekday = (value: string) => {
+      const day = new Date(`${value}T00:00:00Z`).getUTCDay();
+      return day === 0 ? 7 : day;
+    };
+    const timeMinutes = (value: string) => {
+      const [hours, minutes] = value.slice(0, 5).split(":").map(Number);
+      return hours * 60 + minutes;
+    };
+    const fixedBlockApplies = (block: typeof fixedBlocks[number], date: string) => {
+      if (block.recurrence === "date") return block.specific_date === date;
+      if (block.active_start_date && date < block.active_start_date) return false;
+      if (block.active_end_date && date > block.active_end_date) return false;
+      return (block.days_of_week ?? []).includes(isoWeekday(date));
+    };
+
+    const fixedCommitmentContext = Array.from({ length: 7 }, (_, index) => {
+      const date = addDays(weekStart, index);
+      const blocks = fixedBlocks
+        .filter((block) => fixedBlockApplies(block, date))
+        .map((block) => {
+          const start = timeMinutes(block.start_time);
+          const end = timeMinutes(block.end_time);
+          const minutes = block.crosses_midnight
+            ? (1440 - start) + end
+            : Math.max(0, end - start);
+          return {
+            title: block.title,
+            category: block.category,
+            startTime: block.start_time.slice(0, 5),
+            endTime: block.end_time.slice(0, 5),
+            crossesMidnight: block.crosses_midnight,
+            minutes,
+          };
+        });
+      return {
+        date,
+        fixedMinutes: blocks.reduce((sum, block) => sum + block.minutes, 0),
+        blocks,
+      };
+    });
+
+    const reviewContext = recentReviews.map((review) => ({
+      weekStart: review.week_start,
+      plannedTasks: review.planned_tasks,
+      completedTasks: review.completed_tasks,
+      plannedMinutes: review.planned_minutes,
+      completedMinutes: review.completed_minutes,
+      executionRate: review.planned_minutes > 0
+        ? Number((review.completed_minutes / review.planned_minutes).toFixed(2))
+        : null,
+      perGoalSummary: review.per_goal_summary,
+      wins: review.wins,
+      blockers: review.blockers,
+      adjustments: review.adjustments,
+    }));
 
     const allGoals = (goalsResult.data ?? []).filter((goal) =>
       overlaps(goal.start_date, goal.end_date, weekStart, weekEnd)
@@ -344,12 +418,15 @@ CORE RULES:
 - Do not silently reduce, postpone, or drop a goal to make the week fit.
 - Do not decide that one goal matters more than another. Priority values were chosen by the user and may guide sequencing, but all supplied goals remain valid commitments.
 - Never create tasks outside each goal's allowedStart and allowedEnd.
-- Do not invent clock times. scheduledTime must be null because fixed calendar availability has not been supplied.
+- Do not invent clock times. scheduledTime must be null because the user has not supplied preferred goal-work windows. Fixed commitments are supplied only to help choose better DAYS and avoid concentrating work on heavily blocked days.
 - Preserve exact user frequencies and commitments. Never turn "5 days/week" into "daily".
 - For habit or routine goals, create the appropriate number of concrete sessions when the goal text/coaching context specifies a frequency.
 - For project/outcome goals, use milestones and deadlines to choose the next meaningful work.
 - If a decision is unresolved, make validation/research/selection the task instead of pretending the decision is settled.
 - Use coachingContext execution insights such as obstacles, safeguards, resources, constraints, backup routines, and review rhythms when they materially improve execution.
+- Use recentReviewContext to adapt task size, sequencing, safeguards, and friction. If recent execution was low, prefer smaller concrete blocks and explicitly use the user's recorded adjustments, but DO NOT silently reduce the confirmed weekly commitment.
+- Use fixedCommitmentContext to distribute tasks across less-constrained days when possible. Never treat fixed commitment hours as goal-work capacity; the user's saved capacity is authoritative.
+- If a previous review names a blocker or requested adjustment, incorporate it when relevant instead of repeating the same execution pattern.
 - Do not create subjective pseudo-metrics for spiritual, relational, or personal growth. Track concrete practices, reviews, deliverables, or user-defined indicators.
 - Avoid duplicate work already present in existingActions or existingTasks.
 - Keep tasks concrete and executable. Prefer 15-120 minute tasks unless the goal genuinely requires a longer block.
@@ -385,6 +462,12 @@ Return ONLY valid JSON with this exact shape:
 
 Capacity context:
 ${JSON.stringify(capacity)}
+
+Fixed commitments during this week:
+${JSON.stringify(fixedCommitmentContext, null, 2)}
+
+Recent execution reviews (newest first):
+${JSON.stringify(reviewContext, null, 2)}
 
 Goals to plan:
 ${JSON.stringify(aiContext, null, 2)}
