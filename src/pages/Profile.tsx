@@ -79,8 +79,7 @@ const Profile = () => {
       let emailConfirmationPending = false;
 
       if (
-        user.email &&
-        requestedEmail.toLowerCase() !== user.email.toLowerCase()
+        requestedEmail.toLowerCase() !== (user.email?.trim().toLowerCase() ?? "")
       ) {
         const { data: emailUpdate, error: emailError } = await supabase.auth.updateUser({
           email: requestedEmail,
@@ -88,7 +87,10 @@ const Profile = () => {
 
         if (emailError) throw emailError;
 
-        authoritativeEmail = emailUpdate.user?.email?.trim() || user.email;
+        authoritativeEmail =
+          emailUpdate.user?.email?.trim() ||
+          user.email?.trim() ||
+          requestedEmail;
         emailConfirmationPending =
           authoritativeEmail.toLowerCase() !== requestedEmail.toLowerCase();
       }
