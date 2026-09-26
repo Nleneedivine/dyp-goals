@@ -1394,6 +1394,77 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     return Array.from(conflicts.values());
   };
 
+  const minutesToTime = (minutes: number) => {
+    const bounded = Math.max(0, Math.min(1439, minutes));
+    const hours = Math.floor(bounded / 60);
+    const mins = bounded % 60;
+    return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+  };
+
+  const freeWindowsForDate = (key: string, excludeTaskId?: string) => {
+    const occupied: Array<{ start: number; end: number }> = fixedSegmentsForDate(key)
+      .map((segment) => ({ start: segment.start, end: segment.end }));
+
+    tasks.forEach((task) => {
+      if (
+        task.id === excludeTaskId ||
+        task.status === "skipped" ||
+        task.status === "deferred" ||
+        !task.scheduled_date ||
+        !task.scheduled_time
+      ) return;
+
+      const start = timeToMinutes(task.scheduled_time);
+      const end = start + Number(task.estimated_minutes || 0);
+
+      if (task.scheduled_date === key) {
+        occupied.push({ start, end: Math.min(end, 1440) });
+      }
+
+      const previousKey = dateKey(addDays(parseISO(key), -1));
+      if (task.scheduled_date === previousKey && end > 1440) {
+        occupied.push({ start: 0, end: Math.min(end - 1440, 1440) });
+      }
+    });
+
+    const merged = occupied
+      .filter((segment) => segment.end > segment.start)
+      .sort((a, b) => a.start - b.start)
+      .reduce<Array<{ start: number; end: number }>>((acc, segment) => {
+        const last = acc.at(-1);
+        if (last && segment.start <= last.end) {
+          last.end = Math.max(last.end, segment.end);
+        } else {
+          acc.push({ ...segment });
+        }
+        return acc;
+      }, []);
+
+    const free: Array<{ start: number; end: number }> = [];
+    let cursor = 0;
+    merged.forEach((segment) => {
+      if (segment.start > cursor) {
+        free.push({ start: cursor, end: segment.start });
+      }
+      cursor = Math.max(cursor, segment.end);
+    });
+    if (cursor < 1440) free.push({ start: cursor, end: 1440 });
+
+    return free;
+  };
+
+  const slotSuggestionsForTask = (task: GoalTask) => {
+    if (!task.scheduled_date || task.scheduled_time || task.status !== "planned") {
+      return [] as Array<{ start: number; end: number }>;
+    }
+    const duration = Number(task.estimated_minutes || 0);
+    if (duration <= 0) return [];
+
+    return freeWindowsForDate(task.scheduled_date, task.id)
+      .filter((window) => window.end - window.start >= duration)
+      .slice(0, 4);
+  };
+
   const selectedDayFixedMinutes = (() => {
     const segments = fixedSegmentsForDate(selectedDayKey)
       .map((segment) => ({ start: segment.start, end: segment.end }))
@@ -2464,6 +2535,58 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 <Progress value={selectedDayCompletionPercent} />
               </CardContent>
             </Card>
+
+            {selectedDayAnytimeTasks.some((task) => Number(task.estimated_minutes || 0) > 0) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Place anytime tasks into free windows</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Suggestions are calculated only from the protected commitments and timed tasks you have saved. Add sleep, work, classes or other fixed blocks for more realistic windows.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {selectedDayAnytimeTasks
+                    .filter((task) => Number(task.estimated_minutes || 0) > 0)
+                    .map((task) => {
+                      const suggestions = slotSuggestionsForTask(task);
+                      return (
+                        <div key={task.id} className="rounded-xl border p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="font-medium">{task.title}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {task.estimated_minutes} min · {goalMap.get(task.goal_id)?.title ?? "Goal"}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {suggestions.length ? suggestions.map((window) => {
+                                const duration = Number(task.estimated_minutes || 0);
+                                const start = window.start;
+                                const end = start + duration;
+                                return (
+                                  <Button
+                                    key={`${task.id}-${start}`}
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => updateTask(task.id, {
+                                      scheduled_time: minutesToTime(start),
+                                    })}
+                                  >
+                                    {minutesToTime(start)}–{end >= 1440 ? "24:00" : minutesToTime(end)}
+                                  </Button>
+                                );
+                              }) : (
+                                <Badge variant="outline">No saved free window fits this task</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </CardContent>
+              </Card>
+            )}
 
             {selectedDayCalendarOverbooked && (
               <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
