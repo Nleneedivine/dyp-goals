@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AvailabilityManager } from "@/components/AvailabilityManager";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -47,6 +48,7 @@ type GoalEffortPeriod = Tables<"goal_effort_periods">;
 type GoalCapacityPeriod = Tables<"goal_capacity_periods">;
 type WeeklyAction = Tables<"goal_weekly_actions">;
 type GoalTask = Tables<"goal_tasks">;
+type FixedBlock = Tables<"planner_fixed_blocks">;
 
 type PlannerView = "year" | "month" | "week" | "today";
 
@@ -90,6 +92,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   const [defaultCapacity, setDefaultCapacity] = useState<number | null>(null);
   const [actions, setActions] = useState<WeeklyAction[]>([]);
   const [tasks, setTasks] = useState<GoalTask[]>([]);
+  const [fixedBlocks, setFixedBlocks] = useState<FixedBlock[]>([]);
 
   const now = new Date();
   const today = dateKey(now);
@@ -150,6 +153,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       tasksResult,
       capacitySettingsResult,
       capacityPeriodsResult,
+      fixedBlocksResult,
     ] = await Promise.all([
       supabase
         .from("goals")
@@ -179,6 +183,11 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
         .select("*")
         .eq("user_id", user.id)
         .order("start_date", { ascending: true }),
+      supabase
+        .from("planner_fixed_blocks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("start_time", { ascending: true }),
     ]);
 
     const firstError =
@@ -186,7 +195,8 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       actionsResult.error ||
       tasksResult.error ||
       capacitySettingsResult.error ||
-      capacityPeriodsResult.error;
+      capacityPeriodsResult.error ||
+      fixedBlocksResult.error;
 
     if (firstError) {
       setLoading(false);
@@ -208,6 +218,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
         : null,
     );
     setCapacityPeriods(capacityPeriodsResult.data ?? []);
+    setFixedBlocks(fixedBlocksResult.data ?? []);
 
     if (!loadedGoals.length) {
       setMilestones([]);
@@ -393,6 +404,18 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       return;
     }
 
+    if (taskDraft.scheduledTime) {
+      const conflicts = taskConflicts(taskDraft.scheduledDate, taskDraft.scheduledTime, minutes);
+      if (conflicts.length) {
+        toast({
+          title: "This time is already protected",
+          description: `Choose another time or leave the task unscheduled. Conflict: ${conflicts.map((block) => block.title).join(", ")}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const selectedAction =
       taskDraft.actionId === "none" ? null : actionMap.get(taskDraft.actionId) ?? null;
 
@@ -551,6 +574,75 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     ? actionsForGoalAndWeek(taskDraft.goalId, currentWeekStart)
     : [];
 
+  const isoWeekday = (date: Date) => {
+    const day = date.getDay();
+    return day === 0 ? 7 : day;
+  };
+
+  const timeToMinutes = (value: string) => {
+    const [hours, minutes] = value.slice(0, 5).split(":").map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const blockStartsOnDate = (block: FixedBlock, key: string) => {
+    if (block.recurrence === "date") return block.specific_date === key;
+    if (block.active_start_date && key < block.active_start_date) return false;
+    if (block.active_end_date && key > block.active_end_date) return false;
+    return block.days_of_week.includes(isoWeekday(parseISO(key)));
+  };
+
+  const fixedSegmentsForDate = (key: string) => {
+    const date = parseISO(key);
+    const previousKey = dateKey(addDays(date, -1));
+    const segments: { block: FixedBlock; start: number; end: number }[] = [];
+
+    fixedBlocks.forEach((block) => {
+      const start = timeToMinutes(block.start_time);
+      const end = timeToMinutes(block.end_time);
+
+      if (blockStartsOnDate(block, key)) {
+        segments.push({
+          block,
+          start,
+          end: block.crosses_midnight ? 1440 : end,
+        });
+      }
+
+      if (block.crosses_midnight && blockStartsOnDate(block, previousKey)) {
+        segments.push({ block, start: 0, end });
+      }
+    });
+
+    return segments.sort((a, b) => a.start - b.start);
+  };
+
+  const taskConflicts = (scheduledDate: string, scheduledTime: string, minutes: number) => {
+    if (!scheduledDate || !scheduledTime || minutes <= 0) return [] as FixedBlock[];
+
+    const start = timeToMinutes(scheduledTime);
+    const end = start + minutes;
+    const conflicts = new Map<string, FixedBlock>();
+
+    fixedSegmentsForDate(scheduledDate).forEach((segment) => {
+      const taskEnd = Math.min(end, 1440);
+      if (start < segment.end && taskEnd > segment.start) {
+        conflicts.set(segment.block.id, segment.block);
+      }
+    });
+
+    if (end > 1440) {
+      const nextDate = dateKey(addDays(parseISO(scheduledDate), 1));
+      fixedSegmentsForDate(nextDate).forEach((segment) => {
+        const spillEnd = end - 1440;
+        if (0 < segment.end && spillEnd > segment.start) {
+          conflicts.set(segment.block.id, segment.block);
+        }
+      });
+    }
+
+    return Array.from(conflicts.values());
+  };
+
   const goalTaskProgress = (goalId: string) => {
     const goalTasks = tasks.filter((task) => task.goal_id === goalId && task.status !== "skipped");
     const completed = goalTasks.filter((task) => task.status === "completed").length;
@@ -589,12 +681,19 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
             </p>
           </div>
 
-          {planningQueue.length > 0 && (
-            <Badge variant="outline" className="w-fit gap-2 border-amber-500/30 px-3 py-2 text-amber-700">
-              <AlertTriangle className="h-4 w-4" />
-              {planningQueue.length} {planningQueue.length === 1 ? "task needs" : "tasks need"} replanning
-            </Badge>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <AvailabilityManager
+              userId={userId}
+              blocks={fixedBlocks}
+              onChange={setFixedBlocks}
+            />
+            {planningQueue.length > 0 && (
+              <Badge variant="outline" className="w-fit gap-2 border-amber-500/30 px-3 py-2 text-amber-700">
+                <AlertTriangle className="h-4 w-4" />
+                {planningQueue.length} {planningQueue.length === 1 ? "task needs" : "tasks need"} replanning
+              </Badge>
+            )}
+          </div>
         </div>
 
         <Tabs value={view} onValueChange={(value) => setView(value as PlannerView)}>
@@ -1087,6 +1186,34 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                           <Button size="sm" variant="ghost" onClick={() => skipTask(task)}>Skip</Button>
                         </div>
                       </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {fixedSegmentsForDate(selectedDayKey).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Fixed commitments</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Protected time for this day. Goal tasks with clock times cannot overlap these blocks.
+                  </p>
+                </CardHeader>
+                <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {fixedSegmentsForDate(selectedDayKey).map((segment, index) => (
+                    <div key={`${segment.block.id}-${index}`} className="rounded-lg border bg-muted/20 p-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">{segment.block.category}</Badge>
+                        <Badge variant="outline">
+                          {String(Math.floor(segment.start / 60)).padStart(2, "0")}:{String(segment.start % 60).padStart(2, "0")}
+                          –
+                          {segment.end === 1440
+                            ? "24:00"
+                            : `${String(Math.floor(segment.end / 60)).padStart(2, "0")}:${String(segment.end % 60).padStart(2, "0")}`}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 font-medium">{segment.block.title}</p>
                     </div>
                   ))}
                 </CardContent>
