@@ -536,7 +536,7 @@ export function GoalAIRefinementDialog({
     } catch (error: any) {
       toast({
         title: "Could not apply AI refinement",
-        description: error?.message || "Your existing goal was left unchanged where possible.",
+        description: error?.message || "No partial refinement was saved.",
         variant: "destructive",
       });
     } finally {
