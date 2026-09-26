@@ -2,14 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { endOfWeek, format, startOfWeek } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   Target, 
-  TrendingUp, 
   MessageSquare, 
   Loader2, 
   Calendar,
@@ -329,7 +327,7 @@ const MentorDashboard = () => {
             Mentor <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Track your mentees' progress and support their goal achievement journey.
+            Review only the goal and execution context each member explicitly chose to share, then support their next accountability conversation.
           </p>
         </div>
 
