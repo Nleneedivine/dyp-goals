@@ -278,6 +278,7 @@ function GoalCard({
         priority: draft.priority,
         status: draft.status,
         estimated_hours_per_week: hours,
+        effort_source: "user_confirmed",
         success_definition: draft.success_definition.trim(),
       })
       .eq("id", goal.id)
@@ -449,6 +450,9 @@ function GoalCard({
               />
               <span className="pointer-events-none absolute right-3 top-2.5 text-xs text-muted-foreground">hrs/week</span>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Saving this field confirms the weekly effort as your own planning commitment.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -674,6 +678,7 @@ export default function MyGoals() {
         priority: goal.priority,
         status: goal.status,
         estimated_hours_per_week: Number(goal.estimated_hours_per_week || 0),
+        effort_source: Number(goal.estimated_hours_per_week || 0) > 0 ? "user_confirmed" : "unknown",
       }))
     );
     setSavingDrafts(false);
@@ -861,7 +866,7 @@ export default function MyGoals() {
               <div>
                 <h3 className="font-semibold">Built for overlapping goals</h3>
                 <p className="text-sm text-muted-foreground">
-                  The database already supports variable effort periods per goal. Next we will connect AI refinement and then compare the combined weekly demand of all active goals against your real available time.
+                  AI coaching can now preserve execution insights and confirmed workload phases. The next portfolio stage will compare combined goal demand against your real available time.
                 </p>
               </div>
             </CardContent>
