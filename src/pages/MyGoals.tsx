@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
 
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
@@ -475,7 +476,12 @@ function GoalCard({
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <GoalAIRefinementDialog
+            goal={goal}
+            milestones={milestones}
+            onApplied={onMilestonesChanged}
+          />
           <Button onClick={saveGoal} disabled={saving || dateInvalid} className="gap-2">
             <Save className="h-4 w-4" />
             {saving ? "Saving..." : "Save goal"}

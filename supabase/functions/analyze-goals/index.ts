@@ -97,7 +97,7 @@ Return a JSON object with this exact structure:
       "originalGoal": "<the goal as user wrote it>",
       "score": <number 0-100>,
       "feedback": "<specific constructive feedback>",
-      "questions": ["<question 1>", "<question 2>", "<question 3>"],
+      "questions": ["<only the clarification questions genuinely needed; may be empty>"],
       "improvedVersion": "<SMART rewritten version>"
     }
   ],
@@ -108,7 +108,9 @@ IMPORTANT:
 - Return ONLY valid JSON, no markdown, no explanations
 - Do not use markdown formatting characters such as **, __, or backticks inside any JSON string value
 - Be encouraging and youth-friendly
-- Provide 2-3 specific questions per goal
+- Ask 0-3 specific clarification questions per goal.
+- Do not ask a question if the answer is already clear from the user's goal or supplied context.
+- A clear, well-specified goal may need zero questions; a vague goal may need two or three.
 - Make improved versions actionable and inspiring`;
 
     const userPrompt = `Current date: ${currentDate}
