@@ -42,6 +42,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvailabilityManager } from "@/components/AvailabilityManager";
 import { AIReplanDialog } from "@/components/AIReplanDialog";
 import { AIWeekPlannerDialog } from "@/components/AIWeekPlannerDialog";
+import { DailyAgenda } from "@/components/DailyAgenda";
 import { GoalTaskEditDialog, type GoalTaskEditValues } from "@/components/GoalTaskEditDialog";
 import { QuickGoalTaskDialog, type QuickGoalTaskValues } from "@/components/QuickGoalTaskDialog";
 import { WeeklyActionEditDialog, type WeeklyActionEditValues } from "@/components/WeeklyActionEditDialog";
@@ -2535,6 +2536,18 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 <Progress value={selectedDayCompletionPercent} />
               </CardContent>
             </Card>
+
+            <DailyAgenda
+              tasks={selectedDayTasks}
+              fixedSegments={fixedSegmentsForDate(selectedDayKey).map((segment) => ({
+                id: segment.block.id,
+                title: segment.block.title,
+                category: segment.block.category,
+                start: segment.start,
+                end: segment.end,
+              }))}
+              goalTitles={new Map(goals.map((goal) => [goal.id, goal.title]))}
+            />
 
             {selectedDayAnytimeTasks.some((task) => Number(task.estimated_minutes || 0) > 0) && (
               <Card>
