@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type UiMode = "classic" | "ui2";
 
@@ -11,7 +11,7 @@ type UiModeContextValue = {
 const STORAGE_KEY = "dyp-goals-ui-mode";
 const UiModeContext = createContext<UiModeContextValue | null>(null);
 
-export function UiModeProvider({ children }: { children: React.ReactNode }) {
+export function UiModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<UiMode>(() => {
     if (typeof window === "undefined") return "classic";
     return window.localStorage.getItem(STORAGE_KEY) === "ui2" ? "ui2" : "classic";
