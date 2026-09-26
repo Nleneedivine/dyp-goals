@@ -1087,6 +1087,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_goal_week_plan: {
+        Args: { p_actions: Json; p_week_start: string }
+        Returns: {
+          actions_created: number
+          tasks_created: number
+        }[]
+      }
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
       consume_edge_rate_limit: {
         Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
