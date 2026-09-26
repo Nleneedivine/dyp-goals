@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      accountability_sharing_preferences: {
+        Row: {
+          created_at: string
+          share_goals: boolean
+          share_tasks: boolean
+          share_weekly_reviews: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          share_goals?: boolean
+          share_tasks?: boolean
+          share_weekly_reviews?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          share_goals?: boolean
+          share_tasks?: boolean
+          share_weekly_reviews?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accountability_sharing_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accountability_groups: {
         Row: {
           created_at: string
@@ -1274,6 +1309,13 @@ export type Database = {
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      is_user_accountability_mentor: {
+        Args: {
+          p_member_id: string
+          p_mentor_id: string
+        }
+        Returns: boolean
       }
       has_role: {
         Args: {
