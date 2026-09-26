@@ -224,6 +224,33 @@
     stroke-width: 1.75;
   }
 
+  .ui2 [data-ui2-shell="top-nav"] {
+    border-color: hsl(var(--border) / 0.62);
+    background: hsl(var(--background) / 0.86);
+    box-shadow: 0 10px 40px -30px hsl(var(--color-primary-dark) / 0.38);
+  }
+
+  .ui2 [data-ui2-shell="top-nav"] > div > div {
+    min-height: 4.5rem;
+  }
+
+  .ui2 .ui2-mobile-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .ui2 .ui2-mobile-bottom-nav > div {
+    border-color: hsl(var(--border) / 0.7);
+    background: hsl(var(--background) / 0.94);
+  }
+
+  .ui2 .page-shell {
+    max-width: 86rem;
+  }
+
+  .ui2 .section-title {
+    letter-spacing: -0.025em;
+  }
+
   .ui2-preview-badge {
     display: inline-flex;
     min-height: 1.75rem;
