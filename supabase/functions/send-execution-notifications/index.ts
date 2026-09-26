@@ -160,13 +160,32 @@ serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data: settings, error: settingsError } = await admin
-      .from("execution_notification_settings")
-      .select("*")
-      .eq("email_enabled", true)
-      .limit(500);
+    const settings: Array<Record<string, any>> = [];
+    const pageSize = 500;
+    let page = 0;
 
-    if (settingsError) throw settingsError;
+    while (true) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      const { data: pageData, error: settingsError } = await admin
+        .from("execution_notification_settings")
+        .select("*")
+        .eq("email_enabled", true)
+        .order("user_id", { ascending: true })
+        .range(from, to);
+
+      if (settingsError) throw settingsError;
+
+      const rows = pageData ?? [];
+      settings.push(...rows);
+      if (rows.length < pageSize) break;
+
+      page += 1;
+      if (page >= 20) {
+        console.warn("Execution notification settings reached the 10,000-user safety cap");
+        break;
+      }
+    }
 
     const now = new Date();
     let sent = 0;
@@ -212,7 +231,7 @@ serve(async (req) => {
       if (error) console.error("Could not record delivery:", error);
     };
 
-    for (const setting of settings ?? []) {
+    for (const setting of settings) {
       try {
         const local = localParts(now, setting.timezone);
         const dueTypes: NotificationType[] = [];
@@ -497,7 +516,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      users_checked: settings?.length ?? 0,
+      users_checked: settings.length,
       sent,
       failed,
       skipped,
