@@ -322,27 +322,44 @@ export default function Vision() {
   return (
     <main className="min-h-screen px-4 pb-16 pt-28">
       <div className="container mx-auto max-w-5xl">
-        <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-              <Compass className="h-4 w-4" />
-              Direction before goals
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
-              Vision → Life Areas → Goals
-            </h1>
-            <p className="mt-3 max-w-3xl text-muted-foreground">
-              Capture the direction your portfolio is meant to serve, then state what matters in each life area before turning that direction into individual goals.
-            </p>
-          </div>
-
-          <Button asChild className="gap-2">
-            <Link to="/my-goals">
-              Open My GOALS
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
+        {isUi2 ? (
+          <Ui2PageHeader
+            eyebrow="Direction before goals"
+            title="Vision → Life Areas → Goals"
+            description="Capture the direction your portfolio is meant to serve, then state what matters in each life area before turning that direction into individual goals."
+            icon={Compass}
+            actions={
+              <Button asChild className="gap-2">
+                <Link to="/my-goals">
+                  Open My GOALS
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            }
+          />
+        ) : (
+                  <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+                        <Compass className="h-4 w-4" />
+                        Direction before goals
+                      </div>
+                      <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
+                        Vision → Life Areas → Goals
+                      </h1>
+                      <p className="mt-3 max-w-3xl text-muted-foreground">
+                        Capture the direction your portfolio is meant to serve, then state what matters in each life area before turning that direction into individual goals.
+                      </p>
+                    </div>
+          
+                    <Button asChild className="gap-2">
+                      <Link to="/my-goals">
+                        Open My GOALS
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+        )}
 
         <Card className="mb-6 border-primary/15">
           <CardHeader>
