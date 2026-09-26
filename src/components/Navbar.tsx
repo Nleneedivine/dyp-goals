@@ -152,56 +152,80 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            {mainNavItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`font-medium transition-colors hover:text-primary ${
-                  isActive(item.path) ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
+          <div className="hidden md:flex items-center gap-5">
+            {isUi2 && user ? (
+              <div className="flex items-center gap-1 rounded-2xl border border-border/70 bg-muted/25 p-1">
+                {toolsNavItems.map((item) => {
+                  const active = isActive(item.path) || (item.path === "/plan" && location.pathname === "/todo");
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={
+                        "flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors " +
+                        (active
+                          ? "bg-background text-primary shadow-sm"
+                          : "text-muted-foreground hover:bg-background/70 hover:text-foreground")
+                      }
+                    >
+                      <item.icon className="h-4 w-4" strokeWidth={1.9} />
+                      <span>{item.name === "Plan & Today" ? "Plan" : item.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                {mainNavItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`font-medium transition-colors hover:text-primary ${
+                      isActive(item.path) ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
 
-            <Button asChild size="sm" className="font-semibold">
-              <Link to="/apply/goals-masterclass-2026">
-                Register
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-
-            {/* Tools Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`font-medium transition-colors hover:text-primary flex items-center gap-1 ${
-                    isToolsActive ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  <Wrench className="h-4 w-4" />
-                  Tools
-                  <ChevronDown className="h-3 w-3" />
+                <Button asChild size="sm" className="font-semibold">
+                  <Link to="/apply/goals-masterclass-2026">
+                    Register
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="bg-card border-border min-w-[180px]">
-                {toolsNavItems.map((item) => (
-                  <DropdownMenuItem key={item.path} asChild>
-                    <Link 
-                      to={item.path} 
-                      className={`cursor-pointer flex items-center gap-2 ${
-                        isActive(item.path) ? "text-primary" : ""
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={`font-medium transition-colors hover:text-primary flex items-center gap-1 ${
+                        isToolsActive ? "text-primary" : "text-muted-foreground"
                       }`}
                     >
-                      <item.icon className="h-4 w-4" />
-                      {item.name}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      <Wrench className="h-4 w-4" />
+                      Tools
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="bg-card border-border min-w-[180px]">
+                    {toolsNavItems.map((item) => (
+                      <DropdownMenuItem key={item.path} asChild>
+                        <Link 
+                          to={item.path} 
+                          className={`cursor-pointer flex items-center gap-2 ${
+                            isActive(item.path) ? "text-primary" : ""
+                          }`}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
 
             {user && (
               <div className="flex items-center gap-4">
