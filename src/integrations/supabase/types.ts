@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           share_goals: boolean
+          share_monthly_checkins: boolean
           share_tasks: boolean
           share_weekly_reviews: boolean
           updated_at: string
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           created_at?: string
           share_goals?: boolean
+          share_monthly_checkins?: boolean
           share_tasks?: boolean
           share_weekly_reviews?: boolean
           updated_at?: string
@@ -502,6 +504,71 @@ export type Database = {
             columns: ["goal_id"]
             isOneToOne: false
             referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_monthly_checkins: {
+        Row: {
+          adjustments: string
+          blockers: string
+          completed_minutes: number
+          completed_tasks: number
+          created_at: string
+          id: string
+          milestones_completed: number
+          milestones_due: number
+          month_start: string
+          next_month_focus: string
+          per_goal_summary: Json
+          planned_minutes: number
+          planned_tasks: number
+          updated_at: string
+          user_id: string
+          wins: string
+        }
+        Insert: {
+          adjustments?: string
+          blockers?: string
+          completed_minutes?: number
+          completed_tasks?: number
+          created_at?: string
+          id?: string
+          milestones_completed?: number
+          milestones_due?: number
+          month_start: string
+          next_month_focus?: string
+          per_goal_summary?: Json
+          planned_minutes?: number
+          planned_tasks?: number
+          updated_at?: string
+          user_id: string
+          wins?: string
+        }
+        Update: {
+          adjustments?: string
+          blockers?: string
+          completed_minutes?: number
+          completed_tasks?: number
+          created_at?: string
+          id?: string
+          milestones_completed?: number
+          milestones_due?: number
+          month_start?: string
+          next_month_focus?: string
+          per_goal_summary?: Json
+          planned_minutes?: number
+          planned_tasks?: number
+          updated_at?: string
+          user_id?: string
+          wins?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_monthly_checkins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1470,6 +1537,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_goal_monthly_checkin: {
+        Args: {
+          p_adjustments?: string
+          p_blockers?: string
+          p_month_start: string
+          p_next_month_focus?: string
+          p_wins?: string
+        }
+        Returns: Database["public"]["Tables"]["goal_monthly_checkins"]["Row"]
+      }
       apply_split_replan: {
         Args: {
           p_splits: Json
