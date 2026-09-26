@@ -298,8 +298,10 @@ export type Database = {
       }
       goals: {
         Row: {
+          coaching_context: Json
           created_at: string
           description: string
+          effort_source: string
           end_date: string | null
           estimated_hours_per_week: number
           id: string
@@ -314,8 +316,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          coaching_context?: Json
           created_at?: string
           description?: string
+          effort_source?: string
           end_date?: string | null
           estimated_hours_per_week?: number
           id?: string
@@ -330,8 +334,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          coaching_context?: Json
           created_at?: string
           description?: string
+          effort_source?: string
           end_date?: string | null
           estimated_hours_per_week?: number
           id?: string
