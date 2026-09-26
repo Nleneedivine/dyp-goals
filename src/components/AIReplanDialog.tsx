@@ -29,6 +29,11 @@ interface ReplanOption {
     title: string;
     estimatedMinutes: number;
   }>;
+  fallbackTask?: {
+    title: string;
+    estimatedMinutes: number;
+    suggestedDate: string;
+  };
 }
 
 interface TaskSuggestion {
@@ -56,6 +61,7 @@ export function AIReplanDialog({
   milestones,
   allTasks,
   onReschedule,
+  onApplyFallback,
 }: {
   currentDate: string;
   queueTasks: GoalTask[];
@@ -63,6 +69,10 @@ export function AIReplanDialog({
   milestones: Milestone[];
   allTasks: GoalTask[];
   onReschedule: (task: GoalTask, date: string) => void | Promise<void>;
+  onApplyFallback: (
+    task: GoalTask,
+    fallback: { title: string; estimatedMinutes: number; suggestedDate: string },
+  ) => Promise<boolean>;
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -216,6 +226,27 @@ export function AIReplanDialog({
     });
   };
 
+  const applyFallback = async (
+    taskId: string,
+    fallback: { title: string; estimatedMinutes: number; suggestedDate: string },
+  ) => {
+    const task = taskMap.get(taskId);
+    if (!task) return;
+
+    const applied = await onApplyFallback(task, fallback);
+    if (!applied) return;
+
+    setReplan((current) => {
+      if (!current) return current;
+      const suggestions = current.suggestions.filter((suggestion) => suggestion.taskId !== taskId);
+      if (!suggestions.length) {
+        setOpen(false);
+        return null;
+      }
+      return { ...current, suggestions };
+    });
+  };
+
   const reset = () => {
     setLoading(false);
     setReplan(null);
@@ -317,6 +348,22 @@ export function AIReplanDialog({
                             ))}
                           </div>
                         ) : null}
+
+                        {option.type === "fallback" && option.fallbackTask && (
+                          <div className="mt-3 rounded-lg border bg-background p-3 text-xs">
+                            <p className="font-medium">{option.fallbackTask.title}</p>
+                            <p className="mt-1 text-muted-foreground">
+                              {option.fallbackTask.estimatedMinutes} min · {option.fallbackTask.suggestedDate}
+                            </p>
+                            <Button
+                              size="sm"
+                              className="mt-3 w-full"
+                              onClick={() => applyFallback(task.id, option.fallbackTask!)}
+                            >
+                              Use this fallback
+                            </Button>
+                          </div>
+                        )}
 
                         {option.type === "reschedule" && option.suggestedDate && (
                           <Button
