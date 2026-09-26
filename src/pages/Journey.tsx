@@ -230,10 +230,12 @@ export default function Journey() {
       id: "commitments",
       title: "Protect fixed commitments",
       description: "Add recurring or date-specific commitments so execution does not get planned over sleep, work, classes or other protected time.",
-      complete: fixedBlocks.length > 0,
+      complete: fixedBlocks.length > 0 || firstExecutionBuilt,
       detail: fixedBlocks.length
         ? `${fixedBlocks.length} protected ${fixedBlocks.length === 1 ? "commitment" : "commitments"}`
-        : "No protected commitments added yet",
+        : firstExecutionBuilt
+          ? "No protected blocks saved; execution has already started"
+          : "No protected commitments added yet",
       href: "/plan",
       cta: fixedBlocks.length ? "Review schedule" : "Add commitments",
       icon: Clock3,
