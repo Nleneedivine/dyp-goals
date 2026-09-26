@@ -134,7 +134,7 @@ function emailShell(title: string, body: string, ctaLabel: string, ctaPath: stri
         ${body}
         <a href="${APP_URL}${ctaPath}" style="display:inline-block;margin-top:20px;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">${escapeHtml(ctaLabel)}</a>
       </div>
-      <p style="margin:14px 4px 0;color:#64748b;font-size:12px;">You are receiving this because you enabled this execution email in your DYP GOALS profile.</p>
+      <p style="margin:14px 4px 0;color:#64748b;font-size:12px;">You are receiving this because you enabled this execution email in your DYP GOALS profile. <a href="${APP_URL}/profile" style="color:#0f766e;">Manage email preferences</a>.</p>
     </div>
   </body>
 </html>`;
