@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvailabilityManager } from "@/components/AvailabilityManager";
 import { AIReplanDialog } from "@/components/AIReplanDialog";
 import { AIWeekPlannerDialog } from "@/components/AIWeekPlannerDialog";
+import { GoalTaskEditDialog, type GoalTaskEditValues } from "@/components/GoalTaskEditDialog";
 import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -546,6 +547,143 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     await updateTask(task.id, {
       status: "skipped",
       completed_at: null,
+    });
+  };
+
+  const saveTaskEdits = async (task: GoalTask, values: GoalTaskEditValues) => {
+    const goal = goalMap.get(task.goal_id);
+    if (!goal) {
+      toast({
+        title: "Goal context is missing",
+        description: "This task cannot be edited until its goal is available.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (values.scheduledTime && !values.scheduledDate) {
+      toast({
+        title: "Choose a date for timed work",
+        description: "A clock time needs a scheduled date.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (values.scheduledDate && goal.start_date && values.scheduledDate < goal.start_date) {
+      toast({
+        title: "Date is before the goal starts",
+        description: `Choose ${goal.start_date} or later.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (values.scheduledDate && goal.end_date && values.scheduledDate > goal.end_date) {
+      toast({
+        title: "Date is after the goal deadline",
+        description: `This goal currently ends on ${goal.end_date}.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (values.scheduledDate && values.scheduledTime && values.estimatedMinutes > 0) {
+      const protectedConflicts = taskConflicts(
+        values.scheduledDate,
+        values.scheduledTime,
+        values.estimatedMinutes,
+      );
+      const taskOverlaps = scheduledTaskConflicts(
+        values.scheduledDate,
+        values.scheduledTime,
+        values.estimatedMinutes,
+        task.id,
+      );
+
+      if (protectedConflicts.length || taskOverlaps.length) {
+        const conflictNames = [
+          ...protectedConflicts.map((block) => block.title),
+          ...taskOverlaps.map((item) => item.title),
+        ];
+        toast({
+          title: "This time is already occupied",
+          description: `Choose another time or leave the task untimed. Conflict: ${conflictNames.join(", ")}.`,
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+
+    if (
+      values.scheduledDate &&
+      (task.status === "planned" || task.status === "completed")
+    ) {
+      const destinationWeekStart = mondayKey(parseISO(values.scheduledDate));
+      const destinationWeekEnd = endOfWeekKey(destinationWeekStart);
+      const destinationCapacity = capacityForWeek(destinationWeekStart, destinationWeekEnd);
+
+      const destinationTaskMinutes = tasks
+        .filter(
+          (item) =>
+            item.id !== task.id &&
+            item.scheduled_date &&
+            item.scheduled_date >= destinationWeekStart &&
+            item.scheduled_date <= destinationWeekEnd &&
+            (item.status === "planned" || item.status === "completed"),
+        )
+        .reduce((sum, item) => sum + Number(item.estimated_minutes || 0), 0);
+
+      const destinationGoalMinutes = tasks
+        .filter(
+          (item) =>
+            item.id !== task.id &&
+            item.goal_id === task.goal_id &&
+            item.scheduled_date &&
+            item.scheduled_date >= destinationWeekStart &&
+            item.scheduled_date <= destinationWeekEnd &&
+            (item.status === "planned" || item.status === "completed"),
+        )
+        .reduce((sum, item) => sum + Number(item.estimated_minutes || 0), 0);
+
+      const warnings: string[] = [];
+
+      if (
+        defaultCapacity !== null &&
+        destinationTaskMinutes + values.estimatedMinutes > destinationCapacity.hours * 60 + 1
+      ) {
+        warnings.push(
+          `This edit would put ${hoursLabel(destinationTaskMinutes + values.estimatedMinutes)} of scheduled goal work into a week with ${destinationCapacity.hours.toFixed(1)}h of capacity.`,
+        );
+      }
+
+      if (CONFIRMED_EFFORT.has(goal.effort_source)) {
+        const goalBudgetMinutes = Math.round(
+          effortForGoalDuring(goal, destinationWeekStart, destinationWeekEnd) * 60,
+        );
+        if (destinationGoalMinutes + values.estimatedMinutes > goalBudgetMinutes + 1) {
+          warnings.push(
+            `“${goal.title}” would have ${hoursLabel(destinationGoalMinutes + values.estimatedMinutes)} scheduled against its ${hoursLabel(goalBudgetMinutes)} confirmed weekly commitment.`,
+          );
+        }
+      }
+
+      if (
+        warnings.length &&
+        !window.confirm(
+          `${warnings.join("\n\n")}\n\nSave the edit anyway? The planner will keep the pressure visible so you can adjust it deliberately.`,
+        )
+      ) {
+        return false;
+      }
+    }
+
+    return updateTask(task.id, {
+      title: values.title,
+      scheduled_date: values.scheduledDate || null,
+      scheduled_time: values.scheduledTime || null,
+      estimated_minutes: values.estimatedMinutes,
+      notes: values.notes,
     });
   };
 
@@ -1055,7 +1193,15 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                             {goalMap.get(task.goal_id)?.title}
                           </p>
                         </div>
-                        <Badge variant="outline">{task.scheduled_date}</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{task.scheduled_date}</Badge>
+                          <GoalTaskEditDialog
+                            task={task}
+                            goalStart={goalMap.get(task.goal_id)?.start_date}
+                            goalEnd={goalMap.get(task.goal_id)?.end_date}
+                            onSave={(values) => saveTaskEdits(task, values)}
+                          />
+                        </div>
                       </div>
                     ))}
                 </CardContent>
@@ -1413,7 +1559,15 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                                 {task.scheduled_time ? task.scheduled_time.slice(0, 5) : "Any time"}
                                 {task.estimated_minutes ? ` · ${task.estimated_minutes} min` : ""}
                               </p>
-                              <p className="mt-1 truncate text-xs text-muted-foreground">{goalMap.get(task.goal_id)?.title}</p>
+                              <div className="mt-2 flex items-center justify-between gap-2">
+                                <p className="truncate text-xs text-muted-foreground">{goalMap.get(task.goal_id)?.title}</p>
+                                <GoalTaskEditDialog
+                                  task={task}
+                                  goalStart={goalMap.get(task.goal_id)?.start_date}
+                                  goalEnd={goalMap.get(task.goal_id)?.end_date}
+                                  onSave={(values) => saveTaskEdits(task, values)}
+                                />
+                              </div>
                             </div>
                           )) : <p className="text-xs text-muted-foreground">No tasks</p>}
                         </div>
@@ -1604,6 +1758,12 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                                 </Button>
                               </>
                             )}
+                            <GoalTaskEditDialog
+                              task={task}
+                              goalStart={goalMap.get(task.goal_id)?.start_date}
+                              goalEnd={goalMap.get(task.goal_id)?.end_date}
+                              onSave={(values) => saveTaskEdits(task, values)}
+                            />
                             <Button size="icon" variant="ghost" onClick={() => deleteTask(task.id)} aria-label="Delete task">
                               <Trash2 className="h-4 w-4" />
                             </Button>
