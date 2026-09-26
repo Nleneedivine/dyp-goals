@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import {
   addDays,
+  addMonths,
   addWeeks,
   addYears,
   endOfMonth,
@@ -332,6 +333,51 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   const currentCapacity = capacityForWeek(currentWeekStart, currentWeekEnd);
   const currentDemand = weeklyGoalDemand(currentWeekStart, currentWeekEnd);
   const currentTaskHours = plannedTaskMinutesForWeek / 60;
+  const currentWeekActions = actions.filter((action) => action.week_start === currentWeekStart);
+  const weeklyAllocations = planningGoals
+    .filter(
+      (goal) =>
+        CONFIRMED_EFFORT.has(goal.effort_source) &&
+        overlapsRange(goal.start_date, goal.end_date, currentWeekStart, currentWeekEnd),
+    )
+    .map((goal) => {
+      const committedMinutes = Math.round(
+        effortForGoalDuring(goal, currentWeekStart, currentWeekEnd) * 60,
+      );
+      const scheduledMinutes = tasksForWeek
+        .filter(
+          (task) =>
+            task.goal_id === goal.id &&
+            (task.status === "planned" || task.status === "completed"),
+        )
+        .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0);
+      const actionMinutes = currentWeekActions
+        .filter(
+          (action) =>
+            action.goal_id === goal.id &&
+            action.status !== "skipped" &&
+            action.status !== "deferred",
+        )
+        .reduce((sum, action) => sum + Number(action.estimated_minutes || 0), 0);
+      const nextMilestone = milestones
+        .filter(
+          (milestone) =>
+            milestone.goal_id === goal.id &&
+            milestone.status !== "completed" &&
+            Boolean(milestone.due_date && milestone.due_date >= currentWeekStart),
+        )
+        .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""))[0] ?? null;
+
+      return {
+        goal,
+        committedMinutes,
+        scheduledMinutes,
+        actionMinutes,
+        remainingMinutes: Math.max(0, committedMinutes - scheduledMinutes),
+        overMinutes: Math.max(0, scheduledMinutes - committedMinutes),
+        nextMilestone,
+      };
+    });
   const capacityOverloaded =
     defaultCapacity !== null && currentDemand > currentCapacity.hours + 0.01;
   const scheduleOverloaded =
@@ -406,11 +452,16 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     }
 
     if (taskDraft.scheduledTime) {
-      const conflicts = taskConflicts(taskDraft.scheduledDate, taskDraft.scheduledTime, minutes);
-      if (conflicts.length) {
+      const protectedConflicts = taskConflicts(taskDraft.scheduledDate, taskDraft.scheduledTime, minutes);
+      const taskOverlaps = scheduledTaskConflicts(taskDraft.scheduledDate, taskDraft.scheduledTime, minutes);
+      if (protectedConflicts.length || taskOverlaps.length) {
+        const conflictNames = [
+          ...protectedConflicts.map((block) => block.title),
+          ...taskOverlaps.map((task) => task.title),
+        ];
         toast({
-          title: "This time is already protected",
-          description: `Choose another time or leave the task unscheduled. Conflict: ${conflicts.map((block) => block.title).join(", ")}.`,
+          title: "This time is already occupied",
+          description: `Choose another time or leave the task untimed. Conflict: ${conflictNames.join(", ")}.`,
           variant: "destructive",
         });
         return;
@@ -501,6 +552,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       status: "planned",
       deferred_from_date: task.deferred_from_date ?? task.scheduled_date,
       scheduled_date: nextDate,
+      scheduled_time: null,
       completed_at: null,
     });
   };
@@ -640,6 +692,66 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
         }
       });
     }
+
+    return Array.from(conflicts.values());
+  };
+
+  const scheduledTaskConflicts = (
+    scheduledDate: string,
+    scheduledTime: string,
+    minutes: number,
+    excludeTaskId?: string,
+  ) => {
+    if (!scheduledDate || !scheduledTime || minutes <= 0) return [] as GoalTask[];
+
+    const start = timeToMinutes(scheduledTime);
+    const end = start + minutes;
+    const conflicts = new Map<string, GoalTask>();
+
+    const compareOnDate = (key: string, candidateStart: number, candidateEnd: number) => {
+      tasks.forEach((task) => {
+        if (
+          task.id === excludeTaskId ||
+          task.scheduled_date !== key ||
+          !task.scheduled_time ||
+          task.status === "skipped" ||
+          task.status === "deferred"
+        ) return;
+
+        const otherStart = timeToMinutes(task.scheduled_time);
+        const otherEnd = otherStart + Number(task.estimated_minutes || 0);
+        if (candidateStart < otherEnd && candidateEnd > otherStart) {
+          conflicts.set(task.id, task);
+        }
+      });
+    };
+
+    compareOnDate(scheduledDate, start, Math.min(end, 1440));
+
+    if (end > 1440) {
+      compareOnDate(
+        dateKey(addDays(parseISO(scheduledDate), 1)),
+        0,
+        end - 1440,
+      );
+    }
+
+    const previousDate = dateKey(addDays(parseISO(scheduledDate), -1));
+    tasks.forEach((task) => {
+      if (
+        task.id === excludeTaskId ||
+        task.scheduled_date !== previousDate ||
+        !task.scheduled_time ||
+        task.status === "skipped" ||
+        task.status === "deferred"
+      ) return;
+
+      const otherStart = timeToMinutes(task.scheduled_time);
+      const otherEnd = otherStart + Number(task.estimated_minutes || 0);
+      if (otherEnd > 1440 && start < otherEnd - 1440) {
+        conflicts.set(task.id, task);
+      }
+    });
 
     return Array.from(conflicts.values());
   };
@@ -906,6 +1018,66 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   Review the workload, dates, capacity or goal status yourself before adding more. The planner will not choose which goal to sacrifice.
                 </p>
               </div>
+            )}
+
+            {weeklyAllocations.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">This week's portfolio allocation</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    See how much of each confirmed goal commitment has actually been translated into scheduled execution.
+                    This is a planning gap check, not a recommendation to increase workload.
+                  </p>
+                </CardHeader>
+                <CardContent className="grid gap-3 lg:grid-cols-2">
+                  {weeklyAllocations.map((allocation) => {
+                    const committedHours = allocation.committedMinutes / 60;
+                    const scheduledHours = allocation.scheduledMinutes / 60;
+                    const percent = allocation.committedMinutes > 0
+                      ? Math.min(100, Math.round((allocation.scheduledMinutes / allocation.committedMinutes) * 100))
+                      : allocation.scheduledMinutes > 0 ? 100 : 0;
+                    return (
+                      <div
+                        key={allocation.goal.id}
+                        className={`rounded-xl border p-4 ${allocation.overMinutes > 0 ? "border-amber-500/30 bg-amber-500/5" : ""}`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="outline">{allocation.goal.life_area}</Badge>
+                              <Badge variant="secondary">{priorityLabel(allocation.goal.priority)}</Badge>
+                            </div>
+                            <p className="mt-2 font-semibold">{allocation.goal.title}</p>
+                          </div>
+                          <Badge variant={allocation.overMinutes > 0 ? "outline" : "secondary"}>
+                            {scheduledHours.toFixed(1)}h / {committedHours.toFixed(1)}h
+                          </Badge>
+                        </div>
+
+                        <Progress value={percent} className="mt-3" />
+
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                          <div className="rounded-lg bg-muted/20 p-2">
+                            Weekly actions: {hoursLabel(allocation.actionMinutes)}
+                          </div>
+                          <div className="rounded-lg bg-muted/20 p-2">
+                            {allocation.overMinutes > 0
+                              ? `${hoursLabel(allocation.overMinutes)} above commitment`
+                              : `${hoursLabel(allocation.remainingMinutes)} not yet scheduled`}
+                          </div>
+                        </div>
+
+                        {allocation.nextMilestone && (
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            Next milestone: <span className="font-medium text-foreground">{allocation.nextMilestone.title}</span>
+                            {allocation.nextMilestone.due_date ? ` · ${allocation.nextMilestone.due_date}` : ""}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
             )}
 
             <Card>
