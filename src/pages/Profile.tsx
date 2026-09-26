@@ -40,7 +40,20 @@ const Profile = () => {
       if (profile) {
         setFirstName(profile.first_name);
         setLastName(profile.last_name);
-        setEmail(profile.email);
+
+        const authEmail = user.email?.trim() || profile.email;
+        setEmail(authEmail);
+
+        if (user.email && profile.email !== user.email) {
+          const { error: syncError } = await supabase
+            .from("profiles")
+            .update({ email: user.email })
+            .eq("id", user.id);
+
+          if (syncError) {
+            console.error("Could not sync profile email from auth:", syncError);
+          }
+        }
       }
     } catch (error: any) {
       toast({
@@ -59,20 +72,49 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      const requestedEmail = email.trim();
+      if (!requestedEmail) throw new Error("Email is required");
+
+      let authoritativeEmail = user.email?.trim() || requestedEmail;
+      let emailConfirmationPending = false;
+
+      if (
+        requestedEmail.toLowerCase() !== (user.email?.trim().toLowerCase() ?? "")
+      ) {
+        const { data: emailUpdate, error: emailError } = await supabase.auth.updateUser({
+          email: requestedEmail,
+        });
+
+        if (emailError) throw emailError;
+
+        authoritativeEmail =
+          emailUpdate.user?.email?.trim() ||
+          user.email?.trim() ||
+          requestedEmail;
+        emailConfirmationPending =
+          authoritativeEmail.toLowerCase() !== requestedEmail.toLowerCase();
+      }
+
       const { error } = await supabase
         .from("profiles")
         .update({
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          email: authoritativeEmail,
         })
         .eq("id", user.id);
 
       if (error) throw error;
 
+      setFirstName(firstName.trim());
+      setLastName(lastName.trim());
+      setEmail(authoritativeEmail);
+
       toast({
-        title: "Profile updated",
-        description: "Your profile has been saved successfully.",
+        title: emailConfirmationPending ? "Confirm your new email" : "Profile updated",
+        description: emailConfirmationPending
+          ? "A confirmation was requested for the new account email. Until it is confirmed, GOALS will continue using your current sign-in email for account and execution emails."
+          : "Your profile has been saved successfully.",
       });
     } catch (error: any) {
       toast({
