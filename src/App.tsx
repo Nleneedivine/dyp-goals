@@ -23,7 +23,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import TimePlanner from "./pages/TimePlanner";
 import TimePlansDashboard from "./pages/TimePlansDashboard";
-import TodoPage from "./pages/TodoPage";
+import Planner from "./pages/Planner";
 import MyGoals from "./pages/MyGoals";
 import FormManager from "./pages/admin/FormManager";
 import FormBuilder from "./pages/admin/FormBuilder";
@@ -48,6 +48,7 @@ const App = () => (
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
               <Route path="/my-goals" element={<ProtectedRoute><MyGoals /></ProtectedRoute>} />
+              <Route path="/plan" element={<ProtectedRoute><Planner /></ProtectedRoute>} />
               <Route path="/mentorship" element={<ProtectedRoute><Mentorship /></ProtectedRoute>} />
               <Route path="/testimonials" element={<ProtectedRoute><Testimonials /></ProtectedRoute>} />
               <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
@@ -55,7 +56,7 @@ const App = () => (
               <Route path="/goal-history" element={<ProtectedRoute><GoalHistory /></ProtectedRoute>} />
               <Route path="/time-planner" element={<ProtectedRoute><TimePlanner /></ProtectedRoute>} />
               <Route path="/time-plans" element={<ProtectedRoute><TimePlansDashboard /></ProtectedRoute>} />
-              <Route path="/todo" element={<ProtectedRoute><TodoPage /></ProtectedRoute>} />
+              <Route path="/todo" element={<ProtectedRoute><Planner initialView="today" /></ProtectedRoute>} />
               <Route path="/mentor-dashboard" element={<MentorRoute><MentorDashboard /></MentorRoute>} />
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
               <Route path="/admin/forms" element={<AdminRoute><FormManager /></AdminRoute>} />
