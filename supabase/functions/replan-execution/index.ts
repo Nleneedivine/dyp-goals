@@ -83,6 +83,7 @@ const OptionSchema = z.object({
   splitTasks: z.array(z.object({
     title: z.string().min(1).max(240),
     estimatedMinutes: z.number().int().min(5).max(1440),
+    suggestedDate: DateString,
   })).max(6).optional(),
   fallbackTask: z.object({
     title: z.string().min(1).max(240),
@@ -171,7 +172,7 @@ ROLE BOUNDARIES:
 - Avoid simply pushing every missed task to tomorrow. Consider upcoming workload and milestones.
 - "fallback" means using an already-grounded safeguard/minimum routine from coaching context; do not invent a personal safeguard as if the user chose it. When you offer fallback, include fallbackTask with a concrete smaller task, its realistic duration, and a date on or after CURRENT DATE.
 - A fallback task must not be longer than the original task when the original task has a positive duration.
-- "split" may break a large task into smaller concrete pieces, but the total estimated minutes should stay approximately equal to the original.
+- "split" may break a large task into smaller concrete pieces, but the total estimated minutes should stay approximately equal to the original. Every split task must include its own suggestedDate on or after CURRENT DATE and inside the goal deadline when known.
 - Return 1 to 3 genuinely different options per queue task.
 - Return ONLY valid JSON.
 
@@ -189,7 +190,7 @@ Schema:
           "rationale": "why this option may help",
           "suggestedDate": "YYYY-MM-DD or null",
           "splitTasks": [
-            {"title": "smaller task", "estimatedMinutes": 20}
+            {"title": "smaller task", "estimatedMinutes": 20, "suggestedDate": "YYYY-MM-DD"}
           ],
           "fallbackTask": {
             "title": "grounded minimum-version task",
@@ -315,13 +316,24 @@ Give reviewable replanning options for every queue task.`;
           option.fallbackTask = undefined;
         }
 
-        if (option.type === "split" && option.splitTasks?.length) {
+        if (option.type === "split") {
+          if (!option.splitTasks || option.splitTasks.length < 2) {
+            throw new Error("AI split option must contain at least two concrete tasks");
+          }
           const splitMinutes = option.splitTasks.reduce(
             (sum, item) => sum + item.estimatedMinutes,
             0,
           );
           if (task.estimatedMinutes > 0 && Math.abs(splitMinutes - task.estimatedMinutes) > 30) {
             throw new Error("AI split changed the task workload materially");
+          }
+          for (const splitTask of option.splitTasks) {
+            if (splitTask.suggestedDate < input.currentDate) {
+              throw new Error("AI suggested a split task in the past");
+            }
+            if (goal?.endDate && splitTask.suggestedDate > goal.endDate) {
+              throw new Error("AI suggested a split task after the goal deadline");
+            }
           }
         }
       }
