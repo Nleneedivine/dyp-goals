@@ -309,6 +309,145 @@ export type Database = {
           },
         ]
       }
+      goal_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          deferred_from_date: string | null
+          display_order: number
+          estimated_minutes: number
+          goal_id: string
+          id: string
+          milestone_id: string | null
+          notes: string
+          scheduled_date: string | null
+          scheduled_time: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          weekly_action_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          deferred_from_date?: string | null
+          display_order?: number
+          estimated_minutes?: number
+          goal_id: string
+          id?: string
+          milestone_id?: string | null
+          notes?: string
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          weekly_action_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          deferred_from_date?: string | null
+          display_order?: number
+          estimated_minutes?: number
+          goal_id?: string
+          id?: string
+          milestone_id?: string | null
+          notes?: string
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weekly_action_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_tasks_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "goal_milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_tasks_weekly_action_id_fkey"
+            columns: ["weekly_action_id"]
+            isOneToOne: false
+            referencedRelation: "goal_weekly_actions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_weekly_actions: {
+        Row: {
+          created_at: string
+          display_order: number
+          estimated_minutes: number
+          goal_id: string
+          id: string
+          milestone_id: string | null
+          notes: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          estimated_minutes?: number
+          goal_id: string
+          id?: string
+          milestone_id?: string | null
+          notes?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          estimated_minutes?: number
+          goal_id?: string
+          id?: string
+          milestone_id?: string | null
+          notes?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_weekly_actions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_weekly_actions_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "goal_milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_milestones: {
         Row: {
           created_at: string
