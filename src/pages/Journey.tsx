@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { JourneyExecutionSnapshot } from "@/components/JourneyExecutionSnapshot";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -322,15 +323,11 @@ export default function Journey() {
                 </Button>
               </div>
             ) : (
-              <div className="flex items-start gap-3 rounded-xl border bg-background/70 p-4">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-semibold">Your core execution loop is established</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Keep using Plan → Today → Weekly Review. The system can now build on actual execution history instead of only your original goal plan.
-                  </p>
-                </div>
-              </div>
+              <JourneyExecutionSnapshot
+                tasks={tasks}
+                milestones={milestones}
+                reviews={reviews}
+              />
             )}
           </CardContent>
         </Card>
