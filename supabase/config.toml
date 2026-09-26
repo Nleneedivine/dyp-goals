@@ -12,6 +12,9 @@ verify_jwt = true
 [functions.generate-time-plan]
 verify_jwt = true
 
+[functions.plan-week]
+verify_jwt = true
+
 [functions.send-todo-reminder]
 verify_jwt = true
 
