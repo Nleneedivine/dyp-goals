@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.replan-execution]
 verify_jwt = true
+
+[functions.analyze-goal-portfolio]
+verify_jwt = true
