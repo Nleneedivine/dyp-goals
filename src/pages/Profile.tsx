@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, User, Mail, Key, Save } from "lucide-react";
+import { ExecutionNotificationSettings } from "@/components/ExecutionNotificationSettings";
 
 const Profile = () => {
   const [loading, setLoading] = useState(true);
@@ -208,6 +209,8 @@ const Profile = () => {
               </Button>
             </CardContent>
           </Card>
+
+          <ExecutionNotificationSettings />
 
           {/* Change Password */}
           <Card className="bg-card border-border animate-fade-in" style={{ animationDelay: '0.1s' }}>
