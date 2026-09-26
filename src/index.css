@@ -267,6 +267,12 @@
   }
 }
 
+@media (max-width: 767px) {
+  .ui2 body {
+    padding-bottom: 5.75rem;
+  }
+}
+
 @media (max-width: 640px) {
   .ui2 [data-ui="menu-content"],
   .ui2 [data-ui="select-content"] {
