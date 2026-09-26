@@ -380,7 +380,9 @@ export function GoalAIRefinementDialog({
               <div className="space-y-4">
                 <div>
                   <h4 className="font-semibold">Clarification</h4>
-                  <p className="text-sm text-muted-foreground">These questions apply only to this goal.</p>
+                  <p className="text-sm text-muted-foreground">
+                    These questions apply only to this goal and stay fixed for this review.
+                  </p>
                 </div>
                 {analysis.questions.map((question, index) => (
                   <div key={question} className="space-y-2">
@@ -401,8 +403,16 @@ export function GoalAIRefinementDialog({
             )}
 
             <DialogFooter>
-              <Button variant="outline" onClick={analyze} disabled={analyzing || refining}>
-                Review again
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAnalysis(null);
+                  setResponses([]);
+                  setRefined(null);
+                }}
+                disabled={analyzing || refining}
+              >
+                Start over
               </Button>
               <Button onClick={refine} disabled={refining || analyzing} className="gap-2">
                 {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
