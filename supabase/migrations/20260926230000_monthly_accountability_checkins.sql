@@ -106,7 +106,7 @@ set search_path = public
 as $function$
 declare
   v_user_id uuid := auth.uid();
-  v_month_end date := (p_month_start + interval '1 month - 1 day')::date;
+  v_month_end date := (p_month_start + interval '1 month' - interval '1 day')::date;
   v_planned_tasks integer := 0;
   v_completed_tasks integer := 0;
   v_planned_minutes integer := 0;
