@@ -125,11 +125,6 @@ export default function ProgressDashboard() {
     [tasks],
   );
 
-  const completedTasks = useMemo(
-    () => executionTasks.filter((task) => task.status === "completed"),
-    [executionTasks],
-  );
-
   const today = format(new Date(), "yyyy-MM-dd");
 
   const dueExecutionTasks = useMemo(
@@ -201,7 +196,6 @@ export default function ProgressDashboard() {
 
   const goalSummaries = visibleGoals.map((goal) => {
     const goalTasks = executionTasks.filter((task) => task.goal_id === goal.id);
-    const goalCompletedTasks = goalTasks.filter((task) => task.status === "completed");
     const goalMilestones = milestones.filter((milestone) => milestone.goal_id === goal.id);
     const goalCompletedMilestones = goalMilestones.filter(
       (milestone) => milestone.status === "completed",
