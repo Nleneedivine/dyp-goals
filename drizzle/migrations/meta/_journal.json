@@ -8,6 +8,13 @@
       "when": 1790410235247,
       "tag": "0000_integrated_planning_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790410261571,
+      "tag": "0001_planner_fixed_blocks",
+      "breakpoints": true
     }
   ]
 }
