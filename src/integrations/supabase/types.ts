@@ -259,6 +259,8 @@ export type Database = {
           evening_time: string
           morning_brief_enabled: boolean
           morning_time: string
+          monthly_checkin_enabled: boolean
+          monthly_checkin_time: string
           timezone: string
           updated_at: string
           user_id: string
@@ -276,6 +278,8 @@ export type Database = {
           evening_time?: string
           morning_brief_enabled?: boolean
           morning_time?: string
+          monthly_checkin_enabled?: boolean
+          monthly_checkin_time?: string
           timezone?: string
           updated_at?: string
           user_id: string
@@ -293,6 +297,8 @@ export type Database = {
           evening_time?: string
           morning_brief_enabled?: boolean
           morning_time?: string
+          monthly_checkin_enabled?: boolean
+          monthly_checkin_time?: string
           timezone?: string
           updated_at?: string
           user_id?: string
