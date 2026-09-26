@@ -41,10 +41,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <TimePlanReminderProvider>
-          <div className="min-h-screen bg-background text-foreground">
-            <Navbar />
-            <Routes>
+        <div className="min-h-screen bg-background text-foreground">
+          <Navbar />
+          <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/apply/:slug" element={<PublicForm />} />
               <Route path="/" element={<Home />} />
@@ -62,8 +61,26 @@ const App = () => (
               <Route path="/goal-history" element={<ProtectedRoute><GoalHistory /></ProtectedRoute>} />
               <Route path="/time-planner" element={<ProtectedRoute><Navigate to="/plan" replace /></ProtectedRoute>} />
               <Route path="/time-plans" element={<ProtectedRoute><Navigate to="/plan" replace /></ProtectedRoute>} />
-              <Route path="/legacy/time-planner" element={<ProtectedRoute><TimePlanner /></ProtectedRoute>} />
-              <Route path="/legacy/time-plans" element={<ProtectedRoute><TimePlansDashboard /></ProtectedRoute>} />
+              <Route
+                path="/legacy/time-planner"
+                element={
+                  <ProtectedRoute>
+                    <TimePlanReminderProvider>
+                      <TimePlanner />
+                    </TimePlanReminderProvider>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/legacy/time-plans"
+                element={
+                  <ProtectedRoute>
+                    <TimePlanReminderProvider>
+                      <TimePlansDashboard />
+                    </TimePlanReminderProvider>
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/todo" element={<ProtectedRoute><Planner initialView="today" /></ProtectedRoute>} />
               <Route path="/mentor-dashboard" element={<MentorRoute><MentorDashboard /></MentorRoute>} />
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
@@ -72,10 +89,9 @@ const App = () => (
               <Route path="/admin/forms/:formId/analytics" element={<AdminRoute><FormAnalytics /></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Footer />
-          </div>
-        </TimePlanReminderProvider>
+          </Routes>
+          <Footer />
+        </div>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
