@@ -42,6 +42,8 @@ import { AvailabilityManager } from "@/components/AvailabilityManager";
 import { AIReplanDialog } from "@/components/AIReplanDialog";
 import { AIWeekPlannerDialog } from "@/components/AIWeekPlannerDialog";
 import { GoalTaskEditDialog, type GoalTaskEditValues } from "@/components/GoalTaskEditDialog";
+import { QuickGoalTaskDialog, type QuickGoalTaskValues } from "@/components/QuickGoalTaskDialog";
+import { WeeklyActionEditDialog, type WeeklyActionEditValues } from "@/components/WeeklyActionEditDialog";
 import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -446,17 +448,139 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
     );
   };
 
-  const addTask = async () => {
-    if (!userId || !taskDraft.goalId || !taskDraft.title.trim()) return;
-    const minutes = Number(taskDraft.estimatedMinutes || 0);
-    if (!Number.isFinite(minutes) || minutes < 0 || minutes > 1440) {
-      toast({ title: "Check the task duration", variant: "destructive" });
-      return;
+  const saveWeeklyActionEdits = async (
+    action: WeeklyAction,
+    values: WeeklyActionEditValues,
+  ) => {
+    const linkedTasks = tasks.filter((task) => task.weekly_action_id === action.id);
+    if (
+      linkedTasks.length > 0 &&
+      values.milestoneId !== action.milestone_id
+    ) {
+      toast({
+        title: "Milestone cannot change after tasks are linked",
+        description: "Create a new weekly action if this work needs to move to a different milestone.",
+        variant: "destructive",
+      });
+      return false;
     }
 
-    if (taskDraft.scheduledTime) {
-      const protectedConflicts = taskConflicts(taskDraft.scheduledDate, taskDraft.scheduledTime, minutes);
-      const taskOverlaps = scheduledTaskConflicts(taskDraft.scheduledDate, taskDraft.scheduledTime, minutes);
+    const { error } = await supabase
+      .from("goal_weekly_actions")
+      .update({
+        title: values.title,
+        milestone_id: values.milestoneId,
+        estimated_minutes: values.estimatedMinutes,
+        notes: values.notes,
+      })
+      .eq("id", action.id);
+
+    if (error) {
+      toast({
+        title: "Weekly action could not be updated",
+        description: error.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    setActions((current) =>
+      current.map((item) =>
+        item.id === action.id
+          ? {
+              ...item,
+              title: values.title,
+              milestone_id: values.milestoneId,
+              estimated_minutes: values.estimatedMinutes,
+              notes: values.notes,
+            }
+          : item,
+      ),
+    );
+    return true;
+  };
+
+  const createTask = async (values: QuickGoalTaskValues) => {
+    if (!userId || !values.goalId || !values.title.trim() || !values.scheduledDate) return false;
+
+    const minutes = Number(values.estimatedMinutes || 0);
+    if (!Number.isFinite(minutes) || minutes < 0 || minutes > 1440) {
+      toast({
+        title: "Check the task duration",
+        description: "Task duration must be between 0 and 1,440 minutes.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const selectedAction = values.weeklyActionId
+      ? actionMap.get(values.weeklyActionId) ?? null
+      : null;
+
+    const goalId = selectedAction?.goal_id ?? values.goalId;
+    const goal = goalMap.get(goalId);
+    if (!goal) {
+      toast({
+        title: "Goal context is missing",
+        description: "Choose an available goal before adding this task.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (selectedAction && selectedAction.goal_id !== values.goalId) {
+      toast({
+        title: "Weekly action does not match this goal",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const milestoneId =
+      selectedAction?.milestone_id ??
+      values.milestoneId;
+
+    if (
+      milestoneId &&
+      milestoneMap.get(milestoneId)?.goal_id !== goalId
+    ) {
+      toast({
+        title: "Milestone does not match this goal",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (goal.start_date && values.scheduledDate < goal.start_date) {
+      toast({
+        title: "Date is before the goal starts",
+        description: `Choose ${goal.start_date} or later.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (goal.end_date && values.scheduledDate > goal.end_date) {
+      toast({
+        title: "Date is after the goal deadline",
+        description: `This goal currently ends on ${goal.end_date}.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (values.scheduledTime && minutes > 0) {
+      const protectedConflicts = taskConflicts(
+        values.scheduledDate,
+        values.scheduledTime,
+        minutes,
+      );
+      const taskOverlaps = scheduledTaskConflicts(
+        values.scheduledDate,
+        values.scheduledTime,
+        minutes,
+      );
+
       if (protectedConflicts.length || taskOverlaps.length) {
         const conflictNames = [
           ...protectedConflicts.map((block) => block.title),
@@ -467,19 +591,66 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
           description: `Choose another time or leave the task untimed. Conflict: ${conflictNames.join(", ")}.`,
           variant: "destructive",
         });
-        return;
+        return false;
       }
     }
 
-    const selectedAction =
-      taskDraft.actionId === "none" ? null : actionMap.get(taskDraft.actionId) ?? null;
+    const destinationWeekStart = mondayKey(parseISO(values.scheduledDate));
+    const destinationWeekEnd = endOfWeekKey(destinationWeekStart);
+    const destinationCapacity = capacityForWeek(destinationWeekStart, destinationWeekEnd);
 
-    const goalId = selectedAction?.goal_id ?? taskDraft.goalId;
-    const milestoneId =
-      selectedAction?.milestone_id ??
-      (taskDraft.milestoneId === "none" ? null : taskDraft.milestoneId);
+    const destinationTaskMinutes = tasks
+      .filter(
+        (item) =>
+          item.scheduled_date &&
+          item.scheduled_date >= destinationWeekStart &&
+          item.scheduled_date <= destinationWeekEnd &&
+          (item.status === "planned" || item.status === "completed"),
+      )
+      .reduce((sum, item) => sum + Number(item.estimated_minutes || 0), 0);
 
-    setSavingTask(true);
+    const destinationGoalMinutes = tasks
+      .filter(
+        (item) =>
+          item.goal_id === goalId &&
+          item.scheduled_date &&
+          item.scheduled_date >= destinationWeekStart &&
+          item.scheduled_date <= destinationWeekEnd &&
+          (item.status === "planned" || item.status === "completed"),
+      )
+      .reduce((sum, item) => sum + Number(item.estimated_minutes || 0), 0);
+
+    const warnings: string[] = [];
+
+    if (
+      defaultCapacity !== null &&
+      destinationTaskMinutes + minutes > destinationCapacity.hours * 60 + 1
+    ) {
+      warnings.push(
+        `Adding this task would put ${hoursLabel(destinationTaskMinutes + minutes)} of goal work into a week with ${destinationCapacity.hours.toFixed(1)}h of capacity.`,
+      );
+    }
+
+    if (CONFIRMED_EFFORT.has(goal.effort_source)) {
+      const goalBudgetMinutes = Math.round(
+        effortForGoalDuring(goal, destinationWeekStart, destinationWeekEnd) * 60,
+      );
+      if (destinationGoalMinutes + minutes > goalBudgetMinutes + 1) {
+        warnings.push(
+          `“${goal.title}” would have ${hoursLabel(destinationGoalMinutes + minutes)} scheduled against its ${hoursLabel(goalBudgetMinutes)} confirmed weekly commitment.`,
+        );
+      }
+    }
+
+    if (
+      warnings.length &&
+      !window.confirm(
+        `${warnings.join("\n\n")}\n\nAdd the task anyway? The planner will keep the pressure visible so you can adjust it deliberately.`,
+      )
+    ) {
+      return false;
+    }
+
     const { data, error } = await supabase
       .from("goal_tasks")
       .insert({
@@ -487,22 +658,52 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
         goal_id: goalId,
         milestone_id: milestoneId,
         weekly_action_id: selectedAction?.id ?? null,
-        title: taskDraft.title.trim(),
-        scheduled_date: taskDraft.scheduledDate || null,
-        scheduled_time: taskDraft.scheduledTime || null,
+        title: values.title.trim(),
+        scheduled_date: values.scheduledDate,
+        scheduled_time: values.scheduledTime || null,
         estimated_minutes: minutes,
-        display_order: tasksForWeek.length,
+        notes: values.notes,
+        display_order: tasks.filter(
+          (task) =>
+            task.scheduled_date &&
+            task.scheduled_date >= destinationWeekStart &&
+            task.scheduled_date <= destinationWeekEnd,
+        ).length,
       })
       .select("*")
       .single();
-    setSavingTask(false);
 
     if (error) {
-      toast({ title: "Task could not be added", description: error.message, variant: "destructive" });
-      return;
+      toast({
+        title: "Task could not be added",
+        description: error.message,
+        variant: "destructive",
+      });
+      return false;
     }
 
     setTasks((current) => [...current, data]);
+    return true;
+  };
+
+  const addTask = async () => {
+    if (!taskDraft.goalId || !taskDraft.title.trim()) return;
+
+    setSavingTask(true);
+    const created = await createTask({
+      goalId: taskDraft.goalId,
+      milestoneId: taskDraft.milestoneId === "none" ? null : taskDraft.milestoneId,
+      weeklyActionId: taskDraft.actionId === "none" ? null : taskDraft.actionId,
+      title: taskDraft.title,
+      scheduledDate: taskDraft.scheduledDate,
+      scheduledTime: taskDraft.scheduledTime,
+      estimatedMinutes: Number(taskDraft.estimatedMinutes || 0),
+      notes: "",
+    });
+    setSavingTask(false);
+
+    if (!created) return;
+
     setTaskDraft((current) => ({
       ...current,
       actionId: "none",
@@ -1443,6 +1644,12 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                               >
                                 Add task
                               </Button>
+                              <WeeklyActionEditDialog
+                                action={action}
+                                milestones={milestonesForGoal(action.goal_id)}
+                                milestoneLocked={actionTasks.length > 0}
+                                onSave={(values) => saveWeeklyActionEdits(action, values)}
+                              />
                               <Button variant="ghost" size="icon" onClick={() => toggleWeeklyAction(action)} aria-label="Toggle weekly action completion">
                                 {action.status === "completed" ? <RotateCcw className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                               </Button>
@@ -1601,6 +1808,16 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <QuickGoalTaskDialog
+                selectedDate={selectedDayKey}
+                goals={planningGoals}
+                milestones={milestones}
+                actions={actions}
+                onCreate={createTask}
+              />
             </div>
 
             {planningQueue.length > 0 && (
