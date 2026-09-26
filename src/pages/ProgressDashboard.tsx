@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ExecutionAdaptationPanel } from "@/components/ExecutionAdaptationPanel";
+import { ExecutionTrendCard } from "@/components/ExecutionTrendCard";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -387,6 +388,8 @@ export default function ProgressDashboard() {
           goals={goals}
           overdueMilestoneCount={overdueMilestones.length}
         />
+
+        <ExecutionTrendCard reviews={reviews} />
 
         <Card className="mt-6">
           <CardHeader>
