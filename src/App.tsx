@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -58,8 +58,10 @@ const App = () => (
               <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/goal-history" element={<ProtectedRoute><GoalHistory /></ProtectedRoute>} />
-              <Route path="/time-planner" element={<ProtectedRoute><TimePlanner /></ProtectedRoute>} />
-              <Route path="/time-plans" element={<ProtectedRoute><TimePlansDashboard /></ProtectedRoute>} />
+              <Route path="/time-planner" element={<ProtectedRoute><Navigate to="/plan" replace /></ProtectedRoute>} />
+              <Route path="/time-plans" element={<ProtectedRoute><Navigate to="/plan" replace /></ProtectedRoute>} />
+              <Route path="/legacy/time-planner" element={<ProtectedRoute><TimePlanner /></ProtectedRoute>} />
+              <Route path="/legacy/time-plans" element={<ProtectedRoute><TimePlansDashboard /></ProtectedRoute>} />
               <Route path="/todo" element={<ProtectedRoute><Planner initialView="today" /></ProtectedRoute>} />
               <Route path="/mentor-dashboard" element={<MentorRoute><MentorDashboard /></MentorRoute>} />
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
