@@ -50,7 +50,7 @@ import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
 import { useToast } from "@/hooks/use-toast";
 import { downloadTasksIcs } from "@/lib/calendarExport";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Json, Tables } from "@/integrations/supabase/types";
 
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
@@ -1170,6 +1170,42 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
       scheduled_time: null,
       completed_at: null,
     });
+  };
+
+  const applySplitReplan = async (
+    task: GoalTask,
+    splits: Array<{ title: string; estimatedMinutes: number; suggestedDate: string }>,
+  ) => {
+    if (splits.length < 2 || splits.length > 6) {
+      toast({
+        title: "Split replan is invalid",
+        description: "A split needs between two and six smaller tasks.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const { data, error } = await supabase.rpc("apply_split_replan", {
+      p_task_id: task.id,
+      p_splits: splits as unknown as Json,
+    });
+
+    if (error) {
+      toast({
+        title: "Split replan could not be applied",
+        description: error.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const result = data as { createdCount?: number } | null;
+    await loadPlanner();
+    toast({
+      title: "Task split applied",
+      description: `${result?.createdCount ?? splits.length} smaller tasks replaced the original missed/deferred task.`,
+    });
+    return true;
   };
 
   const deleteTask = async (taskId: string) => {
@@ -2582,6 +2618,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                       allTasks={tasks}
                       onReschedule={rescheduleTask}
                       onApplyFallback={applyFallbackTask}
+                      onApplySplit={applySplitReplan}
                     />
                   </div>
                 </CardHeader>

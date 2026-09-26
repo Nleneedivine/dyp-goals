@@ -1470,6 +1470,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_split_replan: {
+        Args: {
+          p_splits: Json
+          p_task_id: string
+        }
+        Returns: Json
+      }
       get_accountability_program_trends: {
         Args: { p_week_start: string }
         Returns: Json
