@@ -453,7 +453,7 @@ export function GoalAIRefinementDialog({
       },
       effortRationale: refined.effortRationale ?? "",
       capturedAt: new Date().toISOString(),
-    } satisfies Record<string, Json>;
+    } as unknown as Json;
 
     setApplying(true);
     try {
