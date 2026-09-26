@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { CalendarDays, CheckCircle2, Clock3, Loader2, Sparkles, Target } from "lucide-react";
+import {
+  Brain,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  Loader2,
+  Sparkles,
+  Target,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,11 +29,24 @@ import type { Tables } from "@/integrations/supabase/types";
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
 
-interface GoalAnalysisItem {
-  score: number;
+type ClarificationKind = "essential" | "development";
+
+interface ClarificationQuestion {
+  question: string;
+  reason: string;
+}
+
+interface ClarificationResult {
   feedback: string;
-  questions: string[];
-  improvedVersion: string;
+  readyToPlan: boolean;
+  questions: ClarificationQuestion[];
+  coachNote: string;
+}
+
+interface ClarificationHistoryItem {
+  question: string;
+  answer: string;
+  kind: ClarificationKind;
 }
 
 interface RefinedMilestone {
@@ -45,14 +67,14 @@ interface RefinedPortfolioGoal {
   actionSteps: string[];
   timeline: string;
   successMetrics: string[];
-  lifeArea?: string;
+  lifeArea?: string | null;
   startDate?: string | null;
   endDate?: string | null;
-  priority?: "primary" | "maintenance" | "later";
-  estimatedHoursPerWeek?: number;
-  successDefinition?: string;
-  milestones?: RefinedMilestone[];
-  effortPeriods?: RefinedEffortPeriod[];
+  priority?: "primary" | "maintenance" | "later" | null;
+  estimatedHoursPerWeek?: number | null;
+  successDefinition?: string | null;
+  milestones?: RefinedMilestone[] | null;
+  effortPeriods?: RefinedEffortPeriod[] | null;
 }
 
 const LIFE_AREAS = [
@@ -68,6 +90,25 @@ const LIFE_AREAS = [
   "Other",
 ];
 
+const targetYearFor = (goal: Goal) => {
+  const currentYear = new Date().getFullYear();
+  const candidate = Number((goal.end_date ?? goal.start_date ?? "").slice(0, 4));
+  return Number.isInteger(candidate) && candidate >= currentYear
+    ? Math.min(candidate, currentYear + 10)
+    : currentYear;
+};
+
+const portfolioGoalPayload = (goal: Goal) => ({
+  title: goal.title,
+  description: goal.description,
+  lifeArea: goal.life_area,
+  startDate: goal.start_date,
+  endDate: goal.end_date,
+  priority: goal.priority as "primary" | "maintenance" | "later",
+  estimatedHoursPerWeek: Number(goal.estimated_hours_per_week || 0),
+  successDefinition: goal.success_definition,
+});
+
 const goalContext = (goal: Goal) => [
   `Goal: ${goal.title}`,
   goal.description ? `Description: ${goal.description}` : "",
@@ -78,14 +119,6 @@ const goalContext = (goal: Goal) => [
   `Current estimated effort: ${Number(goal.estimated_hours_per_week || 0)} hours/week`,
   goal.success_definition ? `Success definition: ${goal.success_definition}` : "",
 ].filter(Boolean).join("\n");
-
-const targetYearFor = (goal: Goal) => {
-  const currentYear = new Date().getFullYear();
-  const candidate = Number((goal.end_date ?? goal.start_date ?? "").slice(0, 4));
-  return Number.isInteger(candidate) && candidate >= currentYear
-    ? Math.min(candidate, currentYear + 10)
-    : currentYear;
-};
 
 export function GoalAIRefinementDialog({
   goal,
@@ -98,16 +131,22 @@ export function GoalAIRefinementDialog({
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [analysis, setAnalysis] = useState<GoalAnalysisItem | null>(null);
-  const [responses, setResponses] = useState<string[]>([]);
+  const [review, setReview] = useState<ClarificationResult | null>(null);
+  const [questionKind, setQuestionKind] = useState<ClarificationKind>("essential");
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [history, setHistory] = useState<ClarificationHistoryItem[]>([]);
+  const [questionRounds, setQuestionRounds] = useState(0);
   const [refined, setRefined] = useState<RefinedPortfolioGoal | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
+  const [coaching, setCoaching] = useState(false);
   const [refining, setRefining] = useState(false);
   const [applying, setApplying] = useState(false);
 
   const reset = () => {
-    setAnalysis(null);
-    setResponses([]);
+    setReview(null);
+    setQuestionKind("essential");
+    setAnswers([]);
+    setHistory([]);
+    setQuestionRounds(0);
     setRefined(null);
   };
 
@@ -116,27 +155,35 @@ export function GoalAIRefinementDialog({
     if (!next) reset();
   };
 
-  const analyze = async () => {
-    setAnalyzing(true);
+  const callCoach = async (
+    phase: "core" | "deeper",
+    roundNumber: number,
+    clarificationHistory: ClarificationHistoryItem[],
+  ) => {
+    const { data, error } = await supabase.functions.invoke("clarify-goal", {
+      body: {
+        goal: portfolioGoalPayload(goal),
+        phase,
+        roundNumber,
+        history: clarificationHistory,
+      },
+    });
+
+    if (error) throw error;
+    const result = data?.clarification as ClarificationResult | undefined;
+    if (!result) throw new Error("AI Coach did not return clarification guidance.");
+    return result;
+  };
+
+  const startReview = async () => {
+    setCoaching(true);
     setRefined(null);
-
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const planningStartDate = goal.start_date && goal.start_date >= today ? goal.start_date : undefined;
-      const { data, error } = await supabase.functions.invoke("analyze-goals", {
-        body: {
-          goals: goalContext(goal),
-          targetYear: targetYearFor(goal),
-          planningStartDate,
-        },
-      });
-
-      if (error) throw error;
-      const item = data?.analysis?.goals?.[0] as GoalAnalysisItem | undefined;
-      if (!item) throw new Error("AI did not return a goal analysis.");
-
-      setAnalysis(item);
-      setResponses(item.questions.map(() => ""));
+      const result = await callCoach("core", 1, []);
+      setReview(result);
+      setQuestionKind("essential");
+      setAnswers(result.questions.map(() => ""));
+      setQuestionRounds(result.questions.length ? 1 : 0);
     } catch (error: any) {
       toast({
         title: "AI review failed",
@@ -144,21 +191,95 @@ export function GoalAIRefinementDialog({
         variant: "destructive",
       });
     } finally {
-      setAnalyzing(false);
+      setCoaching(false);
     }
   };
 
-  const refine = async () => {
-    if (!analysis) return;
-    if (analysis.questions.some((_, index) => !responses[index]?.trim())) {
+  const answeredCurrentQuestions = (allowPartial: boolean) => {
+    if (!review) return [] as ClarificationHistoryItem[];
+
+    return review.questions
+      .map((item, index) => ({
+        question: item.question,
+        answer: (answers[index] ?? "").trim(),
+        kind: questionKind,
+      }))
+      .filter((item) => allowPartial ? Boolean(item.answer) : true);
+  };
+
+  const continueCore = async () => {
+    if (!review) return;
+    if (review.questions.some((_, index) => !answers[index]?.trim())) {
       toast({
-        title: "Answer the clarification questions",
-        description: "The AI only asks questions it still needs for this goal.",
+        title: "Answer the important questions",
+        description: "These answers are needed before the AI Coach can tell whether the goal is ready to plan.",
         variant: "destructive",
       });
       return;
     }
 
+    const nextHistory = [...history, ...answeredCurrentQuestions(false)];
+    setHistory(nextHistory);
+
+    if (questionRounds >= 3) {
+      setReview({
+        feedback: "You have completed the maximum clarification rounds. There is enough context to build a useful first plan.",
+        readyToPlan: true,
+        questions: [],
+        coachNote: "You can refine the plan again later as you learn more.",
+      });
+      setAnswers([]);
+      return;
+    }
+
+    setCoaching(true);
+    try {
+      const result = await callCoach("core", questionRounds + 1, nextHistory);
+      setReview(result);
+      setQuestionKind("essential");
+      setAnswers(result.questions.map(() => ""));
+      if (result.questions.length) setQuestionRounds((current) => current + 1);
+    } catch (error: any) {
+      toast({
+        title: "Could not continue clarification",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCoaching(false);
+    }
+  };
+
+  const exploreDeeper = async (extraHistory: ClarificationHistoryItem[] = history) => {
+    if (questionRounds >= 3) {
+      toast({
+        title: "Coaching rounds complete",
+        description: "You have enough insight to build the plan now. You can always refine the goal again later.",
+      });
+      return;
+    }
+
+    setCoaching(true);
+    try {
+      const result = await callCoach("deeper", questionRounds + 1, extraHistory);
+      setReview(result);
+      setQuestionKind("development");
+      setAnswers(result.questions.map(() => ""));
+      if (result.questions.length) {
+        setQuestionRounds((current) => current + 1);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Could not open a deeper coaching round",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCoaching(false);
+    }
+  };
+
+  const refine = async (clarificationHistory: ClarificationHistoryItem[]) => {
     setRefining(true);
     try {
       const today = new Date().toISOString().slice(0, 10);
@@ -166,27 +287,18 @@ export function GoalAIRefinementDialog({
       const { data, error } = await supabase.functions.invoke("refine-goals", {
         body: {
           originalGoals: goalContext(goal),
-          questions: analysis.questions,
-          responses: responses.map((value) => value.trim()),
+          questions: clarificationHistory.map((item) => item.question),
+          responses: clarificationHistory.map((item) => item.answer),
           targetYear: targetYearFor(goal),
           planningStartDate,
-          portfolioGoal: {
-            title: goal.title,
-            description: goal.description,
-            lifeArea: goal.life_area,
-            startDate: goal.start_date,
-            endDate: goal.end_date,
-            priority: goal.priority,
-            estimatedHoursPerWeek: Number(goal.estimated_hours_per_week || 0),
-            successDefinition: goal.success_definition,
-          },
+          portfolioGoal: portfolioGoalPayload(goal),
         },
       });
 
       if (error) throw error;
       const result = data?.refined?.refinedGoals?.[0] as RefinedPortfolioGoal | undefined;
       if (!result) throw new Error("AI did not return a refined goal.");
-
+      setHistory(clarificationHistory);
       setRefined(result);
     } catch (error: any) {
       toast({
@@ -197,6 +309,31 @@ export function GoalAIRefinementDialog({
     } finally {
       setRefining(false);
     }
+  };
+
+  const buildPlanNow = async () => {
+    await refine(history);
+  };
+
+  const buildWithDevelopmentAnswers = async () => {
+    const nextHistory = [...history, ...answeredCurrentQuestions(true)];
+    await refine(nextHistory);
+  };
+
+  const anotherDeeperRound = async () => {
+    const newlyAnswered = answeredCurrentQuestions(true);
+    if (!newlyAnswered.length) {
+      toast({
+        title: "Answer at least one deeper question",
+        description: "That gives the AI Coach new information to build the next round from.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const nextHistory = [...history, ...newlyAnswered];
+    setHistory(nextHistory);
+    await exploreDeeper(nextHistory);
   };
 
   const apply = async () => {
@@ -234,7 +371,7 @@ export function GoalAIRefinementDialog({
       if (goalError) throw goalError;
 
       const existingMilestoneKeys = new Set(
-        milestones.map((milestone) => `${milestone.title.trim().toLowerCase()}|${milestone.due_date ?? ""}`)
+        milestones.map((milestone) => `${milestone.title.trim().toLowerCase()}|${milestone.due_date ?? ""}`),
       );
       const suggestedMilestones = (refined.milestones ?? [])
         .filter((milestone) => {
@@ -278,7 +415,7 @@ export function GoalAIRefinementDialog({
               start_date: period.startDate,
               end_date: period.endDate,
               hours_per_week: period.hoursPerWeek,
-            }))
+            })),
           );
           if (effortError) throw effortError;
         }
@@ -311,6 +448,10 @@ export function GoalAIRefinementDialog({
     }
   };
 
+  const readyForPlan = Boolean(review?.readyToPlan && review.questions.length === 0);
+  const isEssentialRound = review?.questions.length && questionKind === "essential";
+  const isDevelopmentRound = review?.questions.length && questionKind === "development";
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -324,14 +465,14 @@ export function GoalAIRefinementDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-secondary" />
-            Refine this goal
+            AI Coach this goal
           </DialogTitle>
           <DialogDescription>
-            The AI reviews this goal independently. It can suggest milestones and workload, but it will not change your other goals.
+            The coach works on this goal independently. Important questions come first; deeper coaching is optional.
           </DialogDescription>
         </DialogHeader>
 
-        {!analysis && !refined && (
+        {!review && !refined && (
           <div className="space-y-4">
             <div className="rounded-xl border bg-muted/20 p-4">
               <p className="font-semibold">{goal.title}</p>
@@ -342,83 +483,185 @@ export function GoalAIRefinementDialog({
                 <Badge variant="secondary">{Number(goal.estimated_hours_per_week || 0)}h/week</Badge>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Clear goals may need no questions. Vague goals may need up to three.
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  <p className="font-semibold">Clarify what matters</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  The coach asks only the essential questions needed to avoid a generic or poorly scoped plan.
+                </p>
+              </div>
+              <div className="rounded-xl border p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-secondary" />
+                  <p className="font-semibold">Think deeper if useful</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Once the goal is plan-ready, you can explore strategic questions without making them mandatory.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Up to three question rounds are available. You can build the plan as soon as the essential clarification is complete.
             </p>
+
             <DialogFooter>
-              <Button onClick={analyze} disabled={analyzing} className="gap-2">
-                {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {analyzing ? "Reviewing..." : "Review goal"}
+              <Button onClick={startReview} disabled={coaching} className="gap-2">
+                {coaching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {coaching ? "Reviewing..." : "Review goal"}
               </Button>
             </DialogFooter>
           </div>
         )}
 
-        {analysis && !refined && (
+        {review && !refined && (
           <div className="space-y-5">
             <div className="rounded-xl border bg-primary/5 p-4">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="font-semibold">AI review</p>
-                <Badge variant="outline">{analysis.score}% SMART</Badge>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">AI Coach review</p>
+                <div className="flex gap-2">
+                  {questionRounds > 0 && <Badge variant="outline">Round {questionRounds} of 3</Badge>}
+                  <Badge variant={review.readyToPlan ? "secondary" : "outline"}>
+                    {review.readyToPlan ? "Ready to plan" : "Needs clarification"}
+                  </Badge>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">{analysis.feedback}</p>
-              <div className="mt-3 rounded-lg bg-background p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Possible refined version</p>
-                <p className="mt-1 text-sm">{analysis.improvedVersion}</p>
-              </div>
+              <p className="text-sm text-muted-foreground">{review.feedback}</p>
+              {review.coachNote && (
+                <p className="mt-3 text-sm font-medium">{review.coachNote}</p>
+              )}
             </div>
 
-            {analysis.questions.length === 0 ? (
-              <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">No clarification needed</p>
-                  <p className="text-sm text-muted-foreground">The goal is clear enough for the AI to build its structured plan.</p>
-                </div>
-              </div>
-            ) : (
+            {isEssentialRound && (
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-semibold">Clarification</h4>
-                  <p className="text-sm text-muted-foreground">
-                    These questions apply only to this goal and stay fixed for this review.
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    <h4 className="font-semibold">Important questions</h4>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    These are needed to make the plan specific and realistic. They stay fixed for this round.
                   </p>
                 </div>
-                {analysis.questions.map((question, index) => (
-                  <div key={question} className="space-y-2">
-                    <Label htmlFor={`goal-ai-question-${goal.id}-${index}`}>{question}</Label>
+
+                {review.questions.map((item, index) => (
+                  <div key={item.question} className="space-y-2 rounded-xl border p-4">
+                    <Label htmlFor={`goal-core-question-${goal.id}-${index}`}>{item.question}</Label>
+                    <p className="text-xs text-muted-foreground">{item.reason}</p>
                     <Input
-                      id={`goal-ai-question-${goal.id}-${index}`}
-                      value={responses[index] ?? ""}
+                      id={`goal-core-question-${goal.id}-${index}`}
+                      value={answers[index] ?? ""}
                       onChange={(event) => {
-                        const next = [...responses];
+                        const next = [...answers];
                         next[index] = event.target.value;
-                        setResponses(next);
+                        setAnswers(next);
                       }}
                       placeholder="Your answer..."
                     />
                   </div>
                 ))}
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={reset} disabled={coaching || refining}>
+                    Start over
+                  </Button>
+                  <Button onClick={continueCore} disabled={coaching || refining} className="gap-2">
+                    {coaching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
+                    {coaching ? "Checking..." : "Continue coaching"}
+                  </Button>
+                </DialogFooter>
               </div>
             )}
 
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setAnalysis(null);
-                  setResponses([]);
-                  setRefined(null);
-                }}
-                disabled={analyzing || refining}
-              >
-                Start over
-              </Button>
-              <Button onClick={refine} disabled={refining || analyzing} className="gap-2">
-                {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
-                {refining ? "Building plan..." : "Build refined plan"}
-              </Button>
-            </DialogFooter>
+            {readyForPlan && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div>
+                    <p className="font-medium">This goal has enough information for a useful plan.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      You can build it now, or use another round to think through strategy, resources, risks or other useful details.
+                    </p>
+                  </div>
+                </div>
+
+                {history.length > 0 && (
+                  <div className="rounded-xl border p-4">
+                    <p className="mb-2 text-sm font-semibold">Coaching insights captured</p>
+                    <p className="text-sm text-muted-foreground">
+                      {history.length} answer{history.length === 1 ? "" : "s"} will be carried into the refined plan.
+                    </p>
+                  </div>
+                )}
+
+                <DialogFooter>
+                  {questionRounds < 3 && (
+                    <Button variant="outline" onClick={() => exploreDeeper()} disabled={coaching || refining} className="gap-2">
+                      {coaching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+                      Explore deeper
+                    </Button>
+                  )}
+                  <Button onClick={buildPlanNow} disabled={coaching || refining} className="gap-2">
+                    {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
+                    {refining ? "Building plan..." : "Build my plan now"}
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+
+            {isDevelopmentRound && (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-secondary/20 bg-secondary/5 p-4">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-secondary" />
+                    <h4 className="font-semibold">Think deeper</h4>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    These questions are optional. Answer the ones that help you think more clearly; your plan is not blocked.
+                  </p>
+                </div>
+
+                {review.questions.map((item, index) => (
+                  <div key={item.question} className="space-y-2 rounded-xl border p-4">
+                    <Label htmlFor={`goal-deep-question-${goal.id}-${index}`}>{item.question}</Label>
+                    <p className="text-xs text-muted-foreground">{item.reason}</p>
+                    <Input
+                      id={`goal-deep-question-${goal.id}-${index}`}
+                      value={answers[index] ?? ""}
+                      onChange={(event) => {
+                        const next = [...answers];
+                        next[index] = event.target.value;
+                        setAnswers(next);
+                      }}
+                      placeholder="Optional answer..."
+                    />
+                  </div>
+                ))}
+
+                <DialogFooter>
+                  {questionRounds < 3 && (
+                    <Button variant="outline" onClick={anotherDeeperRound} disabled={coaching || refining} className="gap-2">
+                      {coaching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+                      Ask another deeper round
+                    </Button>
+                  )}
+                  <Button onClick={buildWithDevelopmentAnswers} disabled={coaching || refining} className="gap-2">
+                    {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
+                    {refining ? "Building plan..." : "Build with these insights"}
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+
+            {review.readyToPlan && review.questions.length === 0 && questionRounds >= 3 && (
+              <p className="text-center text-xs text-muted-foreground">
+                Coaching rounds complete. You can refine this goal again later as circumstances change.
+              </p>
+            )}
           </div>
         )}
 
