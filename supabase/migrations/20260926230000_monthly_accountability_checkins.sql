@@ -124,6 +124,7 @@ as $function$
 declare
   v_user_id uuid := auth.uid();
   v_month_end date := (p_month_start + interval '1 month' - interval '1 day')::date;
+  v_snapshot_end date;
   v_planned_tasks integer := 0;
   v_completed_tasks integer := 0;
   v_planned_minutes integer := 0;
@@ -141,11 +142,17 @@ begin
     raise exception 'Month start must be the first day of a month';
   end if;
 
+  if p_month_start > date_trunc('month', current_date)::date then
+    raise exception 'Monthly check-ins cannot be saved for a future month';
+  end if;
+
+  v_snapshot_end := least(v_month_end, current_date);
+
   with relevant as (
     select t.*
     from public.goal_tasks t
     where t.user_id = v_user_id
-      and t.scheduled_date between p_month_start and v_month_end
+      and t.scheduled_date between p_month_start and v_snapshot_end
       and t.status <> 'skipped'
   )
   select
@@ -165,7 +172,7 @@ begin
     from public.goal_milestones m
     join public.goals g on g.id = m.goal_id
     where g.user_id = v_user_id
-      and m.due_date between p_month_start and v_month_end
+      and m.due_date between p_month_start and v_snapshot_end
   )
   select
     count(*)::integer,
@@ -185,7 +192,7 @@ begin
     left join public.goal_tasks t
       on t.goal_id = g.id
      and t.user_id = v_user_id
-     and t.scheduled_date between p_month_start and v_month_end
+     and t.scheduled_date between p_month_start and v_snapshot_end
      and t.status <> 'skipped'
     where g.user_id = v_user_id
       and g.status <> 'archived'
@@ -199,7 +206,7 @@ begin
     from public.goals g
     left join public.goal_milestones m
       on m.goal_id = g.id
-     and m.due_date between p_month_start and v_month_end
+     and m.due_date between p_month_start and v_snapshot_end
     where g.user_id = v_user_id
       and g.status <> 'archived'
     group by g.id
