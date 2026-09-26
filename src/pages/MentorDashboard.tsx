@@ -90,6 +90,23 @@ interface SharingPreference {
   share_goals: boolean;
   share_tasks: boolean;
   share_weekly_reviews: boolean;
+  share_monthly_checkins: boolean;
+}
+
+interface SharedMonthlyCheckin {
+  id: string;
+  user_id: string;
+  month_start: string;
+  planned_tasks: number;
+  completed_tasks: number;
+  planned_minutes: number;
+  completed_minutes: number;
+  milestones_due: number;
+  milestones_completed: number;
+  wins: string;
+  blockers: string;
+  adjustments: string;
+  next_month_focus: string;
 }
 
 const MentorDashboard = () => {
@@ -103,6 +120,7 @@ const MentorDashboard = () => {
   const [sharedGoalTasks, setSharedGoalTasks] = useState<SharedGoalTask[]>([]);
   const [sharedMilestones, setSharedMilestones] = useState<SharedMilestone[]>([]);
   const [sharedWeeklyReviews, setSharedWeeklyReviews] = useState<SharedWeeklyReview[]>([]);
+  const [sharedMonthlyCheckins, setSharedMonthlyCheckins] = useState<SharedMonthlyCheckin[]>([]);
   const [sharingPreferences, setSharingPreferences] = useState<SharingPreference[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -183,6 +201,7 @@ const MentorDashboard = () => {
           setSharedGoalTasks([]);
           setSharedMilestones([]);
           setSharedWeeklyReviews([]);
+          setSharedMonthlyCheckins([]);
           setSharingPreferences([]);
           return;
         }
@@ -192,6 +211,7 @@ const MentorDashboard = () => {
           portfolioGoalsResult,
           tasksResult,
           reviewsResult,
+          monthlyCheckinsResult,
           sharingResult,
         ] = await Promise.all([
           supabase
@@ -218,8 +238,14 @@ const MentorDashboard = () => {
             .order('week_start', { ascending: false })
             .limit(40),
           supabase
+            .from('goal_monthly_checkins')
+            .select('id, user_id, month_start, planned_tasks, completed_tasks, planned_minutes, completed_minutes, milestones_due, milestones_completed, wins, blockers, adjustments, next_month_focus')
+            .in('user_id', memberIds)
+            .order('month_start', { ascending: false })
+            .limit(40),
+          supabase
             .from('accountability_sharing_preferences')
-            .select('user_id, share_goals, share_tasks, share_weekly_reviews')
+            .select('user_id, share_goals, share_tasks, share_weekly_reviews, share_monthly_checkins')
             .in('user_id', memberIds),
         ]);
 
@@ -228,6 +254,7 @@ const MentorDashboard = () => {
         setSharedPortfolioGoals(portfolioGoals);
         if (tasksResult.data) setSharedGoalTasks(tasksResult.data as SharedGoalTask[]);
         if (reviewsResult.data) setSharedWeeklyReviews(reviewsResult.data as SharedWeeklyReview[]);
+        if (monthlyCheckinsResult.data) setSharedMonthlyCheckins(monthlyCheckinsResult.data as SharedMonthlyCheckin[]);
         if (sharingResult.data) setSharingPreferences(sharingResult.data as SharingPreference[]);
 
         if (portfolioGoals.length) {
@@ -250,6 +277,7 @@ const MentorDashboard = () => {
           portfolioGoalsResult.error ||
           tasksResult.error ||
           reviewsResult.error ||
+          monthlyCheckinsResult.error ||
           sharingResult.error;
 
         if (sharingError) {
@@ -286,6 +314,11 @@ const MentorDashboard = () => {
     sharedWeeklyReviews
       .filter((review) => review.user_id === userId)
       .sort((a, b) => b.week_start.localeCompare(a.week_start))[0] ?? null;
+
+  const getLatestSharedMonthlyCheckin = (userId: string) =>
+    sharedMonthlyCheckins
+      .filter((checkin) => checkin.user_id === userId)
+      .sort((a, b) => b.month_start.localeCompare(a.month_start))[0] ?? null;
 
   const today = format(new Date(), "yyyy-MM-dd");
   const currentWeekStart = format(
@@ -435,6 +468,7 @@ const MentorDashboard = () => {
                   const sharedTasks = getSharedTasks(member.id);
                   const memberMilestones = getSharedMilestones(member.id);
                   const latestReview = getLatestSharedReview(member.id);
+                  const latestMonthlyCheckin = getLatestSharedMonthlyCheckin(member.id);
                   const activeSharedTasks = sharedTasks.filter(
                     (task) => task.status === 'planned' || task.status === 'completed',
                   );
@@ -602,6 +636,35 @@ const MentorDashboard = () => {
                                   {latestReview.adjustments && (
                                     <p className="mt-2 text-xs text-muted-foreground">
                                       Member's adjustment: {latestReview.adjustments}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {sharing.share_monthly_checkins && latestMonthlyCheckin && (
+                                <div className="rounded-lg border border-primary/15 bg-primary/5 p-3">
+                                  <p className="text-xs font-medium">Latest monthly check-in · {latestMonthlyCheckin.month_start}</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {latestMonthlyCheckin.completed_tasks}/{latestMonthlyCheckin.planned_tasks} tasks · {(latestMonthlyCheckin.completed_minutes / 60).toFixed(1)}h/{(latestMonthlyCheckin.planned_minutes / 60).toFixed(1)}h represented effort · {latestMonthlyCheckin.milestones_completed}/{latestMonthlyCheckin.milestones_due} milestones
+                                  </p>
+                                  {latestMonthlyCheckin.wins && (
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                      Wins: {latestMonthlyCheckin.wins}
+                                    </p>
+                                  )}
+                                  {latestMonthlyCheckin.blockers && (
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                      Blockers: {latestMonthlyCheckin.blockers}
+                                    </p>
+                                  )}
+                                  {latestMonthlyCheckin.adjustments && (
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                      Member's adjustment: {latestMonthlyCheckin.adjustments}
+                                    </p>
+                                  )}
+                                  {latestMonthlyCheckin.next_month_focus && (
+                                    <p className="mt-2 text-xs font-medium">
+                                      Next month focus: {latestMonthlyCheckin.next_month_focus}
                                     </p>
                                   )}
                                 </div>
