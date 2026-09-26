@@ -143,6 +143,10 @@ begin
     raise exception 'Goal effort source must be confirmed before applying AI refinement';
   end if;
 
+  if char_length(v_success_definition) > 4000 then
+    raise exception 'Goal success definition is too long';
+  end if;
+
   if v_start_date is not null
      and v_end_date is not null
      and v_end_date < v_start_date then
