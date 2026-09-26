@@ -29,6 +29,33 @@ before insert or update on public.goal_effort_periods
 for each row
 execute function public.prevent_overlapping_goal_effort_periods();
 
+create or replace function public.clear_stale_goal_effort_periods()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  if new.estimated_hours_per_week is distinct from old.estimated_hours_per_week
+     or new.start_date is distinct from old.start_date
+     or new.end_date is distinct from old.end_date then
+    delete from public.goal_effort_periods
+    where goal_id = new.id;
+  end if;
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists clear_stale_goal_effort_periods
+on public.goals;
+
+create trigger clear_stale_goal_effort_periods
+after update of estimated_hours_per_week, start_date, end_date
+on public.goals
+for each row
+execute function public.clear_stale_goal_effort_periods();
+
 create or replace function public.apply_goal_ai_refinement(
   p_goal_id uuid,
   p_goal_patch jsonb,
