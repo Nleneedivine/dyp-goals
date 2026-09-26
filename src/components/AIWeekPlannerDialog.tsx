@@ -120,6 +120,29 @@ export function AIWeekPlannerDialog({
   const portfolioOverCapacity =
     capacityMinutes !== null && committedMinutes > capacityMinutes + 1;
 
+  const existingPlannedMinutes = existingWeekTasks
+    .filter((task) => task.status === "planned" || task.status === "completed")
+    .reduce((sum, task) => sum + Number(task.estimated_minutes || 0), 0);
+
+  const remainingConfirmedMinutes = eligibleGoals.reduce((sum, goal) => {
+    const goalCommitment = Math.round(weeklyHoursForGoal(goal) * 60);
+    const alreadyScheduled = existingWeekTasks
+      .filter(
+        (task) =>
+          task.goal_id === goal.id &&
+          (task.status === "planned" || task.status === "completed"),
+      )
+      .reduce((taskSum, task) => taskSum + Number(task.estimated_minutes || 0), 0);
+    return sum + Math.max(0, goalCommitment - alreadyScheduled);
+  }, 0);
+
+  const remainingCapacityMinutes =
+    capacityMinutes === null ? null : Math.max(0, capacityMinutes - existingPlannedMinutes);
+
+  const existingSchedulePressure =
+    remainingCapacityMinutes !== null &&
+    remainingConfirmedMinutes > remainingCapacityMinutes + 1;
+
   const goalMap = useMemo(
     () => new Map(goals.map((goal) => [goal.id, goal])),
     [goals],
@@ -141,10 +164,12 @@ export function AIWeekPlannerDialog({
       return;
     }
 
-    if (portfolioOverCapacity) {
+    if (portfolioOverCapacity || existingSchedulePressure) {
       toast({
-        title: "Resolve portfolio pressure first",
-        description: "Confirmed goal demand is above your weekly capacity. The planner will not choose which goal to reduce.",
+        title: "Resolve weekly capacity pressure first",
+        description: portfolioOverCapacity
+          ? "Confirmed goal demand is above your weekly capacity. The planner will not choose which goal to reduce."
+          : "Existing scheduled work leaves less room than your remaining confirmed goal commitments. Review this week before generating more work.",
         variant: "destructive",
       });
       return;
@@ -443,7 +468,7 @@ export function AIWeekPlannerDialog({
         <Button
           variant="outline"
           className="gap-2"
-          disabled={capacityHours === null || portfolioOverCapacity || !eligibleGoals.length}
+          disabled={capacityHours === null || portfolioOverCapacity || existingSchedulePressure || !eligibleGoals.length}
         >
           <Sparkles className="h-4 w-4" />
           Draft week with AI
