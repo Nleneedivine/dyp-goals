@@ -14,7 +14,9 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Award
+  Award,
+  LockKeyhole,
+  ShieldCheck
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -41,6 +43,47 @@ interface MentorshipRequest {
   status: string;
   created_at: string;
 }
+interface SharedPortfolioGoal {
+  id: string;
+  user_id: string;
+  title: string;
+  life_area: string;
+  priority: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  estimated_hours_per_week: number;
+}
+
+interface SharedGoalTask {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  title: string;
+  scheduled_date: string | null;
+  estimated_minutes: number;
+  status: string;
+}
+
+interface SharedWeeklyReview {
+  id: string;
+  user_id: string;
+  week_start: string;
+  planned_tasks: number;
+  completed_tasks: number;
+  planned_minutes: number;
+  completed_minutes: number;
+  wins: string;
+  blockers: string;
+  adjustments: string;
+}
+
+interface SharingPreference {
+  user_id: string;
+  share_goals: boolean;
+  share_tasks: boolean;
+  share_weekly_reviews: boolean;
+}
 
 const MentorDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -49,6 +92,10 @@ const MentorDashboard = () => {
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [memberGoals, setMemberGoals] = useState<MemberGoals[]>([]);
   const [mentorshipRequests, setMentorshipRequests] = useState<MentorshipRequest[]>([]);
+  const [sharedPortfolioGoals, setSharedPortfolioGoals] = useState<SharedPortfolioGoal[]>([]);
+  const [sharedGoalTasks, setSharedGoalTasks] = useState<SharedGoalTask[]>([]);
+  const [sharedWeeklyReviews, setSharedWeeklyReviews] = useState<SharedWeeklyReview[]>([]);
+  const [sharingPreferences, setSharingPreferences] = useState<SharingPreference[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -121,16 +168,66 @@ const MentorDashboard = () => {
       if (profiles) {
         setGroupMembers(profiles);
 
-        // Get goals for each member
         const memberIds = profiles.map(p => p.id);
-        const { data: goals } = await supabase
-          .from('goal_analyses')
-          .select('user_id, original_goals, refined_goals, created_at')
-          .in('user_id', memberIds)
-          .order('created_at', { ascending: false });
+        if (!memberIds.length) {
+          setMemberGoals([]);
+          setSharedPortfolioGoals([]);
+          setSharedGoalTasks([]);
+          setSharedWeeklyReviews([]);
+          setSharingPreferences([]);
+          return;
+        }
 
-        if (goals) {
-          setMemberGoals(goals);
+        const [
+          legacyGoalsResult,
+          portfolioGoalsResult,
+          tasksResult,
+          reviewsResult,
+          sharingResult,
+        ] = await Promise.all([
+          supabase
+            .from('goal_analyses')
+            .select('user_id, original_goals, refined_goals, created_at')
+            .in('user_id', memberIds)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('goals')
+            .select('id, user_id, title, life_area, priority, status, start_date, end_date, estimated_hours_per_week')
+            .in('user_id', memberIds)
+            .neq('status', 'archived')
+            .order('updated_at', { ascending: false }),
+          supabase
+            .from('goal_tasks')
+            .select('id, user_id, goal_id, title, scheduled_date, estimated_minutes, status')
+            .in('user_id', memberIds)
+            .order('scheduled_date', { ascending: false, nullsFirst: false })
+            .limit(300),
+          supabase
+            .from('goal_weekly_reviews')
+            .select('id, user_id, week_start, planned_tasks, completed_tasks, planned_minutes, completed_minutes, wins, blockers, adjustments')
+            .in('user_id', memberIds)
+            .order('week_start', { ascending: false })
+            .limit(40),
+          supabase
+            .from('accountability_sharing_preferences')
+            .select('user_id, share_goals, share_tasks, share_weekly_reviews')
+            .in('user_id', memberIds),
+        ]);
+
+        if (legacyGoalsResult.data) setMemberGoals(legacyGoalsResult.data);
+        if (portfolioGoalsResult.data) setSharedPortfolioGoals(portfolioGoalsResult.data as SharedPortfolioGoal[]);
+        if (tasksResult.data) setSharedGoalTasks(tasksResult.data as SharedGoalTask[]);
+        if (reviewsResult.data) setSharedWeeklyReviews(reviewsResult.data as SharedWeeklyReview[]);
+        if (sharingResult.data) setSharingPreferences(sharingResult.data as SharingPreference[]);
+
+        const sharingError =
+          portfolioGoalsResult.error ||
+          tasksResult.error ||
+          reviewsResult.error ||
+          sharingResult.error;
+
+        if (sharingError) {
+          console.error('Error loading shared execution data:', sharingError);
         }
       }
     } catch (error) {
@@ -145,6 +242,19 @@ const MentorDashboard = () => {
   const getMemberRequest = (userId: string) => {
     return mentorshipRequests.find(r => r.user_id === userId);
   };
+  const getSharingPreference = (userId: string) =>
+    sharingPreferences.find((preference) => preference.user_id === userId) ?? null;
+
+  const getSharedPortfolioGoals = (userId: string) =>
+    sharedPortfolioGoals.filter((goal) => goal.user_id === userId);
+
+  const getSharedTasks = (userId: string) =>
+    sharedGoalTasks.filter((task) => task.user_id === userId);
+
+  const getLatestSharedReview = (userId: string) =>
+    sharedWeeklyReviews
+      .filter((review) => review.user_id === userId)
+      .sort((a, b) => b.week_start.localeCompare(a.week_start))[0] ?? null;
 
   if (isLoading) {
     return (
@@ -269,6 +379,16 @@ const MentorDashboard = () => {
                 {groupMembers.map((member) => {
                   const goals = getMemberGoals(member.id);
                   const request = getMemberRequest(member.id);
+                  const sharing = getSharingPreference(member.id);
+                  const portfolioGoals = getSharedPortfolioGoals(member.id);
+                  const sharedTasks = getSharedTasks(member.id);
+                  const latestReview = getLatestSharedReview(member.id);
+                  const activeSharedTasks = sharedTasks.filter(
+                    (task) => task.status === 'planned' || task.status === 'completed',
+                  );
+                  const completedSharedTasks = activeSharedTasks.filter(
+                    (task) => task.status === 'completed',
+                  );
                   
                   return (
                     <Card key={member.id} className="bg-card border-border">
@@ -313,6 +433,69 @@ const MentorDashboard = () => {
                             <span className="text-sm">No goals submitted yet</span>
                           </div>
                         )}
+
+                        <div className="rounded-xl border p-4">
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              {sharing?.share_goals ? (
+                                <ShieldCheck className="h-4 w-4 text-primary" />
+                              ) : (
+                                <LockKeyhole className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <h4 className="text-sm font-semibold">Shared execution</h4>
+                            </div>
+                            <Badge variant={sharing?.share_goals ? "secondary" : "outline"}>
+                              {sharing?.share_goals ? "Opted in" : "Private"}
+                            </Badge>
+                          </div>
+
+                          {!sharing?.share_goals ? (
+                            <p className="text-xs text-muted-foreground">
+                              This member has not shared their execution portfolio with you.
+                            </p>
+                          ) : (
+                            <div className="space-y-3 text-sm">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="rounded-lg bg-muted/20 p-3">
+                                  <p className="text-xs text-muted-foreground">Shared goals</p>
+                                  <p className="mt-1 text-xl font-bold">{portfolioGoals.length}</p>
+                                </div>
+                                <div className="rounded-lg bg-muted/20 p-3">
+                                  <p className="text-xs text-muted-foreground">Weekly effort</p>
+                                  <p className="mt-1 text-xl font-bold">
+                                    {portfolioGoals
+                                      .filter((goal) => goal.status === 'active' || goal.status === 'draft')
+                                      .reduce((sum, goal) => sum + Number(goal.estimated_hours_per_week || 0), 0)
+                                      .toFixed(1)}h
+                                  </p>
+                                </div>
+                              </div>
+
+                              {sharing.share_tasks && (
+                                <div>
+                                  <p className="text-xs font-medium">Shared task execution</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {completedSharedTasks.length}/{activeSharedTasks.length} visible tasks completed
+                                  </p>
+                                </div>
+                              )}
+
+                              {sharing.share_weekly_reviews && latestReview && (
+                                <div className="rounded-lg bg-muted/20 p-3">
+                                  <p className="text-xs font-medium">Latest weekly review · {latestReview.week_start}</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {latestReview.completed_tasks}/{latestReview.planned_tasks} tasks · {(latestReview.completed_minutes / 60).toFixed(1)}h/{(latestReview.planned_minutes / 60).toFixed(1)}h
+                                  </p>
+                                  {latestReview.blockers && (
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                      Blockers: {latestReview.blockers}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
                         {goals.some(g => g.refined_goals) && (
                           <div className="flex items-center gap-2 text-primary">
