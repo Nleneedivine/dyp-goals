@@ -108,6 +108,24 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
   const [weekAnchor, setWeekAnchor] = useState(now);
   const [dayAnchor, setDayAnchor] = useState(now);
 
+  const openMonthAt = (date: string) => {
+    const parsed = parseISO(date);
+    setMonthAnchor(parsed);
+    setView("month");
+  };
+
+  const openWeekAt = (date: string) => {
+    const parsed = parseISO(date);
+    setWeekAnchor(parsed);
+    setView("week");
+  };
+
+  const openDayAt = (date: string) => {
+    const parsed = parseISO(date);
+    setDayAnchor(parsed);
+    setView("today");
+  };
+
   const [actionDraft, setActionDraft] = useState({
     goalId: "",
     milestoneId: "none",
@@ -1306,10 +1324,18 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                           {goalMilestones.length ? (
                             <div className="space-y-2">
                               {goalMilestones.map((milestone) => (
-                                <div key={milestone.id} className="flex items-start justify-between gap-3 rounded-lg border bg-muted/15 p-3 text-sm">
+                                <button
+                                  key={milestone.id}
+                                  type="button"
+                                  onClick={() => milestone.due_date && openMonthAt(milestone.due_date)}
+                                  className="flex w-full items-start justify-between gap-3 rounded-lg border bg-muted/15 p-3 text-left text-sm transition-colors hover:bg-muted/30"
+                                >
                                   <span>{milestone.title}</span>
-                                  <span className="shrink-0 text-xs text-muted-foreground">{milestone.due_date}</span>
-                                </div>
+                                  <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                                    {milestone.due_date}
+                                    <ChevronRight className="h-3.5 w-3.5" />
+                                  </span>
+                                </button>
                               ))}
                             </div>
                           ) : (
@@ -1355,12 +1381,22 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 <CardHeader><CardTitle className="text-lg">Milestones due</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
                   {monthMilestones.length ? monthMilestones.map((milestone) => (
-                    <div key={milestone.id} className="rounded-lg border p-3">
-                      <p className="font-medium">{milestone.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {goalMap.get(milestone.goal_id)?.title} · {milestone.due_date}
-                      </p>
-                    </div>
+                    <button
+                      key={milestone.id}
+                      type="button"
+                      onClick={() => milestone.due_date && openWeekAt(milestone.due_date)}
+                      className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/25"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{milestone.title}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {goalMap.get(milestone.goal_id)?.title} · {milestone.due_date}
+                          </p>
+                        </div>
+                        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      </div>
+                    </button>
                   )) : <p className="text-sm text-muted-foreground">No milestones due this month.</p>}
                 </CardContent>
               </Card>
@@ -1396,6 +1432,17 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">{task.scheduled_date}</Badge>
+                          {task.scheduled_date && (
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => openWeekAt(task.scheduled_date!)}
+                              aria-label="Open task week"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          )}
                           <GoalTaskEditDialog
                             task={task}
                             goalStart={goalMap.get(task.goal_id)?.start_date}
@@ -1749,12 +1796,27 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                       .sort((a, b) => (a.scheduled_time ?? "99:99").localeCompare(b.scheduled_time ?? "99:99"));
                     return (
                       <div key={key} className="rounded-xl border p-3">
-                        <div className="mb-3 flex items-center justify-between">
-                          <div>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openDayAt(key)}
+                            className="min-w-0 text-left"
+                          >
                             <p className="font-semibold">{format(date, "EEE")}</p>
                             <p className="text-xs text-muted-foreground">{format(date, "MMM d")}</p>
+                          </button>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="secondary">{dayTasks.length}</Badge>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => openDayAt(key)}
+                              aria-label={`Open ${format(date, "EEEE")}`}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Badge variant="secondary">{dayTasks.length}</Badge>
                         </div>
                         <div className="space-y-2">
                           {dayTasks.length ? dayTasks.map((task) => (
