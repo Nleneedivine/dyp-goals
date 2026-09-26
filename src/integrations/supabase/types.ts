@@ -214,6 +214,60 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_capacity_periods: {
+        Row: {
+          created_at: string
+          end_date: string
+          hours_per_week: number
+          id: string
+          label: string
+          start_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          hours_per_week: number
+          id?: string
+          label?: string
+          start_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          hours_per_week?: number
+          id?: string
+          label?: string
+          start_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      goal_capacity_settings: {
+        Row: {
+          created_at: string
+          default_hours_per_week: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_hours_per_week?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_hours_per_week?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goal_effort_periods: {
         Row: {
           created_at: string
