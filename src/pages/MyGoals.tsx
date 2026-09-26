@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { AccountabilitySharingCard } from "@/components/AccountabilitySharingCard";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
 import { GoalCapacityChecker } from "@/components/GoalCapacityChecker";
 
@@ -758,6 +759,8 @@ export default function MyGoals() {
           </div>
 
           <GoalCapacityChecker goals={goals} />
+
+          <AccountabilitySharingCard />
 
           <Card className="mb-8 border-primary/20 bg-primary/5">
             <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
