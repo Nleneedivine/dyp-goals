@@ -82,7 +82,9 @@ const goalContext = (goal: Goal) => [
 const targetYearFor = (goal: Goal) => {
   const currentYear = new Date().getFullYear();
   const candidate = Number((goal.end_date ?? goal.start_date ?? "").slice(0, 4));
-  return Number.isInteger(candidate) && candidate >= currentYear ? candidate : currentYear;
+  return Number.isInteger(candidate) && candidate >= currentYear
+    ? Math.min(candidate, currentYear + 10)
+    : currentYear;
 };
 
 export function GoalAIRefinementDialog({
@@ -262,11 +264,11 @@ export function GoalAIRefinementDialog({
           return period.hoursPerWeek >= 0 && period.hoursPerWeek <= 168;
         });
 
-        const { error: deleteError } = await supabase
+        const { data: existingEffortPeriods, error: existingEffortError } = await supabase
           .from("goal_effort_periods")
-          .delete()
+          .select("id")
           .eq("goal_id", goal.id);
-        if (deleteError) throw deleteError;
+        if (existingEffortError) throw existingEffortError;
 
         if (validPeriods.length) {
           const { error: effortError } = await supabase.from("goal_effort_periods").insert(
@@ -279,6 +281,15 @@ export function GoalAIRefinementDialog({
             }))
           );
           if (effortError) throw effortError;
+        }
+
+        const existingIds = (existingEffortPeriods ?? []).map((period) => period.id);
+        if (existingIds.length) {
+          const { error: deleteError } = await supabase
+            .from("goal_effort_periods")
+            .delete()
+            .in("id", existingIds);
+          if (deleteError) throw deleteError;
         }
       }
 
