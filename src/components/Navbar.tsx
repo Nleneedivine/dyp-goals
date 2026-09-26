@@ -110,7 +110,6 @@ const Navbar = () => {
     { name: "My GOALS", path: "/my-goals", icon: Target },
     { name: "Plan & Today", path: "/plan", icon: ListTodo },
     { name: "Progress", path: "/progress", icon: BarChart3 },
-    { name: "AI Coach", path: "/ai-goals", icon: Sparkles },
     { name: "Mentorship", path: "/mentorship", icon: Users },
   ];
 
