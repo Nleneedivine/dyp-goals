@@ -47,6 +47,7 @@ export function ExecutionNotificationSettings() {
   const [weeklyDay, setWeeklyDay] = useState("7");
   const [weeklyTime, setWeeklyTime] = useState("18:00");
   const [deadlineEnabled, setDeadlineEnabled] = useState(false);
+  const [deadlineTime, setDeadlineTime] = useState("08:00");
   const [deadlineDays, setDeadlineDays] = useState("7, 3, 1");
   const [timezone, setTimezone] = useState(detectedTimezone);
 
@@ -85,6 +86,7 @@ export function ExecutionNotificationSettings() {
         setWeeklyDay(String(data.weekly_review_day));
         setWeeklyTime(data.weekly_review_time.slice(0, 5));
         setDeadlineEnabled(data.deadline_alerts_enabled);
+        setDeadlineTime(data.deadline_time.slice(0, 5));
         setDeadlineDays(data.deadline_days_before.join(", "));
         setTimezone(data.timezone);
       }
@@ -149,6 +151,7 @@ export function ExecutionNotificationSettings() {
         weekly_review_day: Number(weeklyDay),
         weekly_review_time: weeklyTime,
         deadline_alerts_enabled: deadlineEnabled,
+        deadline_time: deadlineTime,
         deadline_days_before: parsedDeadlineDays,
         timezone: timezone.trim(),
       }, { onConflict: "user_id" });
@@ -326,7 +329,18 @@ export function ExecutionNotificationSettings() {
                 disabled={childDisabled}
               />
             </div>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-[150px_1fr]">
+              <div className="space-y-2">
+                <Label htmlFor="deadline-time">Send around</Label>
+                <Input
+                  id="deadline-time"
+                  type="time"
+                  value={deadlineTime}
+                  onChange={(event) => setDeadlineTime(event.target.value)}
+                  disabled={childDisabled || !deadlineEnabled}
+                />
+              </div>
+              <div className="space-y-2">
               <Label htmlFor="deadline-days">Days before milestone</Label>
               <Input
                 id="deadline-days"
@@ -338,6 +352,7 @@ export function ExecutionNotificationSettings() {
               <p className="text-xs text-muted-foreground">
                 Up to five comma-separated values from 0 to 60. Use 0 for the due date itself.
               </p>
+              </div>
             </div>
           </div>
         </div>
