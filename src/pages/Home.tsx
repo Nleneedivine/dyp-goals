@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Target, Calendar, Users, Sparkles, Trophy, Clock, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Target, Calendar, Users, Trophy, Clock, ArrowRight, CheckCircle2 } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
 import goalSettingGuide from "@/assets/goal-setting-guide.png";
 import timeManagement from "@/assets/time-management.png";
@@ -113,7 +113,7 @@ const Home = () => {
       {/* Features Section */}
       <section className="py-20 container mx-auto px-4">
         <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
-          What You'll <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Gain</span>
+          What the <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Masterclass Covers</span>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <Card className="bg-card hover:shadow-xl transition-shadow animate-fade-in border-border">
@@ -135,7 +135,7 @@ const Home = () => {
               </div>
               <h3 className="text-2xl font-semibold mb-4">SMART Goals</h3>
               <p className="text-muted-foreground">
-                Transform your dreams into actionable, achievable SMART goals with AI assistance.
+                Turn broad intentions into clearer, actionable goals you can plan, review, and execute.
               </p>
             </CardContent>
           </Card>
@@ -177,30 +177,13 @@ const Home = () => {
         </section>
       )}
 
-      {/* Video Section */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-12">
-            See What <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Awaits</span>
-          </h2>
-          <div className="max-w-4xl mx-auto aspect-video bg-muted rounded-xl flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center">
-                <Sparkles className="h-10 w-10 text-primary-foreground" />
-              </div>
-              <p className="text-muted-foreground">Event Highlight Video Coming Soon</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Goal Setting Framework */}
       <section className="py-20 container mx-auto px-4">
         <h2 className="text-4xl md:text-5xl font-bold text-center mb-12">
           The <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">DYP Framework</span>
         </h2>
         <p className="text-xl text-center text-muted-foreground mb-16 max-w-3xl mx-auto">
-          Transform your visions into actionable time logs through our proven 3-step process: Vision → Goals → Time Management
+          Move from vision to actionable planning through three connected steps: Vision → Goals → Time Management
         </p>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
