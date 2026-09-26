@@ -2240,21 +2240,21 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <Card className={capacityOverloaded ? "border-amber-500/30 bg-amber-500/5" : ""}>
+              <Card data-ui2-metric className={capacityOverloaded ? "border-amber-500/30 bg-amber-500/5" : ""}>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Goal demand</p>
                   <p className="text-2xl font-bold">{currentDemand.toFixed(1)}h</p>
                   <p className="text-xs text-muted-foreground">confirmed weekly commitments</p>
                 </CardContent>
               </Card>
-              <Card className={scheduleOverloaded ? "border-amber-500/30 bg-amber-500/5" : ""}>
+              <Card data-ui2-metric className={scheduleOverloaded ? "border-amber-500/30 bg-amber-500/5" : ""}>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Tasks scheduled</p>
                   <p className="text-2xl font-bold">{currentTaskHours.toFixed(1)}h</p>
                   <p className="text-xs text-muted-foreground">{tasksForWeek.length} tasks in this week</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card data-ui2-metric>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">{currentCapacity.label}</p>
                   <p className="text-2xl font-bold">{defaultCapacity === null ? "—" : `${currentCapacity.hours.toFixed(1)}h`}</p>
@@ -2737,7 +2737,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
             )}
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Card>
+              <Card data-ui2-metric>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Goal work scheduled</p>
                   <p className="text-2xl font-bold">{hoursLabel(selectedDayTaskMinutes)}</p>
@@ -2746,7 +2746,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card data-ui2-metric>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Completed</p>
                   <p className="text-2xl font-bold">{hoursLabel(selectedDayCompletedMinutes)}</p>
@@ -2755,7 +2755,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card data-ui2-metric>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Remaining goal work</p>
                   <p className="text-2xl font-bold">{hoursLabel(selectedDayRemainingMinutes)}</p>
@@ -2764,7 +2764,7 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                   </p>
                 </CardContent>
               </Card>
-              <Card className={selectedDayCalendarOverbooked ? "border-amber-500/30 bg-amber-500/5" : ""}>
+              <Card data-ui2-metric className={selectedDayCalendarOverbooked ? "border-amber-500/30 bg-amber-500/5" : ""}>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">Protected commitments</p>
                   <p className="text-2xl font-bold">{hoursLabel(selectedDayFixedMinutes)}</p>
