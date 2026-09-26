@@ -303,6 +303,51 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_dependencies: {
+        Row: {
+          created_at: string
+          dependent_goal_id: string
+          id: string
+          note: string
+          prerequisite_goal_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dependent_goal_id: string
+          id?: string
+          note?: string
+          prerequisite_goal_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dependent_goal_id?: string
+          id?: string
+          note?: string
+          prerequisite_goal_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_dependencies_dependent_goal_id_fkey"
+            columns: ["dependent_goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_dependencies_prerequisite_goal_id_fkey"
+            columns: ["prerequisite_goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_effort_periods: {
         Row: {
           created_at: string
