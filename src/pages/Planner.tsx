@@ -38,6 +38,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvailabilityManager } from "@/components/AvailabilityManager";
+import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -1134,6 +1135,11 @@ export default function Planner({ initialView = "week" }: { initialView?: Planne
                 </div>
               </CardContent>
             </Card>
+
+            <WeeklyExecutionReview
+              weekStart={currentWeekStart}
+              tasks={tasks}
+            />
           </TabsContent>
 
           <TabsContent value="today" className="mt-6 space-y-6">
