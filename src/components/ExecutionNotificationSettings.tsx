@@ -50,6 +50,8 @@ export function ExecutionNotificationSettings() {
   const [deadlineEnabled, setDeadlineEnabled] = useState(false);
   const [deadlineTime, setDeadlineTime] = useState("08:00");
   const [deadlineDays, setDeadlineDays] = useState("7, 3, 1");
+  const [monthlyCheckinEnabled, setMonthlyCheckinEnabled] = useState(false);
+  const [monthlyCheckinTime, setMonthlyCheckinTime] = useState("18:00");
   const [timezone, setTimezone] = useState(detectedTimezone);
 
   useEffect(() => {
@@ -95,6 +97,8 @@ export function ExecutionNotificationSettings() {
         setDeadlineEnabled(data.deadline_alerts_enabled);
         setDeadlineTime(data.deadline_time.slice(0, 5));
         setDeadlineDays(data.deadline_days_before.join(", "));
+        setMonthlyCheckinEnabled(data.monthly_checkin_enabled);
+        setMonthlyCheckinTime(data.monthly_checkin_time.slice(0, 5));
         setTimezone(data.timezone);
       }
 
@@ -171,6 +175,8 @@ export function ExecutionNotificationSettings() {
         deadline_alerts_enabled: deadlineEnabled,
         deadline_time: deadlineTime,
         deadline_days_before: parsedDeadlineDays,
+        monthly_checkin_enabled: monthlyCheckinEnabled,
+        monthly_checkin_time: monthlyCheckinTime,
         timezone: timezone.trim(),
       }, { onConflict: "user_id" });
     setSaving(false);
@@ -348,6 +354,32 @@ export function ExecutionNotificationSettings() {
                   disabled={childDisabled || !weeklyEnabled}
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-medium">Monthly accountability check-in</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  A month-end reminder to save your execution snapshot, wins, blockers, adjustments and next-month focus.
+                </p>
+              </div>
+              <Switch
+                checked={monthlyCheckinEnabled}
+                onCheckedChange={setMonthlyCheckinEnabled}
+                disabled={childDisabled}
+              />
+            </div>
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="monthly-checkin-time">Send on the last day of the month around</Label>
+              <Input
+                id="monthly-checkin-time"
+                type="time"
+                value={monthlyCheckinTime}
+                onChange={(event) => setMonthlyCheckinTime(event.target.value)}
+                disabled={childDisabled || !monthlyCheckinEnabled}
+              />
             </div>
           </div>
 

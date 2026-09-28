@@ -6,6 +6,9 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY_1") ?? Deno.env.get("RESEND_
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const APP_URL = Deno.env.get("APP_URL") ?? "https://dyp-goals.lovable.app";
+const FROM_EMAIL =
+  Deno.env.get("DYP_EXECUTION_FROM_EMAIL") ??
+  "DYP GOALS <onboarding@resend.dev>";
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 
 const corsHeaders = {
@@ -17,7 +20,8 @@ type NotificationType =
   | "morning_brief"
   | "evening_debrief"
   | "weekly_review"
-  | "deadline_alert";
+  | "deadline_alert"
+  | "monthly_checkin";
 
 function decodeJwtPayload(token: string) {
   const payload = token.split(".")[1];
@@ -107,7 +111,7 @@ async function sendEmail(to: string, subject: string, html: string) {
       "X-Connection-Api-Key": RESEND_API_KEY,
     },
     body: JSON.stringify({
-      from: "DYP GOALS <onboarding@resend.dev>",
+      from: FROM_EMAIL,
       to: [to],
       subject,
       html,
@@ -130,7 +134,7 @@ function emailShell(title: string, body: string, ctaLabel: string, ctaPath: stri
         ${body}
         <a href="${APP_URL}${ctaPath}" style="display:inline-block;margin-top:20px;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">${escapeHtml(ctaLabel)}</a>
       </div>
-      <p style="margin:14px 4px 0;color:#64748b;font-size:12px;">You are receiving this because you enabled this execution email in your DYP GOALS profile.</p>
+      <p style="margin:14px 4px 0;color:#64748b;font-size:12px;">You are receiving this because you enabled this execution email in your DYP GOALS profile. <a href="${APP_URL}/profile" style="color:#0f766e;">Manage email preferences</a>.</p>
     </div>
   </body>
 </html>`;
@@ -159,13 +163,32 @@ serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data: settings, error: settingsError } = await admin
-      .from("execution_notification_settings")
-      .select("*")
-      .eq("email_enabled", true)
-      .limit(500);
+    const settings: Array<Record<string, any>> = [];
+    const pageSize = 500;
+    let page = 0;
 
-    if (settingsError) throw settingsError;
+    while (true) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      const { data: pageData, error: settingsError } = await admin
+        .from("execution_notification_settings")
+        .select("*")
+        .eq("email_enabled", true)
+        .order("user_id", { ascending: true })
+        .range(from, to);
+
+      if (settingsError) throw settingsError;
+
+      const rows = pageData ?? [];
+      settings.push(...rows);
+      if (rows.length < pageSize) break;
+
+      page += 1;
+      if (page >= 20) {
+        console.warn("Execution notification settings reached the 10,000-user safety cap");
+        break;
+      }
+    }
 
     const now = new Date();
     let sent = 0;
@@ -211,7 +234,7 @@ serve(async (req) => {
       if (error) console.error("Could not record delivery:", error);
     };
 
-    for (const setting of settings ?? []) {
+    for (const setting of settings) {
       try {
         const local = localParts(now, setting.timezone);
         const dueTypes: NotificationType[] = [];
@@ -236,6 +259,14 @@ serve(async (req) => {
           setting.deadline_alerts_enabled &&
           isDue(local.hour, local.minute, setting.deadline_time)
         ) dueTypes.push("deadline_alert");
+
+        const tomorrow = addDays(local.date, 1);
+        const isLastDayOfMonth = tomorrow.slice(0, 7) !== local.date.slice(0, 7);
+        if (
+          setting.monthly_checkin_enabled &&
+          isLastDayOfMonth &&
+          isDue(local.hour, local.minute, setting.monthly_checkin_time)
+        ) dueTypes.push("monthly_checkin");
 
         if (!dueTypes.length) {
           skipped += 1;
@@ -383,6 +414,65 @@ serve(async (req) => {
               );
             }
 
+            if (type === "monthly_checkin") {
+              const monthStart = `${local.date.slice(0, 7)}-01`;
+
+              const { data: existingCheckin, error: existingCheckinError } = await admin
+                .from("goal_monthly_checkins")
+                .select("id")
+                .eq("user_id", setting.user_id)
+                .eq("month_start", monthStart)
+                .maybeSingle();
+
+              if (existingCheckinError) throw existingCheckinError;
+              if (existingCheckin) {
+                skipped += 1;
+                continue;
+              }
+
+              const { data: monthTasks, error: monthTasksError } = await admin
+                .from("goal_tasks")
+                .select("status,estimated_minutes")
+                .eq("user_id", setting.user_id)
+                .gte("scheduled_date", monthStart)
+                .lte("scheduled_date", local.date)
+                .neq("status", "skipped");
+
+              if (monthTasksError) throw monthTasksError;
+
+              const completedMonthTasks = (monthTasks ?? []).filter(
+                (task) => task.status === "completed",
+              );
+              const plannedMinutes = (monthTasks ?? []).reduce(
+                (sum, task) => sum + Number(task.estimated_minutes || 0),
+                0,
+              );
+              const completedMinutes = completedMonthTasks.reduce(
+                (sum, task) => sum + Number(task.estimated_minutes || 0),
+                0,
+              );
+
+              const dueThisMonth = milestones.filter(
+                (milestone) =>
+                  Boolean(
+                    milestone.due_date &&
+                    milestone.due_date >= monthStart &&
+                    milestone.due_date <= local.date,
+                  ),
+              );
+
+              await sendEmail(
+                email,
+                "Time for your DYP GOALS monthly accountability check-in",
+                emailShell(
+                  "Monthly accountability check-in",
+                  `<p>This month currently contains <strong>${(monthTasks ?? []).length}</strong> represented execution tasks, with <strong>${completedMonthTasks.length}</strong> marked complete.</p><p>Completed represented effort: <strong>${(completedMinutes / 60).toFixed(1)}h</strong> of <strong>${(plannedMinutes / 60).toFixed(1)}h</strong>.</p><p><strong>${dueThisMonth.length}</strong> incomplete dated milestone${dueThisMonth.length === 1 ? "" : "s"} are still due in this month's saved plan.</p><p>Save your wins, blockers, adjustments and next-month focus so the accountability conversation is based on what actually happened.</p>`,
+                  "Open Progress",
+                  "/progress",
+                ),
+              );
+            }
+
             if (type === "deadline_alert") {
               const selectedDays = new Set<number>(setting.deadline_days_before ?? []);
               const due = milestones.filter((milestone) => {
@@ -429,7 +519,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      users_checked: settings?.length ?? 0,
+      users_checked: settings.length,
       sent,
       failed,
       skipped,
