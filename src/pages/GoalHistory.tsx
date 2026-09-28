@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
 import { pdf } from "@react-pdf/renderer";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 
 interface GoalAnalysisRecord {
   id: string;
@@ -53,6 +55,7 @@ const GoalHistory = () => {
   const [selectedAnalysis, setSelectedAnalysis] = useState<GoalAnalysisRecord | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
 
   useEffect(() => {
     loadAnalyses();
@@ -193,6 +196,9 @@ const GoalHistory = () => {
   return (
     <div className="min-h-screen pt-20 pb-12 font-poppins">
       <div className="container mx-auto px-4 max-w-7xl">
+        {isUi2 ? (
+          <Ui2PageHeader eyebrow="Goals archive" title="Goal History" description="Review previous goal analyses, refined plans and exported records." icon={Target} />
+        ) : (
         <div className="text-center mb-12 animate-fade-in">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
             Your <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Goal History</span>
@@ -201,6 +207,7 @@ const GoalHistory = () => {
             Review all your past goal analyses and refined action plans
           </p>
         </div>
+        )}
 
         {/* Search */}
         <Card className="bg-card border-border mb-8 animate-fade-in">
