@@ -17,6 +17,8 @@ import {
   LockKeyhole,
   ShieldCheck
 } from "lucide-react";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 import { supabase } from "@/integrations/supabase/client";
 
 interface GroupMember {
@@ -106,6 +108,7 @@ const MentorDashboard = () => {
   const [sharingPreferences, setSharingPreferences] = useState<SharingPreference[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isUi2 } = useUiMode();
 
   useEffect(() => {
     checkMentorStatus();
@@ -322,14 +325,25 @@ const MentorDashboard = () => {
   return (
     <div className="min-h-screen pt-20 pb-12 font-poppins">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12 animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Mentor <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Review only the goal and execution context each member explicitly chose to share, then support their next accountability conversation.
-          </p>
-        </div>
+        {isUi2 ? (
+          <div className="mx-auto max-w-6xl">
+            <Ui2PageHeader
+              eyebrow="Accountability mentor"
+              title="Mentor Dashboard"
+              description="Review only the goal and execution context each member explicitly chose to share, then support the next accountability conversation."
+              icon={Users}
+            />
+          </div>
+        ) : (
+                  <div className="text-center mb-12 animate-fade-in">
+                    <h1 className="text-5xl md:text-6xl font-bold mb-6">
+                      Mentor <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
+                    </h1>
+                    <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                      Review only the goal and execution context each member explicitly chose to share, then support their next accountability conversation.
+                    </p>
+                  </div>
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 max-w-6xl mx-auto">

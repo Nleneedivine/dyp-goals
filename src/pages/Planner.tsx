@@ -47,6 +47,8 @@ import { GoalTaskEditDialog, type GoalTaskEditValues } from "@/components/GoalTa
 import { QuickGoalTaskDialog, type QuickGoalTaskValues } from "@/components/QuickGoalTaskDialog";
 import { WeeklyActionEditDialog, type WeeklyActionEditValues } from "@/components/WeeklyActionEditDialog";
 import { WeeklyExecutionReview } from "@/components/WeeklyExecutionReview";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 import { useToast } from "@/hooks/use-toast";
 import { downloadTasksIcs } from "@/lib/calendarExport";
 import { supabase } from "@/integrations/supabase/client";
@@ -120,6 +122,7 @@ const savedExecutionContext = (goal?: Goal) => {
 
 export default function Planner({ initialView }: { initialView?: PlannerView }) {
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
   const defaultView: PlannerView =
     initialView ??
     (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
@@ -1727,6 +1730,41 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
   return (
     <main className="min-h-screen px-4 pb-16 pt-28">
       <div className="container mx-auto max-w-7xl">
+        {isUi2 ? (
+          <Ui2PageHeader
+            eyebrow="Execution planner"
+            title="Plan → Do → Review"
+            description="Your goals, milestones, weekly priorities and daily tasks live in one execution chain. Every task keeps its reason attached."
+            icon={ListTodo}
+            actions={
+              <>
+                <AvailabilityManager
+                  userId={userId}
+                  blocks={fixedBlocks}
+                  onChange={setFixedBlocks}
+                />
+                {overdueMilestones.length > 0 && (
+                  <Badge variant="outline" className="w-fit gap-2 border-destructive/30 px-3 py-2 text-destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    {overdueMilestones.length} overdue {overdueMilestones.length === 1 ? "milestone" : "milestones"}
+                  </Badge>
+                )}
+                {upcomingMilestones.length > 0 && (
+                  <Badge variant="outline" className="w-fit gap-2 px-3 py-2">
+                    <CalendarDays className="h-4 w-4" />
+                    {upcomingMilestones.length} due in 14 days
+                  </Badge>
+                )}
+                {planningQueue.length > 0 && (
+                  <Badge variant="outline" className="w-fit gap-2 border-amber-500/30 px-3 py-2 text-amber-700">
+                    <AlertTriangle className="h-4 w-4" />
+                    {planningQueue.length} {planningQueue.length === 1 ? "task needs" : "tasks need"} replanning
+                  </Badge>
+                )}
+              </>
+            }
+          />
+        ) : (
         <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
@@ -1807,6 +1845,7 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
             )}
           </div>
         </div>
+        )}
 
         <Tabs value={view} onValueChange={(value) => setView(value as PlannerView)}>
           <TabsList className="grid h-auto w-full grid-cols-4 lg:max-w-xl">

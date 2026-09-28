@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Users, Heart, TrendingUp, MessageSquare, Loader2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 
 const Mentorship = () => {
   const [formData, setFormData] = useState({
@@ -20,6 +22,7 @@ const Mentorship = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isUi2 } = useUiMode();
 
   useEffect(() => {
     checkExistingStatus();
@@ -157,6 +160,9 @@ const Mentorship = () => {
   return (
     <div className="min-h-screen pt-20 pb-12 font-poppins">
       <div className="container mx-auto px-4">
+        {isUi2 ? (
+          <Ui2PageHeader eyebrow="Accountability network" title="Mentorship & Accountability" description="Connect with mentors and a small accountability group that helps you keep moving." icon={Users} />
+        ) : (
         <div className="text-center mb-12 animate-fade-in">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
             Mentorship & <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Accountability</span>
@@ -165,6 +171,7 @@ const Mentorship = () => {
             Connect with experienced mentors and join accountability groups to stay on track with your goals.
           </p>
         </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto mb-16">
           {/* Benefits Cards */}

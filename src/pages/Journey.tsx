@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { JourneyExecutionSnapshot } from "@/components/JourneyExecutionSnapshot";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -45,6 +47,7 @@ interface JourneyStep {
 
 export default function Journey() {
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -343,16 +346,25 @@ export default function Journey() {
   return (
     <main className="min-h-screen px-4 pb-16 pt-28">
       <div className="container mx-auto max-w-5xl">
-        <div className="mb-7">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-            <Compass className="h-4 w-4" />
-            Guided journey
+        {isUi2 ? (
+          <Ui2PageHeader
+            eyebrow="Guided journey"
+            title="Know what to do next"
+            description="GOALS should feel like one journey, not a toolbox. Your saved portfolio and execution data determine the next unfinished stage."
+            icon={Compass}
+          />
+        ) : (
+          <div className="mb-7">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+              <Compass className="h-4 w-4" />
+              Guided journey
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight md:text-5xl">Know what to do next</h1>
+            <p className="mt-3 max-w-3xl text-muted-foreground">
+              GOALS should feel like one journey, not a toolbox. This page uses your saved portfolio and execution data to show the next unfinished stage.
+            </p>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight md:text-5xl">Know what to do next</h1>
-          <p className="mt-3 max-w-3xl text-muted-foreground">
-            GOALS should feel like one journey, not a toolbox. This page uses your saved portfolio and execution data to show the next unfinished stage.
-          </p>
-        </div>
+        )}
 
         <Card className="mb-6 border-primary/20 bg-primary/5">
           <CardContent className="space-y-4 pt-6">

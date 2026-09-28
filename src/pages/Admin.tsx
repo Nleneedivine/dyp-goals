@@ -34,6 +34,8 @@ import {
 import { AccountabilityProgramTrends } from "@/components/AccountabilityProgramTrends";
 import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
 import { pdf } from "@react-pdf/renderer";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 
 interface Profile {
   id: string;
@@ -85,6 +87,7 @@ const Admin = () => {
   const [selectedGoal, setSelectedGoal] = useState<GoalAnalysis | null>(null);
   const [exportingGoalId, setExportingGoalId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
 
   interface RefinedGoal {
     title: string;
@@ -835,25 +838,50 @@ const Admin = () => {
   return (
     <div className="min-h-screen pt-20 pb-12 font-poppins">
       <div className="container mx-auto px-4 max-w-7xl">
-        <div className="text-center mb-12 animate-fade-in">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <Shield className="h-12 w-12 text-primary" />
-            <h1 className="text-5xl md:text-6xl font-bold">
-              Admin <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
-            </h1>
+        {isUi2 ? (
+          <Ui2PageHeader
+            eyebrow="Operations console"
+            title="Admin Dashboard"
+            description="Monitor participation, manage accountability, review goal activity and control the GOALS experience."
+            icon={Shield}
+            actions={
+              <>
+                <Button asChild variant="outline">
+                  <Link to="/admin/forms">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Forms & Applications
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/admin/appearance">
+                    <Eye className="mr-2 h-4 w-4" />
+                    Appearance
+                  </Link>
+                </Button>
+              </>
+            }
+          />
+        ) : (
+          <div className="text-center mb-12 animate-fade-in">
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <Shield className="h-12 w-12 text-primary" />
+              <h1 className="text-5xl md:text-6xl font-bold">
+                Admin <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
+              </h1>
+            </div>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Monitor all user activity, manage profiles, oversee goal submissions, and run program applications.
+            </p>
+            <div className="mt-6 flex justify-center">
+              <Button asChild size="lg" variant="outline">
+                <Link to="/admin/forms">
+                  <FileText className="mr-2 h-5 w-5" />
+                  Forms & Applications
+                </Link>
+              </Button>
+            </div>
           </div>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Monitor all user activity, manage profiles, oversee goal submissions, and run program applications.
-          </p>
-          <div className="mt-6 flex justify-center">
-            <Button asChild size="lg" variant="outline">
-              <Link to="/admin/forms">
-                <FileText className="mr-2 h-5 w-5" />
-                Forms & Applications
-              </Link>
-            </Button>
-          </div>
-        </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

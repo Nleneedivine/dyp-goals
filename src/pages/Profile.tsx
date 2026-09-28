@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, User, Mail, Key, Save, Archive, History, Sparkles } from "lucide-react";
 import { ExecutionNotificationSettings } from "@/components/ExecutionNotificationSettings";
+import { Ui2PageHeader } from "@/components/Ui2PageHeader";
+import { useUiMode } from "@/components/UiModeProvider";
 
 const Profile = () => {
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,7 @@ const Profile = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
 
   useEffect(() => {
     loadProfile();
@@ -182,16 +185,25 @@ const Profile = () => {
   return (
     <div className="min-h-screen pt-20 pb-12 font-poppins">
       <div className="container mx-auto px-4 max-w-4xl">
-        <div className="text-center mb-12 animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              Your Profile
-            </span>
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Manage your personal information and account settings
-          </p>
-        </div>
+        {isUi2 ? (
+          <Ui2PageHeader
+            eyebrow="Account settings"
+            title="Your Profile"
+            description="Manage your identity, execution notifications and account settings in one place."
+            icon={User}
+          />
+        ) : (
+          <div className="text-center mb-12 animate-fade-in">
+            <h1 className="text-5xl md:text-6xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+                Your Profile
+              </span>
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              Manage your personal information and account settings
+            </p>
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Personal Information */}
