@@ -57,6 +57,8 @@ The Supabase migrations in \`supabase/migrations\` define the database and event
 - Supabase Auth / Postgres / Storage / Edge Functions
 - Lovable AI gateway for AI-assisted features
 
+<!-- sync-check: 2026-09-28 -->
+
 ## Deployment note
 
 This repository is connected to Lovable. Changes should be reviewed before merging to \`main\`, then synced/deployed through the project's normal Lovable/Supabase workflow.
