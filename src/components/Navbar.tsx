@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3 } from "lucide-react";
+import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
+import { Ui2MobileBottomNav } from "@/components/Ui2MobileBottomNav";
+import { useUiMode } from "@/components/UiModeProvider";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +24,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isUi2 } = useUiMode();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -132,64 +135,97 @@ const Navbar = () => {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+    <>
+      <nav
+        data-ui2-shell="top-nav"
+        className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg"
+      >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          <Link to="/" className="flex items-center gap-2 group">
-            <BrandLogo compact />
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-2 group">
+              <BrandLogo compact />
+            </Link>
+            {isUi2 && isAdmin && (
+              <span className="ui2-preview-badge hidden sm:inline-flex">UI 2.0 preview</span>
+            )}
+          </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            {mainNavItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`font-medium transition-colors hover:text-primary ${
-                  isActive(item.path) ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
+          <div className="hidden md:flex items-center gap-5">
+            {isUi2 && user ? (
+              <div className="flex items-center gap-1 rounded-2xl border border-border/70 bg-muted/25 p-1">
+                {toolsNavItems.map((item) => {
+                  const active = isActive(item.path) || (item.path === "/plan" && location.pathname === "/todo");
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={
+                        "flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors " +
+                        (active
+                          ? "bg-background text-primary shadow-sm"
+                          : "text-muted-foreground hover:bg-background/70 hover:text-foreground")
+                      }
+                    >
+                      <item.icon className="h-4 w-4" strokeWidth={1.9} />
+                      <span>{item.name === "Plan & Today" ? "Plan" : item.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                {mainNavItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`font-medium transition-colors hover:text-primary ${
+                      isActive(item.path) ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
 
-            <Button asChild size="sm" className="font-semibold">
-              <Link to="/apply/goals-masterclass-2026">
-                Register
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-
-            {/* Tools Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`font-medium transition-colors hover:text-primary flex items-center gap-1 ${
-                    isToolsActive ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  <Wrench className="h-4 w-4" />
-                  Tools
-                  <ChevronDown className="h-3 w-3" />
+                <Button asChild size="sm" className="font-semibold">
+                  <Link to="/apply/goals-masterclass-2026">
+                    Register
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="bg-card border-border min-w-[180px]">
-                {toolsNavItems.map((item) => (
-                  <DropdownMenuItem key={item.path} asChild>
-                    <Link 
-                      to={item.path} 
-                      className={`cursor-pointer flex items-center gap-2 ${
-                        isActive(item.path) ? "text-primary" : ""
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={`font-medium transition-colors hover:text-primary flex items-center gap-1 ${
+                        isToolsActive ? "text-primary" : "text-muted-foreground"
                       }`}
                     >
-                      <item.icon className="h-4 w-4" />
-                      {item.name}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      <Wrench className="h-4 w-4" />
+                      Tools
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="bg-card border-border min-w-[180px]">
+                    {toolsNavItems.map((item) => (
+                      <DropdownMenuItem key={item.path} asChild>
+                        <Link 
+                          to={item.path} 
+                          className={`cursor-pointer flex items-center gap-2 ${
+                            isActive(item.path) ? "text-primary" : ""
+                          }`}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
 
             {user && (
               <div className="flex items-center gap-4">
@@ -233,6 +269,12 @@ const Navbar = () => {
                           <Link to="/admin" className="cursor-pointer flex items-center gap-2">
                             <Settings className="h-4 w-4" />
                             Admin
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/appearance" className="cursor-pointer flex items-center gap-2">
+                            <Palette className="h-4 w-4" />
+                            Interface preview
                           </Link>
                         </DropdownMenuItem>
                       </>
@@ -358,15 +400,26 @@ const Navbar = () => {
                   </Link>
                 )}
                 {isAdmin && (
-                  <Link
-                    to="/admin"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Button variant="outline" className="w-full gap-2 mb-2">
-                      <Settings className="h-4 w-4" />
-                      Admin
-                    </Button>
-                  </Link>
+                  <>
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Button variant="outline" className="w-full gap-2 mb-2">
+                        <Settings className="h-4 w-4" />
+                        Admin
+                      </Button>
+                    </Link>
+                    <Link
+                      to="/admin/appearance"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Button variant="outline" className="w-full gap-2 mb-2">
+                        <Palette className="h-4 w-4" />
+                        Interface preview
+                      </Button>
+                    </Link>
+                  </>
                 )}
                 <Button
                   onClick={() => {
@@ -385,6 +438,8 @@ const Navbar = () => {
         )}
       </div>
     </nav>
+      {isUi2 && user && <Ui2MobileBottomNav />}
+    </>
   );
 };
 
