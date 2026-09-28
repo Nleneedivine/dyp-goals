@@ -313,7 +313,7 @@ const Navbar = () => {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden py-4 animate-fade-in">
+          <div className={"md:hidden py-4 animate-fade-in " + (isUi2 && user ? "pb-24" : "")}>
             {mainNavItems.map((item) => (
               <Link
                 key={item.path}
