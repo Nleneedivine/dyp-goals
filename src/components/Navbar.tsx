@@ -24,7 +24,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isUi2 } = useUiMode();
+  const { isUi2, setMode } = useUiMode();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -91,6 +91,9 @@ const Navbar = () => {
       }
       setUser(null);
       setIsAdmin(false);
+      setIsMentor(false);
+      // UI 2.0 is an admin-only browser preview for now; do not leak it into the logged-out/public experience.
+      setMode("classic");
       toast({
         title: "Logged out",
         description: "You've been successfully logged out.",
@@ -118,6 +121,8 @@ const Navbar = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const isToolsActive = toolsNavItems.some(item => location.pathname === item.path);
+  const ui2MobileAppRoutes = ["/journey", "/vision", "/my-goals", "/plan", "/todo", "/progress", "/profile"];
+  const showUi2MobileBottomNav = isUi2 && Boolean(user) && ui2MobileAppRoutes.includes(location.pathname);
 
   // Don't show navigation items on auth page
   if (location.pathname === "/auth") {
@@ -438,7 +443,7 @@ const Navbar = () => {
         )}
       </div>
     </nav>
-      {isUi2 && user && <Ui2MobileBottomNav />}
+      {showUi2MobileBottomNav && <Ui2MobileBottomNav />}
     </>
   );
 };
