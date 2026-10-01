@@ -63,7 +63,7 @@ export default function FormBuilder() {
     const nextForm = { ...form, status: status ?? form.status, slug: makeSlug(form.slug || form.title) };
     const { error } = await supabase.from("program_forms").update({ title: nextForm.title, description: nextForm.description, slug: nextForm.slug, brand: nextForm.brand, status: nextForm.status, featured: nextForm.featured, opens_at: nextForm.opens_at || null, closes_at: nextForm.closes_at || null, submission_deadline: nextForm.submission_deadline || null, response_limit: nextForm.response_limit || null, confirmation_message: nextForm.confirmation_message, confirmation_email_enabled: nextForm.confirmation_email_enabled, dropoff_warning_threshold: nextForm.dropoff_warning_threshold, low_fill_threshold: nextForm.low_fill_threshold }).eq("id", formId);
 
-    let fieldError: Error | null = null;
+    let fieldError: { message: string } | null = null;
     if (!error && fields.length) {
       const results = await Promise.all(
         fields.map((field, index) =>
