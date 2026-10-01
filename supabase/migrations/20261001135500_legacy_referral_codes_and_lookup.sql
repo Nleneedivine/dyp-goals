@@ -185,6 +185,15 @@ as $function$
       limit 1
     ) name_answer on true
     where rc.form_id = p_form_id
+      and exists (
+        select 1
+        from public.program_forms pf
+        where pf.id = rc.form_id
+          and pf.status = 'published'
+          and (pf.opens_at is null or pf.opens_at <= now())
+          and (pf.closes_at is null or pf.closes_at > now())
+          and (pf.submission_deadline is null or pf.submission_deadline > now())
+      )
   )
   select
     c.code as referral_code,
