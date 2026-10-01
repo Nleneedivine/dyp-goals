@@ -9,11 +9,13 @@ import timeManagement from "@/assets/time-management.png";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProgramForm } from "@/lib/formTypes";
 import { eventBenefits, formatEventDate, formatEventTime, formatNaira, type ProgramEvent } from "@/lib/event";
+import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
 
 const Home = () => {
   const [featuredForms, setFeaturedForms] = useState<ProgramForm[]>([]);
   const [event, setEvent] = useState<ProgramEvent | null>(null);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const { configuration } = usePlatformConfiguration();
   useEffect(() => {
     void supabase.from("program_forms").select("*").eq("status", "published").eq("featured", true).order("updated_at", { ascending: false }).limit(6).then(({ data }) => setFeaturedForms((data ?? []) as ProgramForm[]));
     void supabase.from("program_events").select("*").eq("slug", "goals-masterclass-2026").maybeSingle().then(({ data }) => setEvent((data ?? null) as ProgramEvent | null));
@@ -165,7 +167,7 @@ const Home = () => {
             <div className="mx-auto mb-12 max-w-3xl text-center">
               <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-primary">Your investment</p>
               <h2 className="text-4xl font-bold md:text-5xl">What You'll <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Gain</span></h2>
-              <p className="mt-4 text-lg text-muted-foreground">This is more than three evenings of teaching. You leave with a clearer direction and practical tools to act on it.</p>
+              <p className="mt-4 text-lg text-muted-foreground">This is more than three evenings of teaching. You leave with a clearer direction and practical tools to act on it.</p><p className="mt-2 text-sm font-medium text-primary">The 3-month Accountability Lab is scheduled to begin {formatProgramDate(configuration.accountability_lab_start_date)}.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {eventBenefits(event.benefits).map((benefit) => (

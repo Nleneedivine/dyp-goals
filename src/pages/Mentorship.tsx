@@ -10,6 +10,7 @@ import { Users, Heart, TrendingUp, MessageSquare, Loader2, CheckCircle2 } from "
 import { supabase } from "@/integrations/supabase/client";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
+import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
 
 const Mentorship = () => {
   const [formData, setFormData] = useState({
@@ -25,6 +26,7 @@ const Mentorship = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isUi2 } = useUiMode();
+  const { configuration } = usePlatformConfiguration();
 
   useEffect(() => {
     checkExistingStatus();
@@ -176,14 +178,14 @@ const Mentorship = () => {
     <div className={`min-h-screen ${isUi2 ? "pt-28 pb-16" : "pt-20 pb-12"} font-poppins`}>
       <div className="container mx-auto px-4">
         {isUi2 ? (
-          <Ui2PageHeader eyebrow="Accountability network" title="Mentorship & Accountability" description="Connect with mentors and a small accountability group that helps you keep moving." icon={Users} />
+          <Ui2PageHeader eyebrow="Accountability network" title="Mentorship & Accountability" description={`Connect with mentors and a small accountability group that helps you keep moving. Accountability Lab begins ${formatProgramDate(configuration.accountability_lab_start_date)}.`} icon={Users} />
         ) : (
         <div className="text-center mb-12 animate-fade-in">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
             Mentorship & <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Accountability</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Connect with experienced mentors and join accountability groups to stay on track with your goals.
+            Connect with experienced mentors and join accountability groups to stay on track with your goals. The Accountability Lab begins {formatProgramDate(configuration.accountability_lab_start_date)}.
           </p>
         </div>
         )}

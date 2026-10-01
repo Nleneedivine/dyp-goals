@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw, Eye, Download, FileText } from "lucide-react";
+import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw, Eye, Download, FileText, SlidersHorizontal } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import {
@@ -716,6 +716,12 @@ const Admin = () => {
                   <Link to="/admin/forms">
                     <FileText className="mr-2 h-4 w-4" />
                     Forms & Applications
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/admin/settings">
+                    <SlidersHorizontal className="mr-2 h-4 w-4" />
+                    Program settings
                   </Link>
                 </Button>
                 <Button asChild>

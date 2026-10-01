@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette } from "lucide-react";
+import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette, SlidersHorizontal } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Ui2MobileBottomNav } from "@/components/Ui2MobileBottomNav";
 import { useUiMode } from "@/components/UiModeProvider";
@@ -24,7 +24,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isUi2, setMode } = useUiMode();
+  const { isUi2, clearPreview } = useUiMode();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -93,7 +93,7 @@ const Navbar = () => {
       setIsAdmin(false);
       setIsMentor(false);
       // UI 2.0 is an admin-only browser preview for now; do not leak it into the logged-out/public experience.
-      setMode("classic");
+      clearPreview();
       toast({
         title: "Logged out",
         description: "You've been successfully logged out.",
@@ -277,6 +277,12 @@ const Navbar = () => {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
+                          <Link to="/admin/settings" className="cursor-pointer flex items-center gap-2">
+                            <SlidersHorizontal className="h-4 w-4" />
+                            Program settings
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
                           <Link to="/admin/appearance" className="cursor-pointer flex items-center gap-2">
                             <Palette className="h-4 w-4" />
                             Interface preview
@@ -413,6 +419,15 @@ const Navbar = () => {
                       <Button variant="outline" className="w-full gap-2 mb-2">
                         <Settings className="h-4 w-4" />
                         Admin
+                      </Button>
+                    </Link>
+                    <Link
+                      to="/admin/settings"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Button variant="outline" className="w-full gap-2 mb-2">
+                        <SlidersHorizontal className="h-4 w-4" />
+                        Program settings
                       </Button>
                     </Link>
                     <Link
