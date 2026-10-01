@@ -699,84 +699,19 @@ const Admin = () => {
 
   const syncExistingGroupsToChat = async () => {
     setSyncingChats(true);
-    let synced = 0;
-    let skipped = 0;
-
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data, error } = await supabase.rpc("admin_sync_accountability_chats");
+      if (error) throw error;
 
-      for (const group of groups) {
-        // Check if chat group already exists
-        const { data: existingChatGroup } = await supabase
-          .from("chat_groups")
-          .select("id")
-          .eq("name", group.name)
-          .maybeSingle();
-
-        if (existingChatGroup) {
-          skipped++;
-          continue;
-        }
-
-        // Create chat group
-        const { data: chatGroupData, error: chatError } = await supabase
-          .from("chat_groups")
-          .insert({
-            name: group.name,
-            created_by: user.id,
-            description: `Chat for accountability group: ${group.name}`,
-            is_channel: false
-          })
-          .select()
-          .single();
-
-        if (chatError) throw chatError;
-
-        // Add creator as admin
-        await supabase
-          .from("chat_group_members")
-          .insert({
-            group_id: chatGroupData.id,
-            user_id: user.id,
-            role: 'admin'
-          });
-
-        // Add mentor as admin if exists
-        if (group.mentor_id && group.mentor_id !== user.id) {
-          await supabase
-            .from("chat_group_members")
-            .insert({
-              group_id: chatGroupData.id,
-              user_id: group.mentor_id,
-              role: 'admin'
-            });
-        }
-
-        // Add all members
-        if (group.members) {
-          for (const member of group.members) {
-            if (member.id !== user.id && member.id !== group.mentor_id) {
-              await supabase
-                .from("chat_group_members")
-                .insert({
-                  group_id: chatGroupData.id,
-                  user_id: member.id,
-                  role: 'member'
-                });
-            }
-          }
-        }
-
-        synced++;
-      }
+      const result = data as {
+        createdChats?: number;
+        membershipsSynced?: number;
+      } | null;
 
       toast({
         title: "Sync complete",
-        description: `Created ${synced} chat group(s). ${skipped} already existed.`,
+        description: `${result?.createdChats ?? 0} chat group(s) created · ${result?.membershipsSynced ?? 0} memberships synchronized.`,
       });
-
-      loadAdminData();
     } catch (error: any) {
       toast({
         title: "Error syncing groups",
