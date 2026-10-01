@@ -161,13 +161,23 @@ Deno.serve(async (req) => {
         .eq("id", submission.form_id)
         .single();
 
-      const { data: emailAnswer } = await admin
-        .from("program_form_answers")
-        .select("answer,program_form_fields!inner(field_type)")
-        .eq("submission_id", submission.id)
-        .eq("program_form_fields.field_type", "email")
+      const { data: emailField } = await admin
+        .from("program_form_fields")
+        .select("id")
+        .eq("form_id", submission.form_id)
+        .eq("field_type", "email")
+        .order("display_order")
         .limit(1)
         .maybeSingle();
+
+      const { data: emailAnswer } = emailField
+        ? await admin
+            .from("program_form_answers")
+            .select("answer")
+            .eq("submission_id", submission.id)
+            .eq("field_id", emailField.id)
+            .maybeSingle()
+        : { data: null };
 
       const email =
         typeof emailAnswer?.answer === "string"
