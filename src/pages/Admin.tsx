@@ -85,8 +85,6 @@ const Admin = () => {
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [groups, setGroups] = useState<AccountabilityGroup[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredUsers, setFilteredUsers] = useState<Profile[]>([]);
-  const [filteredGoals, setFilteredGoals] = useState<GoalAnalysis[]>([]);
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
@@ -160,14 +158,6 @@ const Admin = () => {
   useEffect(() => {
     loadAdminData();
   }, []);
-
-  useEffect(() => {
-    filterUsers();
-  }, [searchQuery, users]);
-
-  useEffect(() => {
-    filterGoals();
-  }, [searchQuery, goals]);
 
   const loadAdminData = async () => {
     try {
@@ -798,40 +788,31 @@ const Admin = () => {
     }
   };
 
-  const filterUsers = () => {
-    if (!searchQuery.trim()) {
-      setFilteredUsers(users);
-      return;
-    }
+  const normalizedSearch = searchQuery.trim().toLowerCase();
 
-    const query = searchQuery.toLowerCase();
-    const filtered = users.filter((user) => {
+  const filteredUsers = useMemo(() => {
+    if (!normalizedSearch) return users;
+    return users.filter((user) => {
       const name = `${user.first_name} ${user.last_name}`.toLowerCase();
-      const email = user.email.toLowerCase();
-      return name.includes(query) || email.includes(query);
+      return name.includes(normalizedSearch) || user.email.toLowerCase().includes(normalizedSearch);
     });
+  }, [normalizedSearch, users]);
 
-    setFilteredUsers(filtered);
-  };
-
-  const filterGoals = () => {
-    if (!searchQuery.trim()) {
-      setFilteredGoals(goals);
-      return;
-    }
-
-    const query = searchQuery.toLowerCase();
-    const filtered = goals.filter((goal) => {
+  const filteredGoals = useMemo(() => {
+    if (!normalizedSearch) return goals;
+    return goals.filter((goal) => {
       const originalGoals = goal.original_goals.toLowerCase();
       const refinedGoals = goal.refined_goals?.toLowerCase() || "";
-      const userName = goal.profiles 
+      const userName = goal.profiles
         ? `${goal.profiles.first_name} ${goal.profiles.last_name}`.toLowerCase()
         : "";
-      return originalGoals.includes(query) || refinedGoals.includes(query) || userName.includes(query);
+      return (
+        originalGoals.includes(normalizedSearch) ||
+        refinedGoals.includes(normalizedSearch) ||
+        userName.includes(normalizedSearch)
+      );
     });
-
-    setFilteredGoals(filtered);
-  };
+  }, [goals, normalizedSearch]);
 
   if (loading) {
     return (
