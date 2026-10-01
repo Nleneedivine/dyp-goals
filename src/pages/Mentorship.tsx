@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ const Mentorship = () => {
     experience: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [acceptedRules, setAcceptedRules] = useState(false);
   const [hasExistingRequest, setHasExistingRequest] = useState(false);
   const [groupInfo, setGroupInfo] = useState<{ name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +76,16 @@ const Mentorship = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!acceptedRules) {
+      toast({
+        title: "Accept the accountability rules",
+        description: "Please confirm the participation and privacy commitments before joining an accountability group.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -96,6 +108,8 @@ const Mentorship = () => {
           goals: formData.goals,
           areas: formData.areas,
           experience: formData.experience,
+          accountability_rules_accepted: true,
+          accountability_rules_accepted_at: new Date().toISOString(),
         });
 
       if (requestError) throw requestError;
@@ -130,6 +144,7 @@ const Mentorship = () => {
         areas: "",
         experience: "",
       });
+      setAcceptedRules(false);
     } catch (error: any) {
       console.error('Error submitting request:', error);
       toast({
@@ -281,7 +296,7 @@ const Mentorship = () => {
                       </li>
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Weekly check-ins will be scheduled
+                        Check-in cadence and meeting details will be communicated by the DYP team
                       </li>
                     </ul>
                   </div>
@@ -327,9 +342,22 @@ const Mentorship = () => {
                     />
                   </div>
 
+                  <div className="rounded-xl border bg-muted/15 p-4">
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <Checkbox
+                        checked={acceptedRules}
+                        disabled={isSubmitting}
+                        onCheckedChange={(checked) => setAcceptedRules(checked === true)}
+                      />
+                      <span className="text-sm leading-6 text-muted-foreground">
+                        I agree to participate in the Accountability Lab/group check-ins communicated by DYP, keep my goal progress reasonably current for accountability, respect other participants&apos; privacy, and follow the group conduct rules. I understand that continued group membership depends on following these commitments.
+                      </span>
+                    </label>
+                  </div>
+
                   <Button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !acceptedRules}
                     className="w-full bg-gradient-to-r from-secondary to-accent hover:opacity-90 font-semibold text-lg py-6"
                   >
                     {isSubmitting ? (
@@ -360,8 +388,8 @@ const Mentorship = () => {
                 },
                 {
                   step: "2",
-                  title: "Get Matched",
-                  description: "Our AI and team match you with the perfect mentor and group.",
+                  title: "Join a Group",
+                  description: "The system places you into an available accountability group, and the DYP team manages mentor assignment.",
                 },
                 {
                   step: "3",
