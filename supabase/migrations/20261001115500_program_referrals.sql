@@ -96,6 +96,14 @@ execute function public.initialize_program_referral_code();
 select public.ensure_program_referral_code(id, form_id)
 from public.program_form_submissions;
 
+revoke all on function public.ensure_program_referral_code(uuid, uuid) from public;
+revoke all on function public.ensure_program_referral_code(uuid, uuid) from anon;
+revoke all on function public.ensure_program_referral_code(uuid, uuid) from authenticated;
+revoke all on function public.initialize_program_referral_code() from public;
+revoke all on function public.initialize_program_referral_code() from anon;
+revoke all on function public.initialize_program_referral_code() from authenticated;
+grant execute on function public.ensure_program_referral_code(uuid, uuid) to service_role;
+
 create or replace function public.get_program_referral_code(
   p_session_token uuid
 )
