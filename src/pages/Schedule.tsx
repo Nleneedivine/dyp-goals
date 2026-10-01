@@ -17,6 +17,7 @@ import {
   formatNaira,
   type ProgramEvent,
 } from "@/lib/event";
+import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
 
 const dayThemes = [
   {
@@ -41,6 +42,7 @@ const dayThemes = [
 
 const Schedule = () => {
   const [event, setEvent] = useState<ProgramEvent | null>(null);
+  const { configuration } = usePlatformConfiguration();
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
     hours: 0,
@@ -226,7 +228,7 @@ const Schedule = () => {
         <div className="grid gap-5 lg:grid-cols-2">
           <Card>
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold">What you will gain</h2>
+              <h2 className="text-xl font-semibold">What you will gain</h2><p className="mt-2 text-sm font-medium text-primary">Accountability Lab starts {formatProgramDate(configuration.accountability_lab_start_date)}.</p>
               <div className="mt-4 space-y-3">
                 {eventBenefits(event.benefits).map((benefit) => (
                   <div key={benefit} className="flex gap-3">
