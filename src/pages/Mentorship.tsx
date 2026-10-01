@@ -151,14 +151,14 @@ const Mentorship = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen pt-20 pb-12 flex items-center justify-center">
+      <div className={`min-h-screen ${isUi2 ? "pt-28 pb-16" : "pt-20 pb-12"} flex items-center justify-center`}>
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pt-20 pb-12 font-poppins">
+    <div className={`min-h-screen ${isUi2 ? "pt-28 pb-16" : "pt-20 pb-12"} font-poppins`}>
       <div className="container mx-auto px-4">
         {isUi2 ? (
           <Ui2PageHeader eyebrow="Accountability network" title="Mentorship & Accountability" description="Connect with mentors and a small accountability group that helps you keep moving." icon={Users} />
