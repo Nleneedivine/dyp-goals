@@ -837,14 +837,14 @@ const Admin = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen pt-20 pb-12 flex items-center justify-center">
+      <div className={`min-h-screen ${isUi2 ? "pt-28 pb-16" : "pt-20 pb-12"} flex items-center justify-center`}>
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pt-20 pb-12 font-poppins">
+    <div className={`min-h-screen ${isUi2 ? "pt-28 pb-16" : "pt-20 pb-12"} font-poppins`}>
       <div className="container mx-auto px-4 max-w-7xl">
         {isUi2 ? (
           <Ui2PageHeader
@@ -936,7 +936,7 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-5 mb-8">
+          <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5 mb-8">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users ({filteredUsers.length})
