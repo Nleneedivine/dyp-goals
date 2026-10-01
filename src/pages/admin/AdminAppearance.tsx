@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Check, MonitorCog, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { useUiMode, type UiMode } from "@/components/UiModeProvider";
 
 const choices: Array<{
@@ -13,19 +17,47 @@ const choices: Array<{
   {
     value: "classic",
     title: "Current UI",
-    description: "The existing interface remains unchanged and is the safe fallback while UI 2.0 is being built.",
+    description: "Preview the existing interface in this browser without changing what participants see.",
     icon: MonitorCog,
   },
   {
     value: "ui2",
     title: "UI 2.0 Preview",
-    description: "Preview the new premium component system as it is progressively introduced across the application.",
+    description: "Preview the premium UI 2.0 experience locally before or after a global rollout.",
     icon: Sparkles,
   },
 ];
 
 export default function AdminAppearance() {
-  const { mode, setMode } = useUiMode();
+  const { mode, setMode, clearPreview, globalMode, refreshGlobalMode } = useUiMode();
+  const [savingGlobal, setSavingGlobal] = useState(false);
+  const { toast } = useToast();
+
+  const updateGlobalMode = async (enabled: boolean) => {
+    setSavingGlobal(true);
+    const { error } = await supabase
+      .from("platform_configuration")
+      .update({ ui2_default: enabled })
+      .eq("id", "global");
+    setSavingGlobal(false);
+
+    if (error) {
+      toast({
+        title: "Global interface setting could not be saved",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await refreshGlobalMode();
+    toast({
+      title: enabled ? "UI 2.0 enabled globally" : "Current UI restored globally",
+      description: enabled
+        ? "Participants will use UI 2.0 by default on their next app load."
+        : "Participants will use the Current UI by default on their next app load.",
+    });
+  };
 
   return (
     <main className="page-shell max-w-5xl">
@@ -34,11 +66,36 @@ export default function AdminAppearance() {
           <Link to="/admin">← Back to admin</Link>
         </Button>
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">Design system</p>
-        <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Interface preview</h1>
+        <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Interface rollout</h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">
-          Switch between the production interface and the new UI 2.0 design while the redesign is developed.
+          Preview either interface locally, then decide which interface participants should receive by default.
         </p>
       </div>
+
+      <Card className="mb-7 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Participant default
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">
+              {globalMode === "ui2" ? "UI 2.0 is ON for participants" : "Current UI is the participant default"}
+            </p>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              This is the platform-wide rollout switch. Changing it does not require publishing a new frontend build.
+            </p>
+          </div>
+          <Switch
+            checked={globalMode === "ui2"}
+            disabled={savingGlobal}
+            onCheckedChange={(checked) => void updateGlobalMode(checked)}
+            aria-label="Use UI 2.0 as the participant default"
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-5 md:grid-cols-2">
         {choices.map((choice) => {
@@ -79,18 +136,18 @@ export default function AdminAppearance() {
 
       <Card className="mt-7">
         <CardHeader>
-          <CardTitle className="text-lg">Preview status</CardTitle>
+          <CardTitle className="text-lg">Your browser preview</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
           <p>
-            Your current preview is <strong className="text-foreground">{mode === "ui2" ? "UI 2.0" : "Current UI"}</strong>.
+            Your current browser is showing <strong className="text-foreground">{mode === "ui2" ? "UI 2.0" : "Current UI"}</strong>.
           </p>
           <p>
-            During development this preference is stored only in this browser, so testing UI 2.0 cannot change the interface for participants.
+            Local preview is independent of the participant default, so admins can inspect either interface safely.
           </p>
-          <p>
-            Once UI 2.0 is complete, this control can be connected to a platform-wide rollout setting for staff, selected cohorts, or everyone.
-          </p>
+          <Button variant="outline" onClick={clearPreview}>
+            Follow participant default
+          </Button>
         </CardContent>
       </Card>
     </main>
