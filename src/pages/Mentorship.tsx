@@ -36,8 +36,8 @@ const Mentorship = () => {
         return;
       }
 
-      // Check for existing request (using any to bypass type check until types are regenerated)
-      const { data: request } = await (supabase as any)
+      // Check for an existing mentorship/accountability request
+      const { data: request } = await supabase
         .from('mentorship_requests')
         .select('*')
         .eq('user_id', user.id)
@@ -88,8 +88,8 @@ const Mentorship = () => {
         return;
       }
 
-      // Save mentorship request (using any to bypass type check until types are regenerated)
-      const { error: requestError } = await (supabase as any)
+      // Save mentorship/accountability request
+      const { error: requestError } = await supabase
         .from('mentorship_requests')
         .insert({
           user_id: user.id,
@@ -183,9 +183,9 @@ const Mentorship = () => {
                     <Users className="h-6 w-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2">1-on-1 Mentorship</h3>
+                    <h3 className="text-xl font-semibold mb-2">Mentor-supported accountability</h3>
                     <p className="text-muted-foreground">
-                      Get paired with an experienced mentor who has achieved goals similar to yours. Receive personalized guidance and support.
+                      Work within an accountability group that can be supported by an assigned mentor for guidance, check-ins and execution support.
                     </p>
                   </div>
                 </div>
@@ -231,9 +231,9 @@ const Mentorship = () => {
                     <MessageSquare className="h-6 w-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2">AI-Recommended Matches</h3>
+                    <h3 className="text-xl font-semibold mb-2">Structured Group Placement</h3>
                     <p className="text-muted-foreground">
-                      Our AI Coach analyzes your goals and recommends the best mentor and accountability group fit for your journey.
+                      GOALS places participants into available accountability groups with capacity, while admins can assign mentors and manage groups as the program grows.
                     </p>
                   </div>
                 </div>
