@@ -60,6 +60,7 @@ export default function PublicForm() {
     }
 
     const results = data ?? [];
+    setError("");
     setReferrerResults(results);
     if (incomingReferralCode && !selectedReferralCode) {
       const exact = results.find((item) => item.referral_code.toUpperCase() === incomingReferralCode);
@@ -73,7 +74,6 @@ export default function PublicForm() {
   useEffect(() => {
     if (!form || !incomingReferralCode) return;
     setReferrerQuery(incomingReferralCode);
-    setSelectedReferralCode(incomingReferralCode);
     void findReferrers(incomingReferralCode);
   }, [form, incomingReferralCode]);
 
