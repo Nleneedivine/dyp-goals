@@ -24,7 +24,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isUi2, setMode } = useUiMode();
+  const { isUi2, clearPreview } = useUiMode();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -93,7 +93,7 @@ const Navbar = () => {
       setIsAdmin(false);
       setIsMentor(false);
       // UI 2.0 is an admin-only browser preview for now; do not leak it into the logged-out/public experience.
-      setMode("classic");
+      clearPreview();
       toast({
         title: "Logged out",
         description: "You've been successfully logged out.",
