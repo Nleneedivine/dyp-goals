@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -58,7 +58,7 @@ interface GoalAnalysis {
   id: string;
   user_id: string | null;
   original_goals: string;
-  ai_analysis: any;
+  ai_analysis?: any;
   refined_goals: string | null;
   created_at: string;
   profiles?: Profile | null;
@@ -93,6 +93,7 @@ const Admin = () => {
   const [bulkAssigning, setBulkAssigning] = useState(false);
   const [syncingChats, setSyncingChats] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<GoalAnalysis | null>(null);
+  const [selectedGoalLoading, setSelectedGoalLoading] = useState(false);
   const [exportingGoalId, setExportingGoalId] = useState<string | null>(null);
   const { toast } = useToast();
   const { isUi2 } = useUiMode();
@@ -171,10 +172,19 @@ const Admin = () => {
   const loadAdminData = async () => {
     try {
       const [profilesResult, rolesResult, groupsResult, goalsResult] = await Promise.all([
-        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("user_roles").select("*"),
-        supabase.from("accountability_groups").select("*").order("created_at", { ascending: false }),
-        supabase.from("goal_analyses").select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("profiles")
+          .select("id,email,first_name,last_name,created_at,group_id")
+          .order("created_at", { ascending: false }),
+        supabase.from("user_roles").select("id,user_id,role"),
+        supabase
+          .from("accountability_groups")
+          .select("id,name,mentor_id,created_at")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("goal_analyses")
+          .select("id,user_id,original_goals,refined_goals,created_at")
+          .order("created_at", { ascending: false }),
       ]);
 
       if (profilesResult.error) throw profilesResult.error;
@@ -190,9 +200,17 @@ const Admin = () => {
       setUsers(profilesData);
       setUserRoles(rolesData);
 
+      const membersByGroup = new Map<string, Profile[]>();
+      profilesData.forEach((profile) => {
+        if (!profile.group_id) return;
+        const members = membersByGroup.get(profile.group_id) ?? [];
+        members.push(profile);
+        membersByGroup.set(profile.group_id, members);
+      });
+
       const groupsWithMembers = groupsData.map((group) => ({
         ...group,
-        members: profilesData.filter((profile) => profile.group_id === group.id),
+        members: membersByGroup.get(group.id) ?? [],
       }));
       setGroups(groupsWithMembers);
 
@@ -216,10 +234,48 @@ const Admin = () => {
     }
   };
 
-  const getUserRole = (userId: string): 'admin' | 'user' | 'mentor' | null => {
-    const role = userRoles.find((r) => r.user_id === userId);
-    return role?.role || null;
+  const roleByUserId = useMemo(
+    () => new Map(userRoles.map((role) => [role.user_id, role.role] as const)),
+    [userRoles],
+  );
+
+  const userById = useMemo(
+    () => new Map(users.map((user) => [user.id, user] as const)),
+    [users],
+  );
+
+  const legacyGoalCountByUserId = useMemo(() => {
+    const counts = new Map<string, number>();
+    goals.forEach((goal) => {
+      if (!goal.user_id) return;
+      counts.set(goal.user_id, (counts.get(goal.user_id) ?? 0) + 1);
+    });
+    return counts;
+  }, [goals]);
+
+  const openGoalDetails = async (goal: GoalAnalysis) => {
+    setSelectedGoalLoading(true);
+    const { data, error } = await supabase
+      .from("goal_analyses")
+      .select("ai_analysis")
+      .eq("id", goal.id)
+      .single();
+    setSelectedGoalLoading(false);
+
+    if (error) {
+      toast({
+        title: "Goal details could not load",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedGoal({ ...goal, ai_analysis: data.ai_analysis });
   };
+
+  const getUserRole = (userId: string): 'admin' | 'user' | 'mentor' | null =>
+    roleByUserId.get(userId) ?? null;
 
   const assignMentorRole = async (userId: string) => {
     try {
@@ -433,7 +489,7 @@ const Admin = () => {
 
   const getMentorName = (mentorId: string | null) => {
     if (!mentorId) return "Unassigned";
-    const mentor = users.find((u) => u.id === mentorId);
+    const mentor = userById.get(mentorId);
     return mentor ? `${mentor.first_name} ${mentor.last_name}` : "Unknown";
   };
 
@@ -1012,7 +1068,7 @@ const Admin = () => {
                     </TableHeader>
                     <TableBody>
                       {filteredUsers.map((user) => {
-                        const userGoalsCount = goals.filter(g => g.user_id === user.id).length;
+                        const userGoalsCount = legacyGoalCountByUserId.get(user.id) ?? 0;
                         const isSelected = selectedUsers.has(user.id);
                         return (
                           <TableRow key={user.id} className={isSelected ? "bg-muted/50" : ""}>
@@ -1109,7 +1165,8 @@ const Admin = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setSelectedGoal(goal)}
+                              onClick={() => void openGoalDetails(goal)}
+                              disabled={selectedGoalLoading}
                               title="View details"
                             >
                               <Eye className="h-4 w-4" />
