@@ -235,6 +235,9 @@
 
   .ui2 [data-ui="dialog-content"] {
     width: calc(100% - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-radius: var(--ui2-radius-2xl);
     border-color: hsl(var(--border) / 0.7);
     padding: 1.75rem;
