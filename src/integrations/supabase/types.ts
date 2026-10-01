@@ -216,6 +216,90 @@ export type Database = {
         }
         Relationships: []
       }
+      execution_notification_deliveries: {
+        Row: {
+          delivered_at: string
+          error_message: string
+          id: string
+          notification_type: string
+          reference_key: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          delivered_at?: string
+          error_message?: string
+          id?: string
+          notification_type: string
+          reference_key: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          delivered_at?: string
+          error_message?: string
+          id?: string
+          notification_type?: string
+          reference_key?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      execution_notification_settings: {
+        Row: {
+          created_at: string
+          deadline_alerts_enabled: boolean
+          deadline_days_before: number[]
+          deadline_time: string
+          email_enabled: boolean
+          evening_debrief_enabled: boolean
+          evening_time: string
+          morning_brief_enabled: boolean
+          morning_time: string
+          timezone: string
+          updated_at: string
+          user_id: string
+          weekly_review_day: number
+          weekly_review_enabled: boolean
+          weekly_review_time: string
+        }
+        Insert: {
+          created_at?: string
+          deadline_alerts_enabled?: boolean
+          deadline_days_before?: number[]
+          deadline_time?: string
+          email_enabled?: boolean
+          evening_debrief_enabled?: boolean
+          evening_time?: string
+          morning_brief_enabled?: boolean
+          morning_time?: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+          weekly_review_day?: number
+          weekly_review_enabled?: boolean
+          weekly_review_time?: string
+        }
+        Update: {
+          created_at?: string
+          deadline_alerts_enabled?: boolean
+          deadline_days_before?: number[]
+          deadline_time?: string
+          email_enabled?: boolean
+          evening_debrief_enabled?: boolean
+          evening_time?: string
+          morning_brief_enabled?: boolean
+          morning_time?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+          weekly_review_day?: number
+          weekly_review_enabled?: boolean
+          weekly_review_time?: string
+        }
+        Relationships: []
+      }
       goal_analyses: {
         Row: {
           ai_analysis: Json
@@ -302,6 +386,51 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      goal_dependencies: {
+        Row: {
+          created_at: string
+          dependent_goal_id: string
+          id: string
+          note: string
+          prerequisite_goal_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dependent_goal_id: string
+          id?: string
+          note?: string
+          prerequisite_goal_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dependent_goal_id?: string
+          id?: string
+          note?: string
+          prerequisite_goal_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_dependencies_dependent_goal_id_fkey"
+            columns: ["dependent_goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_dependencies_prerequisite_goal_id_fkey"
+            columns: ["prerequisite_goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       goal_effort_periods: {
         Row: {
@@ -1287,6 +1416,39 @@ export type Database = {
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
         Returns: Json
+      }
+      apply_goal_ai_refinement: {
+        Args: {
+          p_effort_periods?: Json
+          p_goal_id: string
+          p_goal_patch: Json
+          p_milestones?: Json
+          p_replace_effort_periods?: boolean
+        }
+        Returns: {
+          coaching_context: Json
+          created_at: string
+          description: string
+          effort_source: string
+          end_date: string | null
+          estimated_hours_per_week: number
+          id: string
+          life_area: string
+          priority: string
+          source_analysis_id: string | null
+          start_date: string | null
+          status: string
+          success_definition: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "goals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       apply_goal_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
