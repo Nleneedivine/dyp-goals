@@ -37,6 +37,14 @@ import { pdf } from "@react-pdf/renderer";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 
+const getOverallScore = (analysis: any): number => {
+  try {
+    return analysis?.overallScore || 0;
+  } catch {
+    return 0;
+  }
+};
+
 interface Profile {
   id: string;
   email: string;

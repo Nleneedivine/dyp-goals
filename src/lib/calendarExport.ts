@@ -11,7 +11,7 @@ const pad = (value: number) => String(value).padStart(2, "0");
 const formatLocalDateTime = (date: Date) =>
   `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
 
-const compactDate = (value: string) => value.replaceAll("-", "");
+const compactDate = (value: string) => value.replace(/-/g, "");
 
 const nextDateKey = (value: string) => {
   const date = new Date(`${value}T00:00:00`);
@@ -21,9 +21,9 @@ const nextDateKey = (value: string) => {
 
 const escapeIcsText = (value: string) =>
   value
-    .replaceAll("\\", "\\\\")
-    .replaceAll(";", "\\;")
-    .replaceAll(",", "\\,")
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
     .replace(/\r?\n/g, "\\n");
 
 const utcStamp = () => {
