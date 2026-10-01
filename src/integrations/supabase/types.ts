@@ -1457,6 +1457,10 @@ export type Database = {
           tasks_created: number
         }[]
       }
+      apply_split_replan: {
+        Args: { p_splits: Json; p_task_id: string }
+        Returns: Json
+      }
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
       consume_edge_rate_limit: {
         Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
@@ -1465,6 +1469,10 @@ export type Database = {
           remaining: number
           retry_after_seconds: number
         }[]
+      }
+      get_accountability_program_trends: {
+        Args: { p_week_start: string }
+        Returns: Json
       }
       get_next_group_name: { Args: never; Returns: string }
       get_user_chat_group_ids: { Args: { _user_id: string }; Returns: string[] }
