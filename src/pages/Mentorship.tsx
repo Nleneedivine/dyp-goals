@@ -136,7 +136,7 @@ const Mentorship = () => {
       setHasExistingRequest(true);
       toast({
         title: "Request Submitted!",
-        description: "You've been assigned to an accountability group. A mentor will be matched with you soon.",
+        description: "You've been assigned to an accountability group. The DYP team will assign a mentor when one is available.",
       });
 
       setFormData({
@@ -277,7 +277,7 @@ const Mentorship = () => {
                         <h4 className="font-semibold mb-2">Your Accountability Group</h4>
                         <p className="text-2xl font-bold text-primary">{groupInfo.name}</p>
                         <p className="text-sm text-muted-foreground mt-2">
-                          You'll be connected with your group members and mentor soon.
+                          Your group is active. The DYP team will assign or confirm a mentor when one is available.
                         </p>
                       </CardContent>
                     </Card>
