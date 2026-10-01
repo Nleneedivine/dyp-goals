@@ -551,78 +551,22 @@ const Admin = () => {
 
   const moveUserToGroup = async (userId: string, groupId: string | null) => {
     try {
-      // Get user's old group
-      const user = users.find(u => u.id === userId);
-      const oldGroupId = user?.group_id;
-
-      // Update profile
-      const { error } = await supabase
-        .from("profiles")
-        .update({ group_id: groupId })
-        .eq("id", userId);
+      const { data, error } = await supabase.rpc("admin_bulk_assign_users_to_group", {
+        p_user_ids: [userId],
+        p_group_id: groupId,
+      });
 
       if (error) throw error;
 
-      // Sync with chat groups - remove from old chat group
-      if (oldGroupId) {
-        const oldGroup = groups.find(g => g.id === oldGroupId);
-        if (oldGroup) {
-          // Find corresponding chat group by name
-          const { data: oldChatGroup } = await supabase
-            .from("chat_groups")
-            .select("id")
-            .eq("name", oldGroup.name)
-            .single();
-
-          if (oldChatGroup) {
-            await supabase
-              .from("chat_group_members")
-              .delete()
-              .eq("group_id", oldChatGroup.id)
-              .eq("user_id", userId);
-          }
-        }
-      }
-
-      // Add to new chat group
-      if (groupId) {
-        const newGroup = groups.find(g => g.id === groupId);
-        if (newGroup) {
-          // Find corresponding chat group by name
-          const { data: newChatGroup } = await supabase
-            .from("chat_groups")
-            .select("id")
-            .eq("name", newGroup.name)
-            .single();
-
-          if (newChatGroup) {
-            // Check if already a member
-            const { data: existingMember } = await supabase
-              .from("chat_group_members")
-              .select("id")
-              .eq("group_id", newChatGroup.id)
-              .eq("user_id", userId)
-              .single();
-
-            if (!existingMember) {
-              await supabase
-                .from("chat_group_members")
-                .insert({
-                  group_id: newChatGroup.id,
-                  user_id: userId,
-                  role: 'member'
-                });
-            }
-          }
-        }
-      }
-
+      const result = data as { chatSynced?: boolean } | null;
       toast({
         title: "User moved",
-        description: groupId ? "User has been moved to the new group and chat." : "User has been removed from group and chat.",
+        description: groupId
+          ? `User moved to the accountability group${result?.chatSynced === false ? ". The matching chat does not exist yet." : " and chat membership is synchronized."}`
+          : "User removed from the accountability group and matching chat.",
       });
 
-      loadAdminData();
+      await loadAdminData();
     } catch (error: any) {
       toast({
         title: "Error moving user",
