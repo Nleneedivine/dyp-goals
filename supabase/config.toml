@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.send-execution-notifications]
 verify_jwt = true
+
+[functions.program-payment]
+verify_jwt = false

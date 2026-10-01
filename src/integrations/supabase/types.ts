@@ -1076,6 +1076,99 @@ export type Database = {
         }
         Relationships: []
       }
+      program_payment_settings: {
+        Row: {
+          account_name: string
+          account_number: string
+          amount_minor: number
+          bank_name: string
+          currency: string
+          form_id: string
+          manual_enabled: boolean
+          manual_instructions: string
+          paystack_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+          whatsapp_group_url: string
+        }
+        Insert: {
+          account_name?: string
+          account_number?: string
+          amount_minor?: number
+          bank_name?: string
+          currency?: string
+          form_id: string
+          manual_enabled?: boolean
+          manual_instructions?: string
+          paystack_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp_group_url?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          amount_minor?: number
+          bank_name?: string
+          currency?: string
+          form_id?: string
+          manual_enabled?: boolean
+          manual_instructions?: string
+          paystack_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp_group_url?: string
+        }
+        Relationships: []
+      }
+      program_payments: {
+        Row: {
+          amount_minor: number
+          created_at: string
+          currency: string
+          form_id: string
+          manual_reference: string | null
+          method: string
+          paid_at: string | null
+          provider_reference: string | null
+          status: string
+          submission_id: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount_minor: number
+          created_at?: string
+          currency?: string
+          form_id: string
+          manual_reference?: string | null
+          method: string
+          paid_at?: string | null
+          provider_reference?: string | null
+          status?: string
+          submission_id: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount_minor?: number
+          created_at?: string
+          currency?: string
+          form_id?: string
+          manual_reference?: string | null
+          method?: string
+          paid_at?: string | null
+          provider_reference?: string | null
+          status?: string
+          submission_id?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       program_participant_status: {
         Row: {
           certificate_code: string | null
@@ -1124,6 +1217,39 @@ export type Database = {
           },
         ]
       }
+      program_referral_promoters: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          form_id: string
+          id: string
+          phone: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          form_id: string
+          id?: string
+          phone: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          form_id?: string
+          id?: string
+          phone?: string
+        }
+        Relationships: []
+      }
       program_referral_codes: {
         Row: {
           code: string
@@ -1164,23 +1290,26 @@ export type Database = {
         Row: {
           created_at: string
           form_id: string
+          promoter_id: string | null
           referral_code: string
           referred_submission_id: string
-          referrer_submission_id: string
+          referrer_submission_id: string | null
         }
         Insert: {
           created_at?: string
           form_id: string
+          promoter_id?: string | null
           referral_code: string
           referred_submission_id: string
-          referrer_submission_id: string
+          referrer_submission_id?: string | null
         }
         Update: {
           created_at?: string
           form_id?: string
+          promoter_id?: string | null
           referral_code?: string
           referred_submission_id?: string
-          referrer_submission_id?: string
+          referrer_submission_id?: string | null
         }
         Relationships: [
           {
@@ -1579,6 +1708,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_create_referral_promoter: {
+        Args: { p_display_name: string; p_form_id: string; p_phone: string }
+        Returns: Database["public"]["Tables"]["program_referral_promoters"]["Row"]
+      }
+      admin_set_program_payment_status: {
+        Args: { p_status: string; p_submission_id: string }
+        Returns: Database["public"]["Tables"]["program_payments"]["Row"]
+      }
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
         Returns: Json
@@ -1664,9 +1801,24 @@ export type Database = {
           visits: number
         }[]
       }
+      get_program_payment_state: {
+        Args: { p_session_token: string }
+        Returns: Json
+      }
       get_program_referral_code: {
         Args: { p_session_token: string }
         Returns: string
+      }
+      get_program_referral_leaderboard_v2: {
+        Args: { p_form_id: string }
+        Returns: {
+          completed_referrals: number
+          display_name: string
+          promoter_id: string | null
+          referral_code: string
+          referrer_submission_id: string | null
+          total_referrals: number
+        }[]
       }
       get_program_referral_leaderboard: {
         Args: { p_form_id: string }
@@ -1745,6 +1897,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      submit_manual_program_payment: {
+        Args: { p_manual_reference: string; p_session_token: string }
+        Returns: Json
       }
       users_share_group: {
         Args: { _profile_id: string; _viewer_id: string }

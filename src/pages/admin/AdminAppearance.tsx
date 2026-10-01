@@ -1,11 +1,7 @@
-import { useState } from "react";
 import { Check, MonitorCog, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useUiMode, type UiMode } from "@/components/UiModeProvider";
 
 const choices: Array<{
@@ -29,35 +25,7 @@ const choices: Array<{
 ];
 
 export default function AdminAppearance() {
-  const { mode, setMode, clearPreview, globalMode, refreshGlobalMode } = useUiMode();
-  const [savingGlobal, setSavingGlobal] = useState(false);
-  const { toast } = useToast();
-
-  const updateGlobalMode = async (enabled: boolean) => {
-    setSavingGlobal(true);
-    const { error } = await supabase
-      .from("platform_configuration")
-      .update({ ui2_default: enabled })
-      .eq("id", "global");
-    setSavingGlobal(false);
-
-    if (error) {
-      toast({
-        title: "Global interface setting could not be saved",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    await refreshGlobalMode();
-    toast({
-      title: enabled ? "UI 2.0 enabled globally" : "Current UI restored globally",
-      description: enabled
-        ? "Participants will use UI 2.0 by default on their next app load."
-        : "Participants will use the Current UI by default on their next app load.",
-    });
-  };
+  const { mode, setMode, clearPreview, globalMode } = useUiMode();
 
   return (
     <main className="page-shell max-w-5xl">
@@ -73,27 +41,8 @@ export default function AdminAppearance() {
       </div>
 
       <Card className="mb-7 border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Participant default
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-medium">
-              {globalMode === "ui2" ? "UI 2.0 is ON for participants" : "Current UI is the participant default"}
-            </p>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              This is the platform-wide rollout switch. Changing it does not require publishing a new frontend build.
-            </p>
-          </div>
-          <Switch
-            checked={globalMode === "ui2"}
-            disabled={savingGlobal}
-            onCheckedChange={(checked) => void updateGlobalMode(checked)}
-            aria-label="Use UI 2.0 as the participant default"
-          />
+        <CardContent className="p-5 text-sm text-muted-foreground">
+          Participant default: <strong className="text-foreground">{globalMode === "ui2" ? "UI 2.0" : "Current UI"}</strong>. Change the global switch directly on the main Admin Dashboard.
         </CardContent>
       </Card>
 
