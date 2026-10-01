@@ -1100,6 +1100,88 @@ export type Database = {
           },
         ]
       }
+      program_referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          form_id: string
+          submission_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          form_id: string
+          submission_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          form_id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_referral_codes_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_codes_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_submission_referrals: {
+        Row: {
+          created_at: string
+          form_id: string
+          referral_code: string
+          referred_submission_id: string
+          referrer_submission_id: string
+        }
+        Insert: {
+          created_at?: string
+          form_id: string
+          referral_code: string
+          referred_submission_id: string
+          referrer_submission_id: string
+        }
+        Update: {
+          created_at?: string
+          form_id?: string
+          referral_code?: string
+          referred_submission_id?: string
+          referrer_submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_submission_referrals_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_submission_referrals_referred_submission_id_fkey"
+            columns: ["referred_submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_submission_referrals_referrer_submission_id_fkey"
+            columns: ["referrer_submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_form_answers: {
         Row: {
           active_time_ms: number | null
@@ -1554,6 +1636,19 @@ export type Database = {
           visits: number
         }[]
       }
+      get_program_referral_code: {
+        Args: { p_session_token: string }
+        Returns: string
+      }
+      get_program_referral_leaderboard: {
+        Args: { p_form_id: string }
+        Returns: {
+          completed_referrals: number
+          referral_code: string
+          referrer_submission_id: string
+          total_referrals: number
+        }[]
+      }
       get_next_group_name: { Args: never; Returns: string }
       get_user_chat_group_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
@@ -1581,6 +1676,10 @@ export type Database = {
       }
       is_user_accountability_mentor: {
         Args: { p_member_id: string; p_mentor_id: string }
+        Returns: boolean
+      }
+      record_program_referral: {
+        Args: { p_referral_code: string; p_session_token: string }
         Returns: boolean
       }
       save_goal_weekly_review: {
