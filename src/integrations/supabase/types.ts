@@ -828,6 +828,8 @@ export type Database = {
       }
       mentorship_requests: {
         Row: {
+          accountability_rules_accepted: boolean
+          accountability_rules_accepted_at: string | null
           areas: string
           created_at: string
           experience: string | null
@@ -838,6 +840,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          accountability_rules_accepted?: boolean
+          accountability_rules_accepted_at?: string | null
           areas: string
           created_at?: string
           experience?: string | null
@@ -848,6 +852,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          accountability_rules_accepted?: boolean
+          accountability_rules_accepted_at?: string | null
           areas?: string
           created_at?: string
           experience?: string | null
