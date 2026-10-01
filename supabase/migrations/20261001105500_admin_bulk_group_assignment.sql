@@ -53,7 +53,8 @@ begin
     and p.group_id = ag.id
     and cg.name = ag.name
     and cgm.group_id = cg.id
-    and cgm.user_id = p.id;
+    and cgm.user_id = p.id
+    and p.group_id is distinct from p_group_id;
 
   update public.profiles
   set group_id = p_group_id
@@ -65,8 +66,16 @@ begin
   -- Existing chat roles are preserved by DO NOTHING.
   if p_group_id is not null and v_target_chat_group_id is not null then
     insert into public.chat_group_members (group_id, user_id, role)
-    select v_target_chat_group_id, user_id, 'member'
-    from unnest(p_user_ids) as user_id
+    select
+      v_target_chat_group_id,
+      selected.user_id,
+      case
+        when target_group.mentor_id = selected.user_id then 'admin'
+        else 'member'
+      end
+    from unnest(p_user_ids) as selected(user_id)
+    cross join public.accountability_groups target_group
+    where target_group.id = p_group_id
     on conflict (group_id, user_id) do nothing;
   end if;
 
