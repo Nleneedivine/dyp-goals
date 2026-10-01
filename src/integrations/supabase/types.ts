@@ -951,6 +951,30 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_configuration: {
+        Row: {
+          accountability_lab_start_date: string
+          id: string
+          ui2_default: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          accountability_lab_start_date?: string
+          id?: string
+          ui2_default?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          accountability_lab_start_date?: string
+          id?: string
+          ui2_default?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1685,6 +1709,13 @@ export type Database = {
       record_program_referral: {
         Args: { p_referral_code: string; p_session_token: string }
         Returns: boolean
+      }
+      search_program_referrers: {
+        Args: { p_form_id: string; p_query: string }
+        Returns: {
+          display_name: string
+          referral_code: string
+        }[]
       }
       save_goal_weekly_review: {
         Args: {
