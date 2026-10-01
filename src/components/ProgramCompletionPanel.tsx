@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Award, CheckCircle2, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { Award, CheckCircle2, Download, Loader2, RotateCcw, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { answerAsText, type ProgramField } from "@/lib/formTypes";
 import { supabase } from "@/integrations/supabase/client";
+import { ProgramCertificateDocument } from "@/components/ProgramCertificateDocument";
+import { pdf } from "@react-pdf/renderer";
 import type { Json, Tables } from "@/integrations/supabase/types";
 
 type ParticipantStatus = Tables<"program_participant_status">;
@@ -21,11 +23,13 @@ type AnswerRow = {
 
 export function ProgramCompletionPanel({
   formId,
+  formTitle,
   submissions,
   fields,
   answers,
 }: {
   formId: string;
+  formTitle: string;
   submissions: Submission[];
   fields: ProgramField[];
   answers: AnswerRow[];
@@ -33,6 +37,7 @@ export function ProgramCompletionPanel({
   const { toast } = useToast();
   const [statuses, setStatuses] = useState<ParticipantStatus[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const loadStatuses = async () => {
     const { data, error } = await supabase
@@ -91,6 +96,45 @@ export function ProgramCompletionPanel({
       )?.answer ?? "",
     );
   };
+  const downloadCertificate = async (
+    submission: Submission,
+    status: ParticipantStatus,
+  ) => {
+    if (!status.certificate_code || !status.certificate_issued_at) return;
+
+    const name =
+      answerFor(submission.id, nameField?.id) ||
+      answerFor(submission.id, emailField?.id) ||
+      `Participant ${submission.id.slice(0, 8)}`;
+
+    setDownloadingId(submission.id);
+    try {
+      const certificate = (
+        <ProgramCertificateDocument
+          participantName={name}
+          programTitle={formTitle}
+          certificateCode={status.certificate_code}
+          issuedAt={status.certificate_issued_at}
+        />
+      );
+      const blob = await pdf(certificate).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${formTitle.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}-${name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}-certificate.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Certificate could not be generated",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
 
   const updateStatus = async (
     submissionId: string,
@@ -173,6 +217,7 @@ export function ProgramCompletionPanel({
             const name = answerFor(submission.id, nameField?.id);
             const email = answerFor(submission.id, emailField?.id);
             const saving = savingId === submission.id;
+            const downloading = downloadingId === submission.id;
 
             return (
               <div
@@ -244,6 +289,22 @@ export function ProgramCompletionPanel({
                             >
                               <Award className="mr-2 h-4 w-4" />
                               Issue certificate
+                            </Button>
+                          )}
+                        {status?.certificate_issued_at &&
+                          status.certificate_code && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={downloading}
+                              onClick={() => void downloadCertificate(submission, status)}
+                            >
+                              {downloading ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="mr-2 h-4 w-4" />
+                              )}
+                              Download PDF
                             </Button>
                           )}
                         {completionStatus !== "ineligible" && (
