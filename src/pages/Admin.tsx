@@ -936,7 +936,7 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5 mb-8">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5 mb-8">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users ({filteredUsers.length})
