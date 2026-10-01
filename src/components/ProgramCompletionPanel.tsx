@@ -108,10 +108,10 @@ export function ProgramCompletionPanel({
     );
     setSavingId(null);
 
-    if (error) {
+    if (error || !data) {
       toast({
         title: "Participant status could not be updated",
-        description: error.message,
+        description: error?.message ?? "No participant status was returned.",
         variant: "destructive",
       });
       return;
