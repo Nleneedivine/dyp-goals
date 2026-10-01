@@ -12,6 +12,8 @@ export type ProgramEvent = {
   currency: string;
   original_price: number;
   discounted_price: number;
+  discount_deadline: string | null;
+  platform: string;
   registration_slug: string;
   benefits: Json;
   status: "draft" | "published" | "archived";
