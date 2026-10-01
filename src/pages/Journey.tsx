@@ -12,6 +12,7 @@ import {
   ListTodo,
   RefreshCw,
   Target,
+  Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ export default function Journey() {
   const [visionAvailable, setVisionAvailable] = useState(true);
   const [visionStatement, setVisionStatement] = useState("");
   const [lifeAreaFocusCount, setLifeAreaFocusCount] = useState(0);
+  const [accountabilityGroupId, setAccountabilityGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -76,6 +78,7 @@ export default function Journey() {
         reviewsResult,
         fixedResult,
         capacityResult,
+        profileResult,
       ] = await Promise.all([
         supabase
           .from("goals")
@@ -107,6 +110,11 @@ export default function Journey() {
           .select("default_hours_per_week")
           .eq("user_id", user.id)
           .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("group_id")
+          .eq("id", user.id)
+          .maybeSingle(),
       ]);
 
       const firstError =
@@ -115,7 +123,8 @@ export default function Journey() {
         tasksResult.error ||
         reviewsResult.error ||
         fixedResult.error ||
-        capacityResult.error;
+        capacityResult.error ||
+        profileResult.error;
 
       if (firstError) {
         toast({
@@ -138,6 +147,7 @@ export default function Journey() {
           ? Number(capacityResult.data.default_hours_per_week)
           : null,
       );
+      setAccountabilityGroupId(profileResult.data?.group_id ?? null);
 
       if (loadedGoals.length) {
         const goalIds = loadedGoals.map((goal) => goal.id);
@@ -312,6 +322,18 @@ export default function Journey() {
       href: "/plan",
       cta: firstExecutionBuilt ? "Open planner" : "Build first week",
       icon: ListTodo,
+    },
+    {
+      id: "accountability",
+      title: "Add accountability",
+      description: "Join an accountability group so execution is supported by people, not only by plans and reminders.",
+      complete: Boolean(accountabilityGroupId),
+      detail: accountabilityGroupId
+        ? "Accountability group assigned"
+        : "No accountability group assigned yet",
+      href: "/mentorship",
+      cta: accountabilityGroupId ? "Open accountability" : "Join accountability",
+      icon: Users,
     },
     {
       id: "review",
