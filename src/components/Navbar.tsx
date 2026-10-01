@@ -157,7 +157,7 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-5">
+          <div className="hidden xl:flex items-center gap-5">
             {isUi2 && user ? (
               <div className="flex items-center gap-1 rounded-2xl border border-border/70 bg-muted/25 p-1">
                 {toolsNavItems.map((item) => {
@@ -249,9 +249,9 @@ const Navbar = () => {
                 {/* User Account Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
+                    <Button variant="outline" size="sm" className="max-w-[15rem] gap-2">
                       <User className="h-4 w-4" />
-                      {user.email}
+                      <span className="truncate">{user.email}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-card border-border min-w-[200px]">
@@ -309,7 +309,7 @@ const Navbar = () => {
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-foreground"
+            className="xl:hidden text-foreground"
             aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
           >
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -318,7 +318,7 @@ const Navbar = () => {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className={"md:hidden py-4 animate-fade-in " + (isUi2 && user ? "pb-24" : "")}>
+          <div className={"xl:hidden max-h-[calc(100vh-5rem)] overflow-y-auto overscroll-contain py-4 animate-fade-in " + (isUi2 && user ? "pb-24" : "")}>
             {mainNavItems.map((item) => (
               <Link
                 key={item.path}
@@ -374,9 +374,9 @@ const Navbar = () => {
                     My Group
                   </Link>
                 )}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <User className="h-4 w-4" />
-                  <span>{user.email}</span>
+                <div className="flex min-w-0 items-center gap-2 py-2 text-sm text-muted-foreground">
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{user.email}</span>
                 </div>
                 <Link
                   to="/profile"
