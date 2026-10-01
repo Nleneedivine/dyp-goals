@@ -25,6 +25,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { AccountabilitySharingCard } from "@/components/AccountabilitySharingCard";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
 import { GoalCapacityChecker, type CapacityReviewWindow } from "@/components/GoalCapacityChecker";
+import { GoalDependenciesCard } from "@/components/GoalDependenciesCard";
 import { MilestoneEditDialog, type MilestoneEditValues } from "@/components/MilestoneEditDialog";
 import { PortfolioAIReviewDialog } from "@/components/PortfolioAIReviewDialog";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
