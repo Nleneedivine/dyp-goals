@@ -90,12 +90,17 @@ const Home = () => {
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wider text-primary">Next live experience</p>
                 <h2 className="mt-2 text-3xl font-bold">{formatEventDate(event.starts_at)} – {formatEventDate(event.ends_at)}</h2>
-                <p className="mt-2 text-muted-foreground">{formatEventTime(event.session_start_time)} – {formatEventTime(event.session_end_time)} WAT · Online</p>
+                <p className="mt-2 text-muted-foreground">{formatEventTime(event.session_start_time)} – {formatEventTime(event.session_end_time)} WAT · {event.platform}</p>
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <span className="text-muted-foreground line-through">{formatNaira(event.original_price)}</span>
                   <span className="text-3xl font-bold text-primary">{formatNaira(event.discounted_price)}</span>
                   <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">Discounted</span>
                 </div>
+                {event.discount_deadline && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Discount available through {formatEventDate(event.discount_deadline)}.
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-4 gap-2 text-center">
                 {[["Days",timeLeft.days],["Hours",timeLeft.hours],["Min",timeLeft.minutes],["Sec",timeLeft.seconds]].map(([label,value]) => (
