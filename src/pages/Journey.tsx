@@ -21,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { JourneyExecutionSnapshot } from "@/components/JourneyExecutionSnapshot";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
+import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -49,6 +50,7 @@ interface JourneyStep {
 export default function Journey() {
   const { toast } = useToast();
   const { isUi2 } = useUiMode();
+  const { configuration } = usePlatformConfiguration();
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -329,8 +331,8 @@ export default function Journey() {
       description: "Join an accountability group so execution is supported by people, not only by plans and reminders.",
       complete: Boolean(accountabilityGroupId),
       detail: accountabilityGroupId
-        ? "Accountability group assigned"
-        : "No accountability group assigned yet",
+        ? `Accountability group assigned · Lab starts ${formatProgramDate(configuration.accountability_lab_start_date)}`
+        : `No accountability group assigned yet · Lab starts ${formatProgramDate(configuration.accountability_lab_start_date)}`,
       href: "/mentorship",
       cta: accountabilityGroupId ? "Open accountability" : "Join accountability",
       icon: Users,
