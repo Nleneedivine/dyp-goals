@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, Loader2, Star } from "lucide-react";
+import { CheckCircle2, Copy, Loader2, Share2, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,14 @@ export default function PublicForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [ownReferralCode, setOwnReferralCode] = useState("");
   const [files, setFiles] = useState<Record<string, File>>({});
   const [timings, setTimings] = useState<Record<string, Timing>>({});
   const startedAt = useRef(Date.now());
   const focusedAt = useRef<Record<string, number>>({});
 
   const deviceType = useMemo(() => window.innerWidth < 640 ? "mobile" : window.innerWidth < 1024 ? "tablet" : "desktop", []);
+  const incomingReferralCode = useMemo(() => new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase() ?? "", []);
 
   useEffect(() => {
     const load = async () => {
@@ -71,8 +73,26 @@ export default function PublicForm() {
       submittedAnswers[fieldId] = upload.path;
     }
     const { data, error: invokeError } = await supabase.functions.invoke("program-form-public", { body: { action: "submit", formId: form.id, sessionToken, answers: submittedAnswers, timings } });
+    if (invokeError || data?.error) {
+      setSubmitting(false);
+      return setError(data?.error ?? invokeError?.message ?? "Your response could not be submitted.");
+    }
+
+    if (incomingReferralCode) {
+      const { error: referralError } = await supabase.rpc("record_program_referral", {
+        p_session_token: sessionToken,
+        p_referral_code: incomingReferralCode,
+      });
+      if (referralError) console.error("Referral attribution could not be recorded:", referralError);
+    }
+
+    const { data: referralCode, error: referralCodeError } = await supabase.rpc(
+      "get_program_referral_code",
+      { p_session_token: sessionToken },
+    );
+    if (!referralCodeError && referralCode) setOwnReferralCode(referralCode);
+
     setSubmitting(false);
-    if (invokeError || data?.error) return setError(data?.error ?? invokeError?.message ?? "Your response could not be submitted.");
     setSuccess(data.confirmationMessage ?? form.confirmation_message);
   };
 
@@ -91,5 +111,5 @@ export default function PublicForm() {
 
   if (loading) return <main className="min-h-screen brand-wash grid place-items-center"><Loader2 className="h-9 w-9 animate-spin text-primary-foreground" /></main>;
   if (!form) return <main className="min-h-screen brand-wash grid place-items-center p-4"><Card className="max-w-lg"><CardContent className="p-8 text-center"><h1 className="text-2xl font-bold">This form is not available</h1><p className="mt-3 text-muted-foreground">It may not be open yet, or submissions may have closed.</p></CardContent></Card></main>;
-  return <main className="min-h-screen bg-secondary/45 px-4 py-10 sm:py-16"><div className="mx-auto max-w-3xl"><BrandLogo brand={form.brand} className="mb-6" />{success ? <Card><CardContent className="p-10 text-center"><CheckCircle2 className="mx-auto mb-5 h-14 w-14 text-primary" /><h1 className="text-3xl font-bold">Response received</h1><p className="mt-4 text-muted-foreground">{success}</p></CardContent></Card> : <form onSubmit={submit}><header className="brand-wash rounded-t-lg px-5 py-8 text-primary-foreground sm:px-9"><h1 className="text-3xl font-bold sm:text-4xl">{form.title}</h1><p className="mt-3 max-w-2xl text-primary-foreground/85">{form.description}</p></header><Card className="rounded-t-none border-t-0"><CardContent className="space-y-7 p-5 sm:p-9">{fields.map((field) => field.field_type === "section" ? <section key={field.id} className="border-b pb-3 pt-3"><h2 className="text-xl font-semibold text-primary">{field.label}</h2>{field.helper_text && <p className="mt-1 text-sm text-muted-foreground">{field.helper_text}</p>}</section> : <div key={field.id} className="space-y-2"><Label htmlFor={field.id} className="text-base">{field.label}{field.required && <span className="ml-1 text-destructive">*</span>}</Label>{field.helper_text && <p id={`${field.id}-help`} className="text-sm text-muted-foreground">{field.helper_text}</p>}{renderField(field)}</div>)}{error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}<Button type="submit" size="lg" className="min-h-12 w-full sm:w-auto" disabled={submitting}>{submitting ? "Submitting…" : "Submit application"}</Button></CardContent></Card></form>}</div></main>;
+  return <main className="min-h-screen bg-secondary/45 px-4 py-10 sm:py-16"><div className="mx-auto max-w-3xl"><BrandLogo brand={form.brand} className="mb-6" />{success ? <Card><CardContent className="p-8 text-center sm:p-10"><CheckCircle2 className="mx-auto mb-5 h-14 w-14 text-primary" /><h1 className="text-3xl font-bold">Response received</h1><p className="mt-4 text-muted-foreground">{success}</p>{ownReferralCode && <div className="mx-auto mt-7 max-w-xl rounded-2xl border bg-muted/20 p-5"><div className="flex items-center justify-center gap-2 text-primary"><Share2 className="h-5 w-5" /><p className="font-semibold">Your referral code</p></div><p className="mt-3 font-mono text-2xl font-bold tracking-wider">{ownReferralCode}</p><p className="mt-2 text-sm text-muted-foreground">Share this code or your referral link. A referral counts toward the campaign leaderboard only after that participant completes the program and receives a certificate.</p><Button type="button" variant="outline" className="mt-4 gap-2" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/apply/${form.slug}?ref=${encodeURIComponent(ownReferralCode)}`)}><Copy className="h-4 w-4" />Copy referral link</Button></div>}</CardContent></Card> : <form onSubmit={submit}><header className="brand-wash rounded-t-lg px-5 py-8 text-primary-foreground sm:px-9"><h1 className="text-3xl font-bold sm:text-4xl">{form.title}</h1><p className="mt-3 max-w-2xl text-primary-foreground/85">{form.description}</p></header><Card className="rounded-t-none border-t-0"><CardContent className="space-y-7 p-5 sm:p-9">{fields.map((field) => field.field_type === "section" ? <section key={field.id} className="border-b pb-3 pt-3"><h2 className="text-xl font-semibold text-primary">{field.label}</h2>{field.helper_text && <p className="mt-1 text-sm text-muted-foreground">{field.helper_text}</p>}</section> : <div key={field.id} className="space-y-2"><Label htmlFor={field.id} className="text-base">{field.label}{field.required && <span className="ml-1 text-destructive">*</span>}</Label>{field.helper_text && <p id={`${field.id}-help`} className="text-sm text-muted-foreground">{field.helper_text}</p>}{renderField(field)}</div>)}{error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}<Button type="submit" size="lg" className="min-h-12 w-full sm:w-auto" disabled={submitting}>{submitting ? "Submitting…" : "Submit application"}</Button></CardContent></Card></form>}</div></main>;
 }
