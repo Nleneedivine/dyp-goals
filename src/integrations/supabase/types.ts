@@ -1413,6 +1413,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_bulk_assign_accountability_group: {
+        Args: { p_group_id: string | null; p_user_ids: string[] }
+        Returns: number
+      }
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
         Returns: Json
