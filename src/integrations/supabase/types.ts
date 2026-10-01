@@ -1599,6 +1599,10 @@ export type Database = {
           tasks_created: number
         }[]
       }
+      admin_sync_accountability_chats: {
+        Args: never
+        Returns: Json
+      }
       admin_bulk_assign_users_to_group: {
         Args: { p_group_id: string | null; p_user_ids: string[] }
         Returns: Json
