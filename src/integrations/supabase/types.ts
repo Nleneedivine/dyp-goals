@@ -1052,6 +1052,54 @@ export type Database = {
         }
         Relationships: []
       }
+      program_participant_status: {
+        Row: {
+          certificate_code: string | null
+          certificate_eligible: boolean
+          certificate_issued_at: string | null
+          completion_status: string
+          form_id: string
+          submission_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          certificate_code?: string | null
+          certificate_eligible?: boolean
+          certificate_issued_at?: string | null
+          completion_status?: string
+          form_id: string
+          submission_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          certificate_code?: string | null
+          certificate_eligible?: boolean
+          certificate_issued_at?: string | null
+          completion_status?: string
+          form_id?: string
+          submission_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_participant_status_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_participant_status_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_form_answers: {
         Row: {
           active_time_ms: number | null
@@ -1472,6 +1520,14 @@ export type Database = {
       admin_bulk_assign_users_to_group: {
         Args: { p_group_id: string | null; p_user_ids: string[] }
         Returns: Json
+      }
+      admin_set_program_participant_status: {
+        Args: {
+          p_completion_status: string
+          p_issue_certificate?: boolean
+          p_submission_id: string
+        }
+        Returns: Database["public"]["Tables"]["program_participant_status"]["Row"]
       }
       apply_split_replan: {
         Args: { p_splits: Json; p_task_id: string }
