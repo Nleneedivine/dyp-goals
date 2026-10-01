@@ -1474,6 +1474,14 @@ export type Database = {
         Args: { p_week_start: string }
         Returns: Json
       }
+      get_program_form_performance: {
+        Args: { p_form_ids: string[] }
+        Returns: {
+          form_id: string
+          submissions: number
+          visits: number
+        }[]
+      }
       get_next_group_name: { Args: never; Returns: string }
       get_user_chat_group_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {

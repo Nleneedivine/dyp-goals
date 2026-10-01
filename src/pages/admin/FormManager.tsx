@@ -40,15 +40,24 @@ export default function FormManager() {
       return;
     }
 
-    const [{ data: sessions }, { data: submissions }] = await Promise.all([
-      supabase.from("program_form_sessions").select("form_id").in("form_id", formIds),
-      supabase.from("program_form_submissions").select("form_id").in("form_id", formIds),
-    ]);
+    const { data: metrics, error: metricsError } = await supabase.rpc(
+      "get_program_form_performance",
+      { p_form_ids: formIds },
+    );
+
+    if (metricsError) {
+      console.error("Form performance metrics could not load:", metricsError);
+      return;
+    }
 
     const totals: Record<string, { visits: number; submissions: number }> = {};
     formIds.forEach((id) => { totals[id] = { visits: 0, submissions: 0 }; });
-    sessions?.forEach((row) => { if (totals[row.form_id]) totals[row.form_id].visits += 1; });
-    submissions?.forEach((row) => { if (totals[row.form_id]) totals[row.form_id].submissions += 1; });
+    metrics?.forEach((row) => {
+      totals[row.form_id] = {
+        visits: Number(row.visits),
+        submissions: Number(row.submissions),
+      };
+    });
     setPerformance(totals);
   };
   useEffect(() => { void load(); }, []);

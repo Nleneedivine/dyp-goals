@@ -48,16 +48,55 @@ export default function FormBuilder() {
     if (error) return toast({ title: "Field could not be added", description: error.message, variant: "destructive" });
     setFields((current) => [...current, data as ProgramField]);
   };
-  const removeField = async (id: string) => { await supabase.from("program_form_fields").delete().eq("id", id); setFields((current) => current.filter((field) => field.id !== id)); };
+  const removeField = async (id: string) => {
+    const { error } = await supabase.from("program_form_fields").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Field could not be deleted", description: error.message, variant: "destructive" });
+      return;
+    }
+    setFields((current) => current.filter((field) => field.id !== id));
+  };
 
   const save = async (status?: ProgramForm["status"]) => {
     if (!form || !formId) return;
     setSaving(true);
     const nextForm = { ...form, status: status ?? form.status, slug: makeSlug(form.slug || form.title) };
     const { error } = await supabase.from("program_forms").update({ title: nextForm.title, description: nextForm.description, slug: nextForm.slug, brand: nextForm.brand, status: nextForm.status, featured: nextForm.featured, opens_at: nextForm.opens_at || null, closes_at: nextForm.closes_at || null, submission_deadline: nextForm.submission_deadline || null, response_limit: nextForm.response_limit || null, confirmation_message: nextForm.confirmation_message, confirmation_email_enabled: nextForm.confirmation_email_enabled, dropoff_warning_threshold: nextForm.dropoff_warning_threshold, low_fill_threshold: nextForm.low_fill_threshold }).eq("id", formId);
-    if (!error) for (let index = 0; index < fields.length; index += 1) { const field = fields[index]; await supabase.from("program_form_fields").update({ label: field.label, helper_text: field.helper_text, placeholder: field.placeholder, required: field.required, display_order: index, options: field.options, validation_rules: field.validation_rules, conditional_logic: field.conditional_logic }).eq("id", field.id); }
+
+    let fieldError: { message: string } | null = null;
+    if (!error && fields.length) {
+      const results = await Promise.all(
+        fields.map((field, index) =>
+          supabase
+            .from("program_form_fields")
+            .update({
+              label: field.label,
+              helper_text: field.helper_text,
+              placeholder: field.placeholder,
+              required: field.required,
+              display_order: index,
+              options: field.options,
+              validation_rules: field.validation_rules,
+              conditional_logic: field.conditional_logic,
+            })
+            .eq("id", field.id),
+        ),
+      );
+      fieldError = results.find((result) => result.error)?.error ?? null;
+    }
+
     setSaving(false);
-    if (error) toast({ title: "Form could not be saved", description: error.message, variant: "destructive" }); else { setForm(nextForm); toast({ title: status === "published" ? "Form published" : "Changes saved", description: status === "published" ? "The public link is ready to share." : undefined }); }
+    const saveError = error ?? fieldError;
+    if (saveError) {
+      toast({ title: "Form could not be saved completely", description: saveError.message, variant: "destructive" });
+      return;
+    }
+
+    setForm(nextForm);
+    toast({
+      title: status === "published" ? "Form published" : "Changes saved",
+      description: status === "published" ? "The public link is ready to share." : undefined,
+    });
   };
 
   const draftWithAi = async () => {
