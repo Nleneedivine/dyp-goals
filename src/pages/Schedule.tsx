@@ -129,7 +129,7 @@ const Schedule = () => {
               {formatEventTime(event.session_start_time)} – {formatEventTime(event.session_end_time)} WAT
             </span>
             <span className="rounded-full border bg-card px-4 py-2 text-sm font-medium">
-              Virtual
+              {event.platform}
             </span>
           </div>
 
@@ -141,6 +141,11 @@ const Schedule = () => {
               {formatNaira(event.discounted_price)}
             </span>
           </div>
+          {event.discount_deadline && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Discount available through {formatEventDate(event.discount_deadline)}.
+            </p>
+          )}
         </div>
 
         <Card className="mx-auto mt-10 max-w-4xl border-primary/20 bg-primary/5">
@@ -237,12 +242,13 @@ const Schedule = () => {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 text-primary">
                 <Video className="h-5 w-5" />
-                <p className="text-sm font-semibold uppercase tracking-wide">Virtual event</p>
+                <p className="text-sm font-semibold uppercase tracking-wide">{event.platform}</p>
               </div>
               <h2 className="mt-3 text-2xl font-bold">Ready to join?</h2>
               <p className="mt-3 text-muted-foreground">
                 Registration is open at the current discounted price of {formatNaira(event.discounted_price)}.
                 The original listed price is {formatNaira(event.original_price)}.
+                {event.discount_deadline ? ` The discount is available through ${formatEventDate(event.discount_deadline)}.` : ""}
               </p>
               <Button asChild className="mt-6 w-full gap-2">
                 <Link to={registrationPath}>
