@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AlertTriangle, ArrowRight, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -271,10 +272,20 @@ export function WeeklyExecutionReview({
                   Saving refreshes the execution snapshot from your tasks and preserves your reflection for future adaptive replanning.
                 </p>
               </div>
-              <Button onClick={saveReview} disabled={saving} className="shrink-0 gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                {saving ? "Saving..." : review ? "Update review" : "Save review"}
-              </Button>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {review && (
+                  <Button asChild variant="outline" className="gap-2">
+                    <Link to="/progress">
+                      Review progress
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                )}
+                <Button onClick={saveReview} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {saving ? "Saving..." : review ? "Update review" : "Save review"}
+                </Button>
+              </div>
             </div>
           </>
         )}
