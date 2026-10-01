@@ -989,9 +989,11 @@ export type Database = {
           created_at: string
           currency: string
           discounted_price: number
+          discount_deadline: string | null
           ends_at: string
           id: string
           original_price: number
+          platform: string
           registration_slug: string
           session_end_time: string
           session_start_time: string
@@ -1007,9 +1009,11 @@ export type Database = {
           created_at?: string
           currency?: string
           discounted_price: number
+          discount_deadline?: string | null
           ends_at: string
           id?: string
           original_price: number
+          platform?: string
           registration_slug?: string
           session_end_time?: string
           session_start_time?: string
@@ -1025,9 +1029,11 @@ export type Database = {
           created_at?: string
           currency?: string
           discounted_price?: number
+          discount_deadline?: string | null
           ends_at?: string
           id?: string
           original_price?: number
+          platform?: string
           registration_slug?: string
           session_end_time?: string
           session_start_time?: string
