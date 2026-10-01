@@ -681,79 +681,21 @@ const Admin = () => {
     setBulkAssigning(true);
     try {
       const userIds = Array.from(selectedUsers);
-      
-      for (const userId of userIds) {
-        // Get user's old group
-        const user = users.find(u => u.id === userId);
-        const oldGroupId = user?.group_id;
+      const { data, error } = await supabase.rpc("admin_bulk_assign_users_to_group", {
+        p_user_ids: userIds,
+        p_group_id: groupId,
+      });
 
-        // Update profile
-        const { error } = await supabase
-          .from("profiles")
-          .update({ group_id: groupId })
-          .eq("id", userId);
+      if (error) throw error;
 
-        if (error) throw error;
-
-        // Sync with chat groups - remove from old chat group
-        if (oldGroupId) {
-          const oldGroup = groups.find(g => g.id === oldGroupId);
-          if (oldGroup) {
-            const { data: oldChatGroup } = await supabase
-              .from("chat_groups")
-              .select("id")
-              .eq("name", oldGroup.name)
-              .single();
-
-            if (oldChatGroup) {
-              await supabase
-                .from("chat_group_members")
-                .delete()
-                .eq("group_id", oldChatGroup.id)
-                .eq("user_id", userId);
-            }
-          }
-        }
-
-        // Add to new chat group
-        if (groupId) {
-          const newGroup = groups.find(g => g.id === groupId);
-          if (newGroup) {
-            const { data: newChatGroup } = await supabase
-              .from("chat_groups")
-              .select("id")
-              .eq("name", newGroup.name)
-              .single();
-
-            if (newChatGroup) {
-              const { data: existingMember } = await supabase
-                .from("chat_group_members")
-                .select("id")
-                .eq("group_id", newChatGroup.id)
-                .eq("user_id", userId)
-                .single();
-
-              if (!existingMember) {
-                await supabase
-                  .from("chat_group_members")
-                  .insert({
-                    group_id: newChatGroup.id,
-                    user_id: userId,
-                    role: 'member'
-                  });
-              }
-            }
-          }
-        }
-      }
-
+      const result = data as { updatedCount?: number; chatSynced?: boolean } | null;
       toast({
         title: "Users assigned",
-        description: `${userIds.length} user(s) have been ${groupId ? "assigned to the group and chat" : "removed from groups and chats"}.`,
+        description: `${result?.updatedCount ?? userIds.length} user(s) have been ${groupId ? "assigned to the accountability group" : "removed from accountability groups"}${groupId && result?.chatSynced === false ? ". The target chat does not exist yet." : " and chat membership is synchronized."}`,
       });
 
       setSelectedUsers(new Set());
-      loadAdminData();
+      await loadAdminData();
     } catch (error: any) {
       toast({
         title: "Error assigning users",
