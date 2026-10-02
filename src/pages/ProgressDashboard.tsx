@@ -20,6 +20,7 @@ import { ExecutionAdaptationPanel } from "@/components/ExecutionAdaptationPanel"
 import { ExecutionTrendCard } from "@/components/ExecutionTrendCard";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
+import { getCurrentGoalEnrollment, weeklyReviewBelongsToGoalIds } from "@/lib/cohortScope";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -48,6 +49,7 @@ export default function ProgressDashboard() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<GoalTask[]>([]);
   const [reviews, setReviews] = useState<WeeklyReview[]>([]);
+  const [activeCohortName, setActiveCohortName] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -58,13 +60,21 @@ export default function ProgressDashboard() {
         return;
       }
 
+      const currentEnrollment = await getCurrentGoalEnrollment(user.id);
+      setActiveCohortName(currentEnrollment?.cohortName ?? null);
+
+      let goalsQuery = supabase
+        .from("goals")
+        .select("*")
+        .eq("user_id", user.id)
+        .neq("status", "archived");
+
+      if (currentEnrollment) {
+        goalsQuery = goalsQuery.eq("enrollment_id", currentEnrollment.id);
+      }
+
       const [goalsResult, tasksResult, reviewsResult] = await Promise.all([
-        supabase
-          .from("goals")
-          .select("*")
-          .eq("user_id", user.id)
-          .neq("status", "archived")
-          .order("created_at", { ascending: true }),
+        goalsQuery.order("created_at", { ascending: true }),
         supabase
           .from("goal_tasks")
           .select("*")
@@ -90,9 +100,20 @@ export default function ProgressDashboard() {
       }
 
       const loadedGoals = goalsResult.data ?? [];
+      const scopedGoalIds = new Set(loadedGoals.map((goal) => goal.id));
       setGoals(loadedGoals);
-      setTasks(tasksResult.data ?? []);
-      setReviews(reviewsResult.data ?? []);
+      setTasks(
+        currentEnrollment
+          ? (tasksResult.data ?? []).filter((task) => scopedGoalIds.has(task.goal_id))
+          : (tasksResult.data ?? []),
+      );
+      setReviews(
+        currentEnrollment
+          ? (reviewsResult.data ?? []).filter((review) =>
+              weeklyReviewBelongsToGoalIds(review.per_goal_summary, scopedGoalIds),
+            )
+          : (reviewsResult.data ?? []),
+      );
 
       if (loadedGoals.length) {
         const milestoneResult = await supabase
