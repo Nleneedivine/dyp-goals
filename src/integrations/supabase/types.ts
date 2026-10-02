@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       accountability_groups: {
         Row: {
+          cohort_id: string
           created_at: string
           id: string
           mentor_id: string | null
@@ -23,6 +24,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cohort_id: string
           created_at?: string
           id?: string
           mentor_id?: string | null
@@ -30,6 +32,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cohort_id?: string
           created_at?: string
           id?: string
           mentor_id?: string | null
@@ -107,6 +110,7 @@ export type Database = {
       }
       chat_groups: {
         Row: {
+          accountability_group_id: string | null
           avatar_url: string | null
           created_at: string
           created_by: string
@@ -117,6 +121,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accountability_group_id?: string | null
           avatar_url?: string | null
           created_at?: string
           created_by: string
@@ -127,6 +132,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accountability_group_id?: string | null
           avatar_url?: string | null
           created_at?: string
           created_by?: string
@@ -136,7 +142,15 @@ export type Database = {
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_groups_accountability_group_id_fkey"
+            columns: ["accountability_group_id"]
+            isOneToOne: true
+            referencedRelation: "accountability_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_messages: {
         Row: {
@@ -894,6 +908,7 @@ export type Database = {
           accountability_rules_accepted_at: string | null
           areas: string
           created_at: string
+          enrollment_id: string | null
           experience: string | null
           goals: string
           id: string
@@ -906,6 +921,7 @@ export type Database = {
           accountability_rules_accepted_at?: string | null
           areas: string
           created_at?: string
+          enrollment_id?: string | null
           experience?: string | null
           goals: string
           id?: string
@@ -918,6 +934,7 @@ export type Database = {
           accountability_rules_accepted_at?: string | null
           areas?: string
           created_at?: string
+          enrollment_id?: string | null
           experience?: string | null
           goals?: string
           id?: string
@@ -925,7 +942,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "mentorship_requests_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       message_reactions: {
         Row: {
@@ -1373,6 +1398,54 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: true
             referencedRelation: "program_form_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_accountability_memberships: {
+        Row: {
+          created_at: string
+          enrollment_id: string
+          group_id: string
+          id: string
+          joined_at: string
+          left_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enrollment_id: string
+          group_id: string
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enrollment_id?: string
+          group_id?: string
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_accountability_memberships_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: true
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_accountability_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -1974,6 +2047,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_bulk_assign_enrollments_to_group: {
+        Args: { p_enrollment_ids: string[]; p_group_id: string | null }
+        Returns: Json
+      }
       admin_bulk_assign_users_to_group: {
         Args: { p_group_id: string; p_user_ids: string[] }
         Returns: Json
@@ -2093,6 +2170,10 @@ export type Database = {
         Args: { p_splits: Json; p_task_id: string }
         Returns: Json
       }
+      assign_current_user_to_accountability_group: {
+        Args: never
+        Returns: string
+      }
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
       consume_edge_rate_limit: {
         Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
@@ -2113,6 +2194,10 @@ export type Database = {
       get_accountability_program_trends: {
         Args: { p_week_start: string }
         Returns: Json
+      }
+      get_next_group_name_for_cohort: {
+        Args: { p_cohort_id: string }
+        Returns: string
       }
       get_next_group_name: { Args: never; Returns: string }
       get_program_form_performance: {
