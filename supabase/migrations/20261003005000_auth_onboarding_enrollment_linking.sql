@@ -64,17 +64,6 @@ begin
       else public.profiles.email
     end;
 
-  -- A registration may exist before the participant creates an auth account.
-  -- Link only still-unclaimed enrollments with the same verified auth email.
-  if new.email is not null and new.email <> '' then
-    update public.program_enrollments
-    set
-      user_id = new.id,
-      updated_at = now()
-    where user_id is null
-      and lower(email) = lower(new.email);
-  end if;
-
   return new;
 end;
 $function$;
@@ -88,6 +77,7 @@ as $function$
 declare
   v_user_id uuid := auth.uid();
   v_email text;
+  v_email_confirmed_at timestamptz;
   v_metadata jsonb;
   v_first_name text;
   v_last_name text;
@@ -100,15 +90,21 @@ begin
 
   select
     u.email,
+    u.email_confirmed_at,
     u.raw_user_meta_data
   into
     v_email,
+    v_email_confirmed_at,
     v_metadata
   from auth.users u
   where u.id = v_user_id;
 
   if v_email is null or trim(v_email) = '' then
     raise exception 'Authenticated account has no email address';
+  end if;
+
+  if v_email_confirmed_at is null then
+    raise exception 'Verify your email address before linking your GOALS enrollment';
   end if;
 
   v_full_name := coalesce(
@@ -178,4 +174,4 @@ revoke all on function public.link_current_user_enrollments() from anon;
 grant execute on function public.link_current_user_enrollments() to authenticated, service_role;
 
 comment on function public.link_current_user_enrollments() is
-  'Links unclaimed program enrollments to the currently authenticated user when the verified auth email matches.';
+  'Links unclaimed program enrollments to the currently authenticated user only after the auth email is confirmed and matches.';
