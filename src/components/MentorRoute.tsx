@@ -1,5 +1,5 @@
 import { useEffect, useState, ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
@@ -8,6 +8,7 @@ interface MentorRouteProps {
 }
 
 const MentorRoute = ({ children }: MentorRouteProps) => {
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [isMentor, setIsMentor] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -51,7 +52,8 @@ const MentorRoute = ({ children }: MentorRouteProps) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />;
+    const next = `${location.pathname}${location.search}`;
+    return <Navigate to={`/auth?next=${encodeURIComponent(next)}`} replace />;
   }
 
   if (!isMentor) {
