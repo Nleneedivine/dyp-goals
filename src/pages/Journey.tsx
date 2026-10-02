@@ -95,7 +95,7 @@ export default function Journey() {
         reviewsResult,
         fixedResult,
         capacityResult,
-        profileResult,
+        membershipResult,
       ] = await Promise.all([
         goalsQuery.order("created_at", { ascending: true }),
         supabase
@@ -122,11 +122,14 @@ export default function Journey() {
           .select("default_hours_per_week")
           .eq("user_id", user.id)
           .maybeSingle(),
-        supabase
-          .from("profiles")
-          .select("group_id")
-          .eq("id", user.id)
-          .maybeSingle(),
+        currentEnrollment
+          ? supabase
+              .from("program_accountability_memberships")
+              .select("group_id")
+              .eq("enrollment_id", currentEnrollment.id)
+              .eq("status", "active")
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
       ]);
 
       const firstError =
@@ -136,7 +139,7 @@ export default function Journey() {
         reviewsResult.error ||
         fixedResult.error ||
         capacityResult.error ||
-        profileResult.error;
+        membershipResult.error;
 
       if (firstError) {
         toast({
@@ -174,7 +177,7 @@ export default function Journey() {
           ? Number(capacityResult.data.default_hours_per_week)
           : null,
       );
-      setAccountabilityGroupId(profileResult.data?.group_id ?? null);
+      setAccountabilityGroupId(membershipResult.data?.group_id ?? null);
 
       if (loadedGoals.length) {
         const goalIds = loadedGoals.map((goal) => goal.id);
