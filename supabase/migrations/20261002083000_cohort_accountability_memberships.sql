@@ -504,14 +504,6 @@ begin
 
   get diagnostics v_updated_count = row_count;
 
-  update public.program_accountability_memberships
-  set status = 'active',
-      left_at = null,
-      updated_at = now()
-  where enrollment_id = any(p_enrollment_ids)
-    and group_id = p_group_id
-    and status <> 'active';
-
   v_chat_id := public.ensure_accountability_chat(p_group_id);
 
   insert into public.chat_group_members (group_id, user_id, role)
