@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Medal, RefreshCw, Trophy, Users } from "lucide-react";
+import { Copy, Medal, Plus, RefreshCw, Trophy, UserPlus, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { answerAsText, type ProgramField } from "@/lib/formTypes";
@@ -18,10 +19,20 @@ type AnswerRow = {
   answer: Json;
 };
 type LeaderboardRow = {
-  referrer_submission_id: string;
+  referrer_submission_id: string | null;
+  promoter_id: string | null;
   referral_code: string;
+  display_name: string;
   total_referrals: number;
   completed_referrals: number;
+};
+
+type Promoter = {
+  id: string;
+  display_name: string;
+  phone: string;
+  code: string;
+  active: boolean;
 };
 
 export function ProgramReferralPanel({
@@ -37,14 +48,22 @@ export function ProgramReferralPanel({
 }) {
   const { toast } = useToast();
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
+  const [promoters, setPromoters] = useState<Promoter[]>([]);
+  const [promoterName, setPromoterName] = useState("");
+  const [promoterPhone, setPromoterPhone] = useState("");
+  const [creatingPromoter, setCreatingPromoter] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc(
-      "get_program_referral_leaderboard",
-      { p_form_id: formId },
-    );
+    const [{ data, error }, { data: promoterRows }] = await Promise.all([
+      supabase.rpc("get_program_referral_leaderboard_v2", { p_form_id: formId }),
+      supabase
+        .from("program_referral_promoters")
+        .select("id,display_name,phone,code,active")
+        .eq("form_id", formId)
+        .order("created_at", { ascending: false }),
+    ]);
     setLoading(false);
 
     if (error) {
@@ -61,6 +80,7 @@ export function ProgramReferralPanel({
       total_referrals: Number(row.total_referrals),
       completed_referrals: Number(row.completed_referrals),
     })));
+    setPromoters(promoterRows ?? []);
   };
 
   useEffect(() => {
@@ -104,8 +124,95 @@ export function ProgramReferralPanel({
     0,
   );
 
+  const createPromoter = async () => {
+    if (!promoterName.trim() || !promoterPhone.trim()) {
+      toast({
+        title: "Name and phone are required",
+        description: "They are used to generate the DYPGL-FL**** referral code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingPromoter(true);
+    const { data, error } = await supabase.rpc("admin_create_referral_promoter", {
+      p_form_id: formId,
+      p_display_name: promoterName.trim(),
+      p_phone: promoterPhone.trim(),
+    });
+    setCreatingPromoter(false);
+
+    if (error || !data) {
+      toast({
+        title: "Promoter code could not be created",
+        description: error?.message ?? "No promoter record returned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPromoterName("");
+    setPromoterPhone("");
+    toast({
+      title: "Referral code created",
+      description: `${data.display_name}: ${data.code}`,
+    });
+    await load();
+  };
+
   return (
     <div className="space-y-5">
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-primary" />
+            Promoter referral codes
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Create a referral code for someone before they register. The code follows DYPGL-FL**** using their first name and phone number.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <Input
+              value={promoterName}
+              onChange={(event) => setPromoterName(event.target.value)}
+              placeholder="Promoter full name"
+            />
+            <Input
+              value={promoterPhone}
+              onChange={(event) => setPromoterPhone(event.target.value)}
+              placeholder="Phone / WhatsApp number"
+            />
+            <Button onClick={() => void createPromoter()} disabled={creatingPromoter}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create code
+            </Button>
+          </div>
+
+          {promoters.length > 0 && (
+            <div className="space-y-2">
+              {promoters.map((promoter) => (
+                <div key={promoter.id} className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">{promoter.display_name}</p>
+                    <p className="font-mono text-sm text-primary">{promoter.code}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void navigator.clipboard.writeText(promoter.code)}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy code
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-3 sm:grid-cols-3">
         <Card>
           <CardContent className="p-5">
@@ -141,8 +248,8 @@ export function ProgramReferralPanel({
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
             {prizeLeaders.map((row, index) => {
-              const name = answerFor(row.referrer_submission_id, nameField?.id);
-              const email = answerFor(row.referrer_submission_id, emailField?.id);
+              const name = row.display_name || (row.referrer_submission_id ? answerFor(row.referrer_submission_id, nameField?.id) : "");
+              const email = row.referrer_submission_id ? answerFor(row.referrer_submission_id, emailField?.id) : "";
               return (
                 <div key={row.referral_code} className="rounded-xl border bg-background p-4">
                   <div className="flex items-center justify-between gap-3">
@@ -153,7 +260,7 @@ export function ProgramReferralPanel({
                     <span className="font-mono text-xs text-muted-foreground">{row.referral_code}</span>
                   </div>
                   <p className="mt-3 font-semibold">
-                    {name || email || `Submission ${row.referrer_submission_id.slice(0, 8)}`}
+                    {name || email || row.referral_code}
                   </p>
                   {name && email && <p className="mt-1 text-xs text-muted-foreground">{email}</p>}
                   <p className="mt-3 text-2xl font-bold text-primary">{row.completed_referrals}</p>
@@ -193,8 +300,8 @@ export function ProgramReferralPanel({
           ) : (
             <div className="space-y-2">
               {rows.map((row, index) => {
-                const name = answerFor(row.referrer_submission_id, nameField?.id);
-                const email = answerFor(row.referrer_submission_id, emailField?.id);
+                const name = row.display_name || (row.referrer_submission_id ? answerFor(row.referrer_submission_id, nameField?.id) : "");
+                const email = row.referrer_submission_id ? answerFor(row.referrer_submission_id, emailField?.id) : "";
                 return (
                   <div
                     key={row.referral_code}
@@ -204,7 +311,7 @@ export function ProgramReferralPanel({
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold">#{index + 1}</span>
                         <span className="font-medium">
-                          {name || email || `Submission ${row.referrer_submission_id.slice(0, 8)}`}
+                          {name || email || row.referral_code}
                         </span>
                         {row.completed_referrals >= 10 && (
                           <Badge variant="secondary">Prize threshold reached</Badge>
