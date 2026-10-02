@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw, Eye, Download, FileText, SlidersHorizontal } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import {
   Table,
@@ -95,8 +94,7 @@ const Admin = () => {
   const [selectedGoalLoading, setSelectedGoalLoading] = useState(false);
   const [exportingGoalId, setExportingGoalId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { isUi2, globalMode, refreshGlobalMode } = useUiMode();
-  const [savingUiDefault, setSavingUiDefault] = useState(false);
+  const { isUi2 } = useUiMode();
 
   interface RefinedGoal {
     title: string;
@@ -756,48 +754,6 @@ const Admin = () => {
             </div>
           </div>
         )}
-
-        <Card className="mb-8 border-primary/20">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-semibold">Participant interface</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {globalMode === "ui2"
-                  ? "UI 2.0 is currently the default for participants."
-                  : "Current UI is currently the default for participants."}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">UI 2.0</span>
-              <Switch
-                checked={globalMode === "ui2"}
-                disabled={savingUiDefault}
-                onCheckedChange={async (checked) => {
-                  setSavingUiDefault(true);
-                  const { error } = await supabase
-                    .from("platform_configuration")
-                    .update({ ui2_default: checked })
-                    .eq("id", "global");
-                  setSavingUiDefault(false);
-                  if (error) {
-                    toast({
-                      title: "Interface setting could not be saved",
-                      description: error.message,
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  await refreshGlobalMode();
-                  toast({
-                    title: checked ? "UI 2.0 switched on" : "Current UI restored",
-                    description: "The participant default has been updated.",
-                  });
-                }}
-                aria-label="Use UI 2.0 as participant default"
-              />
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
