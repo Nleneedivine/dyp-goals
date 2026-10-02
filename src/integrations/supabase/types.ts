@@ -2191,6 +2191,10 @@ export type Database = {
         Args: { p_submission_id: string }
         Returns: string | null
       }
+      link_current_user_enrollments: {
+        Args: never
+        Returns: Json
+      }
       get_accountability_program_trends: {
         Args: { p_week_start: string }
         Returns: Json
