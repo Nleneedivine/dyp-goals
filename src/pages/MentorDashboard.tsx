@@ -4,6 +4,7 @@ import { endOfWeek, format, startOfWeek } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
@@ -20,6 +21,7 @@ import {
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { supabase } from "@/integrations/supabase/client";
+import { weeklyReviewBelongsToGoalIds } from "@/lib/cohortScope";
 
 interface GroupMember {
   id: string;
@@ -38,6 +40,7 @@ interface MemberGoals {
 interface MentorshipRequest {
   id: string;
   user_id: string;
+  enrollment_id: string | null;
   goals: string;
   areas: string;
   experience: string;
@@ -47,6 +50,7 @@ interface MentorshipRequest {
 interface SharedPortfolioGoal {
   id: string;
   user_id: string;
+  enrollment_id: string | null;
   title: string;
   life_area: string;
   priority: string;
@@ -77,6 +81,7 @@ interface SharedGoalTask {
 interface SharedWeeklyReview {
   id: string;
   user_id: string;
+  per_goal_summary: unknown;
   week_start: string;
   planned_tasks: number;
   completed_tasks: number;
@@ -98,6 +103,8 @@ const MentorDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isMentor, setIsMentor] = useState(false);
   const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | null>(null);
+  const [mentorGroups, setMentorGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [activeCohortName, setActiveCohortName] = useState<string | null>(null);
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [memberGoals, setMemberGoals] = useState<MemberGoals[]>([]);
   const [mentorshipRequests, setMentorshipRequests] = useState<MentorshipRequest[]>([]);
@@ -118,14 +125,13 @@ const MentorDashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        navigate('/auth');
+        navigate("/auth");
         return;
       }
 
-      // Check if user is a mentor
-      const { data: hasMentorRole } = await supabase.rpc('has_role', {
+      const { data: hasMentorRole } = await supabase.rpc("has_role", {
         _user_id: user.id,
-        _role: 'mentor'
+        _role: "mentor",
       });
 
       if (!hasMentorRole) {
@@ -134,35 +140,59 @@ const MentorDashboard = () => {
           description: "This page is only accessible to mentors.",
           variant: "destructive",
         });
-        navigate('/');
+        navigate("/");
         return;
       }
 
       setIsMentor(true);
 
-      // Get mentor's group
-      const { data: group } = await supabase
-        .from('accountability_groups')
-        .select('id, name')
-        .eq('mentor_id', user.id)
+      const { data: currentCohort, error: cohortError } = await supabase
+        .from("program_cohorts")
+        .select("id,name")
+        .eq("program_key", "goals")
+        .eq("is_current", true)
         .maybeSingle();
 
-      if (group) {
-        setGroupInfo(group);
-        await loadGroupData(group.id);
+      if (cohortError) throw cohortError;
+
+      if (!currentCohort) {
+        setMentorGroups([]);
+        setGroupInfo(null);
+        setActiveCohortName(null);
+        return;
       }
 
-      // Load mentorship requests (mentors can view all) - using any to bypass type check
-      const { data: requests } = await (supabase as any)
-        .from('mentorship_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
+      setActiveCohortName(currentCohort.name);
 
-      if (requests) {
-        setMentorshipRequests(requests as MentorshipRequest[]);
+      const { data: groups, error: groupsError } = await supabase
+        .from("accountability_groups")
+        .select("id,name")
+        .eq("cohort_id", currentCohort.id)
+        .eq("mentor_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (groupsError) throw groupsError;
+
+      const currentGroups = groups ?? [];
+      setMentorGroups(currentGroups);
+
+      if (currentGroups.length > 0) {
+        const firstGroup = currentGroups[0];
+        setGroupInfo(firstGroup);
+        await loadGroupData(firstGroup.id);
+      } else {
+        setGroupInfo(null);
+        setGroupMembers([]);
+        setMemberGoals([]);
+        setMentorshipRequests([]);
+        setSharedPortfolioGoals([]);
+        setSharedGoalTasks([]);
+        setSharedMilestones([]);
+        setSharedWeeklyReviews([]);
+        setSharingPreferences([]);
       }
     } catch (error) {
-      console.error('Error checking mentor status:', error);
+      console.error("Error checking mentor status:", error);
     } finally {
       setIsLoading(false);
     }
@@ -170,98 +200,159 @@ const MentorDashboard = () => {
 
   const loadGroupData = async (groupId: string) => {
     try {
-      // Get group members
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email')
-        .eq('group_id', groupId);
+      const { data: memberships, error: membershipError } = await supabase
+        .from("program_accountability_memberships")
+        .select("enrollment_id")
+        .eq("group_id", groupId)
+        .eq("status", "active");
 
-      if (profiles) {
-        setGroupMembers(profiles);
+      if (membershipError) throw membershipError;
 
-        const memberIds = profiles.map(p => p.id);
-        if (!memberIds.length) {
-          setMemberGoals([]);
-          setSharedPortfolioGoals([]);
-          setSharedGoalTasks([]);
-          setSharedMilestones([]);
-          setSharedWeeklyReviews([]);
-          setSharingPreferences([]);
-          return;
-        }
-
-        const [
-          legacyGoalsResult,
-          portfolioGoalsResult,
-          tasksResult,
-          reviewsResult,
-          sharingResult,
-        ] = await Promise.all([
-          supabase
-            .from('goal_analyses')
-            .select('user_id, original_goals, refined_goals, created_at')
-            .in('user_id', memberIds)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('goals')
-            .select('id, user_id, title, life_area, priority, status, start_date, end_date, estimated_hours_per_week')
-            .in('user_id', memberIds)
-            .neq('status', 'archived')
-            .order('updated_at', { ascending: false }),
-          supabase
-            .from('goal_tasks')
-            .select('id, user_id, goal_id, title, scheduled_date, estimated_minutes, status')
-            .in('user_id', memberIds)
-            .order('scheduled_date', { ascending: false, nullsFirst: false })
-            .limit(300),
-          supabase
-            .from('goal_weekly_reviews')
-            .select('id, user_id, week_start, planned_tasks, completed_tasks, planned_minutes, completed_minutes, wins, blockers, adjustments')
-            .in('user_id', memberIds)
-            .order('week_start', { ascending: false })
-            .limit(40),
-          supabase
-            .from('accountability_sharing_preferences')
-            .select('user_id, share_goals, share_tasks, share_weekly_reviews')
-            .in('user_id', memberIds),
-        ]);
-
-        if (legacyGoalsResult.data) setMemberGoals(legacyGoalsResult.data);
-        const portfolioGoals = (portfolioGoalsResult.data ?? []) as SharedPortfolioGoal[];
-        setSharedPortfolioGoals(portfolioGoals);
-        if (tasksResult.data) setSharedGoalTasks(tasksResult.data as SharedGoalTask[]);
-        if (reviewsResult.data) setSharedWeeklyReviews(reviewsResult.data as SharedWeeklyReview[]);
-        if (sharingResult.data) setSharingPreferences(sharingResult.data as SharingPreference[]);
-
-        if (portfolioGoals.length) {
-          const { data: milestoneData, error: milestoneError } = await supabase
-            .from('goal_milestones')
-            .select('id, goal_id, title, due_date, status')
-            .in('goal_id', portfolioGoals.map((goal) => goal.id))
-            .order('due_date', { ascending: true, nullsFirst: false });
-
-          if (milestoneError) {
-            console.error('Error loading shared milestones:', milestoneError);
-          } else {
-            setSharedMilestones((milestoneData ?? []) as SharedMilestone[]);
-          }
-        } else {
-          setSharedMilestones([]);
-        }
-
-        const sharingError =
-          portfolioGoalsResult.error ||
-          tasksResult.error ||
-          reviewsResult.error ||
-          sharingResult.error;
-
-        if (sharingError) {
-          console.error('Error loading shared execution data:', sharingError);
-        }
+      const enrollmentIds = (memberships ?? []).map((membership) => membership.enrollment_id);
+      if (!enrollmentIds.length) {
+        setGroupMembers([]);
+        setMemberGoals([]);
+        setMentorshipRequests([]);
+        setSharedPortfolioGoals([]);
+        setSharedGoalTasks([]);
+        setSharedMilestones([]);
+        setSharedWeeklyReviews([]);
+        setSharingPreferences([]);
+        return;
       }
+
+      const { data: enrollmentRows, error: enrollmentError } = await supabase
+        .from("program_enrollments")
+        .select("id,user_id")
+        .in("id", enrollmentIds);
+
+      if (enrollmentError) throw enrollmentError;
+
+      const linkedEnrollments = (enrollmentRows ?? []).filter(
+        (enrollment): enrollment is { id: string; user_id: string } => Boolean(enrollment.user_id),
+      );
+      const memberIds = linkedEnrollments.map((enrollment) => enrollment.user_id);
+
+      if (!memberIds.length) {
+        setGroupMembers([]);
+        setMemberGoals([]);
+        setMentorshipRequests([]);
+        setSharedPortfolioGoals([]);
+        setSharedGoalTasks([]);
+        setSharedMilestones([]);
+        setSharedWeeklyReviews([]);
+        setSharingPreferences([]);
+        return;
+      }
+
+      const [
+        profilesResult,
+        legacyGoalsResult,
+        portfolioGoalsResult,
+        sharingResult,
+        requestsResult,
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id,first_name,last_name,email")
+          .in("id", memberIds),
+        supabase
+          .from("goal_analyses")
+          .select("user_id,enrollment_id,original_goals,refined_goals,created_at")
+          .in("enrollment_id", enrollmentIds)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("goals")
+          .select("id,user_id,enrollment_id,title,life_area,priority,status,start_date,end_date,estimated_hours_per_week")
+          .in("enrollment_id", enrollmentIds)
+          .neq("status", "archived")
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("accountability_sharing_preferences")
+          .select("user_id,share_goals,share_tasks,share_weekly_reviews")
+          .in("user_id", memberIds),
+        supabase
+          .from("mentorship_requests")
+          .select("id,user_id,enrollment_id,goals,areas,experience,status,created_at")
+          .in("enrollment_id", enrollmentIds)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const loadError =
+        profilesResult.error ||
+        legacyGoalsResult.error ||
+        portfolioGoalsResult.error ||
+        sharingResult.error ||
+        requestsResult.error;
+
+      if (loadError) throw loadError;
+
+      setGroupMembers((profilesResult.data ?? []) as GroupMember[]);
+      setMemberGoals((legacyGoalsResult.data ?? []) as MemberGoals[]);
+      setSharingPreferences((sharingResult.data ?? []) as SharingPreference[]);
+      setMentorshipRequests((requestsResult.data ?? []) as MentorshipRequest[]);
+
+      const portfolioGoals = (portfolioGoalsResult.data ?? []) as SharedPortfolioGoal[];
+      setSharedPortfolioGoals(portfolioGoals);
+
+      const goalIds = portfolioGoals.map((goal) => goal.id);
+      const goalIdSet = new Set(goalIds);
+
+      if (!goalIds.length) {
+        setSharedGoalTasks([]);
+        setSharedMilestones([]);
+        setSharedWeeklyReviews([]);
+        return;
+      }
+
+      const [tasksResult, milestonesResult, reviewsResult] = await Promise.all([
+        supabase
+          .from("goal_tasks")
+          .select("id,user_id,goal_id,title,scheduled_date,estimated_minutes,status")
+          .in("goal_id", goalIds)
+          .order("scheduled_date", { ascending: false, nullsFirst: false })
+          .limit(300),
+        supabase
+          .from("goal_milestones")
+          .select("id,goal_id,title,due_date,status")
+          .in("goal_id", goalIds)
+          .order("due_date", { ascending: true, nullsFirst: false }),
+        supabase
+          .from("goal_weekly_reviews")
+          .select("id,user_id,week_start,planned_tasks,completed_tasks,planned_minutes,completed_minutes,wins,blockers,adjustments,per_goal_summary")
+          .in("user_id", memberIds)
+          .order("week_start", { ascending: false })
+          .limit(80),
+      ]);
+
+      const executionError = tasksResult.error || milestonesResult.error || reviewsResult.error;
+      if (executionError) throw executionError;
+
+      setSharedGoalTasks((tasksResult.data ?? []) as SharedGoalTask[]);
+      setSharedMilestones((milestonesResult.data ?? []) as SharedMilestone[]);
+      setSharedWeeklyReviews(
+        (reviewsResult.data ?? []).filter((review) =>
+          weeklyReviewBelongsToGoalIds(review.per_goal_summary, goalIdSet),
+        ) as SharedWeeklyReview[],
+      );
     } catch (error) {
-      console.error('Error loading group data:', error);
+      console.error("Error loading cohort group data:", error);
     }
+  };
+
+  const switchMentorGroup = async (groupId: string) => {
+    const nextGroup = mentorGroups.find((group) => group.id === groupId);
+    if (!nextGroup) return;
+
+    setGroupInfo(nextGroup);
+    setGroupMembers([]);
+    setMemberGoals([]);
+    setMentorshipRequests([]);
+    setSharedPortfolioGoals([]);
+    setSharedGoalTasks([]);
+    setSharedMilestones([]);
+    setSharedWeeklyReviews([]);
+    await loadGroupData(groupId);
   };
 
   const getMemberGoals = (userId: string) => {
@@ -328,7 +419,7 @@ const MentorDashboard = () => {
         {isUi2 ? (
           <div className="mx-auto max-w-6xl">
             <Ui2PageHeader
-              eyebrow="Accountability mentor"
+              eyebrow={activeCohortName ? `${activeCohortName} · Accountability mentor` : "Accountability mentor"}
               title="Mentor Dashboard"
               description="Review only the goal and execution context each member explicitly chose to share, then support the next accountability conversation."
               icon={Users}
@@ -340,7 +431,7 @@ const MentorDashboard = () => {
                       Mentor <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                      Review only the goal and execution context each member explicitly chose to share, then support their next accountability conversation.
+                      {activeCohortName ? `${activeCohortName}: ` : ""}Review only the goal and execution context each member explicitly chose to share, then support their next accountability conversation.
                     </p>
                   </div>
         )}
@@ -408,19 +499,49 @@ const MentorDashboard = () => {
         {groupInfo && (
           <Card className="bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 border-0 mb-8 max-w-6xl mx-auto">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">{groupInfo.name}</h2>
-                  <p className="text-muted-foreground">Your accountability group</p>
+                  <p className="text-muted-foreground">
+                    {activeCohortName ? `${activeCohortName} accountability group` : "Your accountability group"}
+                  </p>
                 </div>
-                <Badge variant="secondary" className="text-lg px-4 py-2">
-                  {groupMembers.length}/5 Members
-                </Badge>
+                <div className="flex flex-wrap items-center gap-3">
+                  {mentorGroups.length > 1 && (
+                    <Select value={groupInfo.id} onValueChange={(value) => void switchMentorGroup(value)}>
+                      <SelectTrigger className="w-[190px] bg-background">
+                        <SelectValue placeholder="Choose group" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mentorGroups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Badge variant="secondary" className="text-lg px-4 py-2">
+                    {groupMembers.length}/5 Members
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
+        {!groupInfo ? (
+          <Card className="mx-auto max-w-6xl bg-card border-border">
+            <CardContent className="p-12 text-center">
+              <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold mb-2">No Current Cohort Group Assigned</h3>
+              <p className="text-muted-foreground">
+                You have the mentor role, but you are not assigned to an accountability group in {activeCohortName ?? "the current GOALS cohort"} yet.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+        <>
         {/* Main Content */}
         <Tabs defaultValue="members" className="max-w-6xl mx-auto">
           <TabsList className="grid w-full grid-cols-2 mb-8">
@@ -692,6 +813,8 @@ const MentorDashboard = () => {
             )}
           </TabsContent>
         </Tabs>
+        </>
+        )}
       </div>
     </div>
   );
