@@ -31,9 +31,12 @@ create table if not exists public.program_accountability_memberships (
   joined_at timestamptz not null default now(),
   left_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (enrollment_id)
+  updated_at timestamptz not null default now()
 );
+
+create unique index if not exists program_accountability_one_active_membership_idx
+  on public.program_accountability_memberships(enrollment_id)
+  where status = 'active';
 
 create index if not exists program_accountability_memberships_group_status_idx
   on public.program_accountability_memberships(group_id, status);
@@ -88,7 +91,12 @@ join public.program_cohorts c on c.id = e.cohort_id
 where p.group_id is not null
   and c.slug = 'goals-2025'
   and ag.cohort_id = c.id
-on conflict (enrollment_id) do nothing;
+and not exists (
+  select 1
+  from public.program_accountability_memberships existing
+  where existing.enrollment_id = e.id
+    and existing.status = 'active'
+);
 
 -- Make chat linkage explicit so group names can repeat across cohorts safely.
 alter table public.chat_groups
@@ -285,14 +293,7 @@ begin
     now(),
     null,
     now()
-  )
-  on conflict (enrollment_id)
-  do update set
-    group_id = excluded.group_id,
-    status = 'active',
-    joined_at = now(),
-    left_at = null,
-    updated_at = now();
+  );
 
   v_chat_id := public.ensure_accountability_chat(v_group_id);
 
@@ -468,6 +469,14 @@ begin
     );
   end if;
 
+  update public.program_accountability_memberships
+  set status = 'left',
+      left_at = now(),
+      updated_at = now()
+  where enrollment_id = any(p_enrollment_ids)
+    and status = 'active'
+    and group_id is distinct from p_group_id;
+
   insert into public.program_accountability_memberships (
     enrollment_id,
     group_id,
@@ -485,15 +494,23 @@ begin
     now()
   from public.program_enrollments e
   where e.id = any(p_enrollment_ids)
-  on conflict (enrollment_id)
-  do update set
-    group_id = excluded.group_id,
-    status = 'active',
-    joined_at = now(),
-    left_at = null,
-    updated_at = now();
+    and not exists (
+      select 1
+      from public.program_accountability_memberships current_membership
+      where current_membership.enrollment_id = e.id
+        and current_membership.group_id = p_group_id
+        and current_membership.status = 'active'
+    );
 
   get diagnostics v_updated_count = row_count;
+
+  update public.program_accountability_memberships
+  set status = 'active',
+      left_at = null,
+      updated_at = now()
+  where enrollment_id = any(p_enrollment_ids)
+    and group_id = p_group_id
+    and status <> 'active';
 
   v_chat_id := public.ensure_accountability_chat(p_group_id);
 
