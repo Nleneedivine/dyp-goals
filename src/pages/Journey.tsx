@@ -22,6 +22,7 @@ import { JourneyExecutionSnapshot } from "@/components/JourneyExecutionSnapshot"
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
+import { getCurrentGoalEnrollment, weeklyReviewBelongsToGoalIds } from "@/lib/cohortScope";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -63,6 +64,7 @@ export default function Journey() {
   const [visionStatement, setVisionStatement] = useState("");
   const [lifeAreaFocusCount, setLifeAreaFocusCount] = useState(0);
   const [accountabilityGroupId, setAccountabilityGroupId] = useState<string | null>(null);
+  const [activeCohortName, setActiveCohortName] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -71,6 +73,19 @@ export default function Journey() {
       if (!user) {
         setLoading(false);
         return;
+      }
+
+      const currentEnrollment = await getCurrentGoalEnrollment(user.id);
+      setActiveCohortName(currentEnrollment?.cohortName ?? null);
+
+      let goalsQuery = supabase
+        .from("goals")
+        .select("*")
+        .eq("user_id", user.id)
+        .neq("status", "archived");
+
+      if (currentEnrollment) {
+        goalsQuery = goalsQuery.eq("enrollment_id", currentEnrollment.id);
       }
 
       const [
@@ -82,12 +97,7 @@ export default function Journey() {
         capacityResult,
         profileResult,
       ] = await Promise.all([
-        supabase
-          .from("goals")
-          .select("*")
-          .eq("user_id", user.id)
-          .neq("status", "archived")
-          .order("created_at", { ascending: true }),
+        goalsQuery.order("created_at", { ascending: true }),
         supabase
           .from("goal_weekly_actions")
           .select("*")
@@ -139,10 +149,25 @@ export default function Journey() {
       }
 
       const loadedGoals = goalsResult.data ?? [];
+      const scopedGoalIds = new Set(loadedGoals.map((goal) => goal.id));
       setGoals(loadedGoals);
-      setActions(actionsResult.data ?? []);
-      setTasks(tasksResult.data ?? []);
-      setReviews(reviewsResult.data ?? []);
+      setActions(
+        currentEnrollment
+          ? (actionsResult.data ?? []).filter((action) => scopedGoalIds.has(action.goal_id))
+          : (actionsResult.data ?? []),
+      );
+      setTasks(
+        currentEnrollment
+          ? (tasksResult.data ?? []).filter((task) => scopedGoalIds.has(task.goal_id))
+          : (tasksResult.data ?? []),
+      );
+      setReviews(
+        currentEnrollment
+          ? (reviewsResult.data ?? []).filter((review) =>
+              weeklyReviewBelongsToGoalIds(review.per_goal_summary, scopedGoalIds),
+            )
+          : (reviewsResult.data ?? []),
+      );
       setFixedBlocks(fixedResult.data ?? []);
       setCapacity(
         capacityResult.data
