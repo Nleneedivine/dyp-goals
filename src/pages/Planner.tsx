@@ -52,6 +52,7 @@ import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { useToast } from "@/hooks/use-toast";
 import { downloadTasksIcs } from "@/lib/calendarExport";
+import { getCurrentGoalEnrollment } from "@/lib/cohortScope";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json, Tables } from "@/integrations/supabase/types";
 
@@ -141,6 +142,7 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
   const [tasks, setTasks] = useState<GoalTask[]>([]);
   const [fixedBlocks, setFixedBlocks] = useState<FixedBlock[]>([]);
   const [dependencies, setDependencies] = useState<GoalDependency[]>([]);
+  const [activeCohortName, setActiveCohortName] = useState<string | null>(null);
 
   const now = new Date();
   const today = dateKey(now);
@@ -213,6 +215,19 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
     }
     setUserId(user.id);
 
+    const currentEnrollment = await getCurrentGoalEnrollment(user.id);
+    setActiveCohortName(currentEnrollment?.cohortName ?? null);
+
+    let goalsQuery = supabase
+      .from("goals")
+      .select("*")
+      .eq("user_id", user.id)
+      .neq("status", "archived");
+
+    if (currentEnrollment) {
+      goalsQuery = goalsQuery.eq("enrollment_id", currentEnrollment.id);
+    }
+
     const [
       goalsResult,
       actionsResult,
@@ -222,12 +237,7 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
       fixedBlocksResult,
       dependenciesResult,
     ] = await Promise.all([
-      supabase
-        .from("goals")
-        .select("*")
-        .eq("user_id", user.id)
-        .neq("status", "archived")
-        .order("created_at", { ascending: true }),
+      goalsQuery.order("created_at", { ascending: true }),
       supabase
         .from("goal_weekly_actions")
         .select("*")
@@ -286,9 +296,18 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
     }
 
     const loadedGoals = goalsResult.data ?? [];
+    const scopedGoalIds = new Set(loadedGoals.map((goal) => goal.id));
     setGoals(loadedGoals);
-    setActions(actionsResult.data ?? []);
-    setTasks(tasksResult.data ?? []);
+    setActions(
+      currentEnrollment
+        ? (actionsResult.data ?? []).filter((action) => scopedGoalIds.has(action.goal_id))
+        : (actionsResult.data ?? []),
+    );
+    setTasks(
+      currentEnrollment
+        ? (tasksResult.data ?? []).filter((task) => scopedGoalIds.has(task.goal_id))
+        : (tasksResult.data ?? []),
+    );
     setDefaultCapacity(
       capacitySettingsResult.data
         ? Number(capacitySettingsResult.data.default_hours_per_week)
@@ -296,7 +315,17 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
     );
     setCapacityPeriods(capacityPeriodsResult.data ?? []);
     setFixedBlocks(fixedBlocksResult.data ?? []);
-    setDependencies(dependencyTablePending ? [] : dependenciesResult.data ?? []);
+    setDependencies(
+      dependencyTablePending
+        ? []
+        : currentEnrollment
+          ? (dependenciesResult.data ?? []).filter(
+              (dependency) =>
+                scopedGoalIds.has(dependency.dependent_goal_id) &&
+                scopedGoalIds.has(dependency.prerequisite_goal_id),
+            )
+          : (dependenciesResult.data ?? []),
+    );
 
     if (!loadedGoals.length) {
       setMilestones([]);
@@ -1733,7 +1762,7 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
       <div className="container mx-auto max-w-7xl">
         {isUi2 ? (
           <Ui2PageHeader
-            eyebrow="Execution planner"
+            eyebrow={activeCohortName ? `${activeCohortName} · Execution planner` : "Execution planner"}
             title="Plan → Do → Review"
             description="Your goals, milestones, weekly priorities and daily tasks live in one execution chain. Every task keeps its reason attached."
             icon={ListTodo}
