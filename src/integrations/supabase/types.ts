@@ -826,6 +826,47 @@ export type Database = {
           },
         ]
       }
+      life_area_focus: {
+        Row: {
+          active: boolean
+          created_at: string
+          display_order: number
+          focus_statement: string
+          id: string
+          life_area: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          display_order?: number
+          focus_statement?: string
+          id?: string
+          life_area: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          display_order?: number
+          focus_statement?: string
+          id?: string
+          life_area?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "life_area_focus_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mentorship_requests: {
         Row: {
           accountability_rules_accepted: boolean
@@ -961,7 +1002,7 @@ export type Database = {
         }
         Insert: {
           accountability_lab_start_date?: string
-          id?: string
+          id: string
           ui2_default?: boolean
           updated_at?: string
           updated_by?: string | null
@@ -1018,8 +1059,8 @@ export type Database = {
           benefits: Json
           created_at: string
           currency: string
-          discounted_price: number
           discount_deadline: string | null
+          discounted_price: number
           ends_at: string
           id: string
           original_price: number
@@ -1038,8 +1079,8 @@ export type Database = {
           benefits?: Json
           created_at?: string
           currency?: string
-          discounted_price: number
           discount_deadline?: string | null
+          discounted_price: number
           ends_at: string
           id?: string
           original_price: number
@@ -1058,8 +1099,8 @@ export type Database = {
           benefits?: Json
           created_at?: string
           currency?: string
-          discounted_price?: number
           discount_deadline?: string | null
+          discounted_price?: number
           ends_at?: string
           id?: string
           original_price?: number
@@ -1075,265 +1116,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      program_payment_settings: {
-        Row: {
-          account_name: string
-          account_number: string
-          amount_minor: number
-          bank_name: string
-          currency: string
-          form_id: string
-          manual_enabled: boolean
-          manual_instructions: string
-          paystack_enabled: boolean
-          updated_at: string
-          updated_by: string | null
-          whatsapp_group_url: string
-        }
-        Insert: {
-          account_name?: string
-          account_number?: string
-          amount_minor?: number
-          bank_name?: string
-          currency?: string
-          form_id: string
-          manual_enabled?: boolean
-          manual_instructions?: string
-          paystack_enabled?: boolean
-          updated_at?: string
-          updated_by?: string | null
-          whatsapp_group_url?: string
-        }
-        Update: {
-          account_name?: string
-          account_number?: string
-          amount_minor?: number
-          bank_name?: string
-          currency?: string
-          form_id?: string
-          manual_enabled?: boolean
-          manual_instructions?: string
-          paystack_enabled?: boolean
-          updated_at?: string
-          updated_by?: string | null
-          whatsapp_group_url?: string
-        }
-        Relationships: []
-      }
-      program_payments: {
-        Row: {
-          amount_minor: number
-          created_at: string
-          currency: string
-          form_id: string
-          manual_reference: string | null
-          method: string
-          paid_at: string | null
-          provider_reference: string | null
-          status: string
-          submission_id: string
-          updated_at: string
-          verified_at: string | null
-          verified_by: string | null
-        }
-        Insert: {
-          amount_minor: number
-          created_at?: string
-          currency?: string
-          form_id: string
-          manual_reference?: string | null
-          method: string
-          paid_at?: string | null
-          provider_reference?: string | null
-          status?: string
-          submission_id: string
-          updated_at?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Update: {
-          amount_minor?: number
-          created_at?: string
-          currency?: string
-          form_id?: string
-          manual_reference?: string | null
-          method?: string
-          paid_at?: string | null
-          provider_reference?: string | null
-          status?: string
-          submission_id?: string
-          updated_at?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Relationships: []
-      }
-      program_participant_status: {
-        Row: {
-          certificate_code: string | null
-          certificate_eligible: boolean
-          certificate_issued_at: string | null
-          completion_status: string
-          form_id: string
-          submission_id: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          certificate_code?: string | null
-          certificate_eligible?: boolean
-          certificate_issued_at?: string | null
-          completion_status?: string
-          form_id: string
-          submission_id: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          certificate_code?: string | null
-          certificate_eligible?: boolean
-          certificate_issued_at?: string | null
-          completion_status?: string
-          form_id?: string
-          submission_id?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "program_participant_status_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "program_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "program_participant_status_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: true
-            referencedRelation: "program_form_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      program_referral_promoters: {
-        Row: {
-          active: boolean
-          code: string
-          created_at: string
-          created_by: string | null
-          display_name: string
-          form_id: string
-          id: string
-          phone: string
-        }
-        Insert: {
-          active?: boolean
-          code: string
-          created_at?: string
-          created_by?: string | null
-          display_name: string
-          form_id: string
-          id?: string
-          phone: string
-        }
-        Update: {
-          active?: boolean
-          code?: string
-          created_at?: string
-          created_by?: string | null
-          display_name?: string
-          form_id?: string
-          id?: string
-          phone?: string
-        }
-        Relationships: []
-      }
-      program_referral_codes: {
-        Row: {
-          code: string
-          created_at: string
-          form_id: string
-          submission_id: string
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          form_id: string
-          submission_id: string
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          form_id?: string
-          submission_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "program_referral_codes_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "program_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "program_referral_codes_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: true
-            referencedRelation: "program_form_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      program_submission_referrals: {
-        Row: {
-          created_at: string
-          form_id: string
-          promoter_id: string | null
-          referral_code: string
-          referred_submission_id: string
-          referrer_submission_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          form_id: string
-          promoter_id?: string | null
-          referral_code: string
-          referred_submission_id: string
-          referrer_submission_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          form_id?: string
-          promoter_id?: string | null
-          referral_code?: string
-          referred_submission_id?: string
-          referrer_submission_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "program_submission_referrals_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "program_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "program_submission_referrals_referred_submission_id_fkey"
-            columns: ["referred_submission_id"]
-            isOneToOne: true
-            referencedRelation: "program_form_submissions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "program_submission_referrals_referrer_submission_id_fkey"
-            columns: ["referrer_submission_id"]
-            isOneToOne: false
-            referencedRelation: "program_form_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       program_form_answers: {
         Row: {
@@ -1637,6 +1419,303 @@ export type Database = {
         }
         Relationships: []
       }
+      program_participant_status: {
+        Row: {
+          certificate_code: string | null
+          certificate_eligible: boolean
+          certificate_issued_at: string | null
+          completion_status: string
+          form_id: string
+          submission_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          certificate_code?: string | null
+          certificate_eligible?: boolean
+          certificate_issued_at?: string | null
+          completion_status?: string
+          form_id: string
+          submission_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          certificate_code?: string | null
+          certificate_eligible?: boolean
+          certificate_issued_at?: string | null
+          completion_status?: string
+          form_id?: string
+          submission_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_participant_status_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_participant_status_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_payment_settings: {
+        Row: {
+          account_name: string
+          account_number: string
+          amount_minor: number
+          bank_name: string
+          currency: string
+          form_id: string
+          manual_enabled: boolean
+          manual_instructions: string
+          paystack_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+          whatsapp_group_url: string
+        }
+        Insert: {
+          account_name?: string
+          account_number?: string
+          amount_minor?: number
+          bank_name?: string
+          currency?: string
+          form_id: string
+          manual_enabled?: boolean
+          manual_instructions?: string
+          paystack_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp_group_url?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          amount_minor?: number
+          bank_name?: string
+          currency?: string
+          form_id?: string
+          manual_enabled?: boolean
+          manual_instructions?: string
+          paystack_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp_group_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_payment_settings_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: true
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_payments: {
+        Row: {
+          amount_minor: number
+          created_at: string
+          currency: string
+          form_id: string
+          manual_reference: string | null
+          method: string
+          paid_at: string | null
+          provider_reference: string | null
+          status: string
+          submission_id: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount_minor: number
+          created_at?: string
+          currency?: string
+          form_id: string
+          manual_reference?: string | null
+          method: string
+          paid_at?: string | null
+          provider_reference?: string | null
+          status?: string
+          submission_id: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount_minor?: number
+          created_at?: string
+          currency?: string
+          form_id?: string
+          manual_reference?: string | null
+          method?: string
+          paid_at?: string | null
+          provider_reference?: string | null
+          status?: string
+          submission_id?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_payments_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_payments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          form_id: string
+          submission_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          form_id: string
+          submission_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          form_id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_referral_codes_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_codes_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_referral_promoters: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          form_id: string
+          id: string
+          phone: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          form_id: string
+          id?: string
+          phone: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          form_id?: string
+          id?: string
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_referral_promoters_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_submission_referrals: {
+        Row: {
+          created_at: string
+          form_id: string
+          promoter_id: string | null
+          referral_code: string
+          referred_submission_id: string
+          referrer_submission_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          form_id: string
+          promoter_id?: string | null
+          referral_code: string
+          referred_submission_id: string
+          referrer_submission_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          form_id?: string
+          promoter_id?: string | null
+          referral_code?: string
+          referred_submission_id?: string
+          referrer_submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_submission_referrals_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_submission_referrals_promoter_id_fkey"
+            columns: ["promoter_id"]
+            isOneToOne: false
+            referencedRelation: "program_referral_promoters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_submission_referrals_referred_submission_id_fkey"
+            columns: ["referred_submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_submission_referrals_referrer_submission_id_fkey"
+            columns: ["referrer_submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_plans: {
         Row: {
           created_at: string
@@ -1682,6 +1761,38 @@ export type Database = {
         }
         Relationships: []
       }
+      user_planning_vision: {
+        Row: {
+          created_at: string
+          updated_at: string
+          user_id: string
+          vision_statement: string
+          year_theme: string
+        }
+        Insert: {
+          created_at?: string
+          updated_at?: string
+          user_id: string
+          vision_statement?: string
+          year_theme?: string
+        }
+        Update: {
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+          vision_statement?: string
+          year_theme?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_planning_vision_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1708,14 +1819,77 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_bulk_assign_users_to_group: {
+        Args: { p_group_id: string; p_user_ids: string[] }
+        Returns: Json
+      }
       admin_create_referral_promoter: {
         Args: { p_display_name: string; p_form_id: string; p_phone: string }
-        Returns: Database["public"]["Tables"]["program_referral_promoters"]["Row"]
+        Returns: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          form_id: string
+          id: string
+          phone: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "program_referral_promoters"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_set_program_participant_status: {
+        Args: {
+          p_completion_status: string
+          p_issue_certificate?: boolean
+          p_submission_id: string
+        }
+        Returns: {
+          certificate_code: string | null
+          certificate_eligible: boolean
+          certificate_issued_at: string | null
+          completion_status: string
+          form_id: string
+          submission_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "program_participant_status"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       admin_set_program_payment_status: {
         Args: { p_status: string; p_submission_id: string }
-        Returns: Database["public"]["Tables"]["program_payments"]["Row"]
+        Returns: {
+          amount_minor: number
+          created_at: string
+          currency: string
+          form_id: string
+          manual_reference: string | null
+          method: string
+          paid_at: string | null
+          provider_reference: string | null
+          status: string
+          submission_id: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "program_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
+      admin_sync_accountability_chats: { Args: never; Returns: Json }
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
         Returns: Json
@@ -1760,22 +1934,6 @@ export type Database = {
           tasks_created: number
         }[]
       }
-      admin_sync_accountability_chats: {
-        Args: never
-        Returns: Json
-      }
-      admin_bulk_assign_users_to_group: {
-        Args: { p_group_id: string | null; p_user_ids: string[] }
-        Returns: Json
-      }
-      admin_set_program_participant_status: {
-        Args: {
-          p_completion_status: string
-          p_issue_certificate?: boolean
-          p_submission_id: string
-        }
-        Returns: Database["public"]["Tables"]["program_participant_status"]["Row"]
-      }
       apply_split_replan: {
         Args: { p_splits: Json; p_task_id: string }
         Returns: Json
@@ -1789,10 +1947,15 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
+      ensure_program_referral_code: {
+        Args: { p_form_id: string; p_submission_id: string }
+        Returns: string
+      }
       get_accountability_program_trends: {
         Args: { p_week_start: string }
         Returns: Json
       }
+      get_next_group_name: { Args: never; Returns: string }
       get_program_form_performance: {
         Args: { p_form_ids: string[] }
         Returns: {
@@ -1809,17 +1972,6 @@ export type Database = {
         Args: { p_session_token: string }
         Returns: string
       }
-      get_program_referral_leaderboard_v2: {
-        Args: { p_form_id: string }
-        Returns: {
-          completed_referrals: number
-          display_name: string
-          promoter_id: string | null
-          referral_code: string
-          referrer_submission_id: string | null
-          total_referrals: number
-        }[]
-      }
       get_program_referral_leaderboard: {
         Args: { p_form_id: string }
         Returns: {
@@ -1829,7 +1981,17 @@ export type Database = {
           total_referrals: number
         }[]
       }
-      get_next_group_name: { Args: never; Returns: string }
+      get_program_referral_leaderboard_v2: {
+        Args: { p_form_id: string }
+        Returns: {
+          completed_referrals: number
+          display_name: string
+          promoter_id: string
+          referral_code: string
+          referrer_submission_id: string
+          total_referrals: number
+        }[]
+      }
       get_user_chat_group_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
         Args: { _user_id: string }
@@ -1862,13 +2024,6 @@ export type Database = {
         Args: { p_referral_code: string; p_session_token: string }
         Returns: boolean
       }
-      search_program_referrers: {
-        Args: { p_form_id: string; p_query: string }
-        Returns: {
-          display_name: string
-          referral_code: string
-        }[]
-      }
       save_goal_weekly_review: {
         Args: {
           p_adjustments?: string
@@ -1897,6 +2052,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      search_program_referrers: {
+        Args: { p_form_id: string; p_query: string }
+        Returns: {
+          display_name: string
+          referral_code: string
+        }[]
       }
       submit_manual_program_payment: {
         Args: { p_manual_reference: string; p_session_token: string }
