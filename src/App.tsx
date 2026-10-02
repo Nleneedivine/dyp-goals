@@ -17,6 +17,9 @@ import MentorDashboard from "./pages/MentorDashboard";
 import Testimonials from "./pages/Testimonials";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import GoalHistory from "./pages/GoalHistory";
 import Admin from "./pages/Admin";
@@ -49,6 +52,9 @@ const App = () => (
           <Navbar />
           <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/apply/:slug" element={<PublicForm />} />
               <Route path="/" element={<Home />} />
               <Route path="/schedule" element={<Schedule />} />
