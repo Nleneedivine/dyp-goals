@@ -30,6 +30,7 @@ import { MilestoneEditDialog, type MilestoneEditValues } from "@/components/Mile
 import { PortfolioAIReviewDialog } from "@/components/PortfolioAIReviewDialog";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
+import { getCurrentGoalEnrollment } from "@/lib/cohortScope";
 
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
@@ -632,6 +633,7 @@ export default function MyGoals() {
   const [draftGoals, setDraftGoals] = useState<DraftGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingDrafts, setSavingDrafts] = useState(false);
+  const [activeCohortName, setActiveCohortName] = useState<string | null>(null);
 
   const loadPortfolio = async () => {
     setLoading(true);
@@ -641,11 +643,20 @@ export default function MyGoals() {
       return;
     }
 
-    const { data: goalRows, error: goalError } = await supabase
+    const currentEnrollment = await getCurrentGoalEnrollment(user.id);
+    setActiveCohortName(currentEnrollment?.cohortName ?? null);
+
+    let goalQuery = supabase
       .from("goals")
       .select("*")
       .eq("user_id", user.id)
-      .neq("status", "archived")
+      .neq("status", "archived");
+
+    if (currentEnrollment) {
+      goalQuery = goalQuery.eq("enrollment_id", currentEnrollment.id);
+    }
+
+    const { data: goalRows, error: goalError } = await goalQuery
       .order("created_at", { ascending: true });
 
     if (goalError) {
@@ -840,7 +851,7 @@ export default function MyGoals() {
         <div className="mx-auto max-w-6xl">
           {isUi2 ? (
             <Ui2PageHeader
-              eyebrow="Goal portfolio"
+              eyebrow={activeCohortName ? `${activeCohortName} · Goal portfolio` : "Goal portfolio"}
               title="My GOALS"
               description="One portfolio for every goal you are pursuing. Each goal keeps its own dates, priority, milestones and confirmed workload so overlapping goals can share one realistic execution system."
               icon={Layers3}

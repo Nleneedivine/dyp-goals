@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,12 +32,25 @@ import { useUiMode } from "@/components/UiModeProvider";
 
 interface GoalAnalysisRecord {
   id: string;
+  enrollment_id: string | null;
   created_at: string;
   updated_at: string;
   original_goals: string;
   ai_analysis: any;
   refined_goals: string | null;
   user_responses: any;
+}
+
+interface HistoryCohort {
+  id: string;
+  name: string;
+  cohort_year: number;
+  is_current: boolean;
+}
+
+interface HistoryEnrollment {
+  id: string;
+  cohort_id: string;
 }
 
 interface RefinedGoal {
@@ -52,6 +66,9 @@ const GoalHistory = () => {
   const [analyses, setAnalyses] = useState<GoalAnalysisRecord[]>([]);
   const [filteredAnalyses, setFilteredAnalyses] = useState<GoalAnalysisRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [cohorts, setCohorts] = useState<HistoryCohort[]>([]);
+  const [enrollments, setEnrollments] = useState<HistoryEnrollment[]>([]);
+  const [selectedCohortId, setSelectedCohortId] = useState("all");
   const [selectedAnalysis, setSelectedAnalysis] = useState<GoalAnalysisRecord | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -63,22 +80,37 @@ const GoalHistory = () => {
 
   useEffect(() => {
     filterAnalyses();
-  }, [searchQuery, analyses]);
+  }, [searchQuery, analyses, selectedCohortId, enrollments]);
 
   const loadAnalyses = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase
-        .from("goal_analyses")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const [analysisResult, cohortResult, enrollmentResult] = await Promise.all([
+        supabase
+          .from("goal_analyses")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("program_cohorts")
+          .select("id,name,cohort_year,is_current")
+          .eq("program_key", "goals")
+          .order("cohort_year", { ascending: false }),
+        supabase
+          .from("program_enrollments")
+          .select("id,cohort_id")
+          .eq("user_id", user.id),
+      ]);
 
-      if (error) throw error;
+      if (analysisResult.error) throw analysisResult.error;
+      if (cohortResult.error) throw cohortResult.error;
+      if (enrollmentResult.error) throw enrollmentResult.error;
 
-      setAnalyses(data || []);
+      setAnalyses(analysisResult.data || []);
+      setCohorts(cohortResult.data || []);
+      setEnrollments(enrollmentResult.data || []);
     } catch (error: any) {
       toast({
         title: "Error loading history",
@@ -90,20 +122,41 @@ const GoalHistory = () => {
     }
   };
 
-  const filterAnalyses = () => {
-    if (!searchQuery.trim()) {
-      setFilteredAnalyses(analyses);
-      return;
-    }
+  const enrollmentToCohort = useMemo(
+    () => new Map(enrollments.map((enrollment) => [enrollment.id, enrollment.cohort_id] as const)),
+    [enrollments],
+  );
 
-    const query = searchQuery.toLowerCase();
+  const cohortById = useMemo(
+    () => new Map(cohorts.map((cohort) => [cohort.id, cohort] as const)),
+    [cohorts],
+  );
+
+  const filterAnalyses = () => {
+    const query = searchQuery.trim().toLowerCase();
+
     const filtered = analyses.filter((analysis) => {
+      if (selectedCohortId !== "all") {
+        if (!analysis.enrollment_id) return false;
+        if (enrollmentToCohort.get(analysis.enrollment_id) !== selectedCohortId) {
+          return false;
+        }
+      }
+
+      if (!query) return true;
+
       const originalGoals = analysis.original_goals.toLowerCase();
       const refinedGoals = analysis.refined_goals?.toLowerCase() || "";
       return originalGoals.includes(query) || refinedGoals.includes(query);
     });
 
     setFilteredAnalyses(filtered);
+  };
+
+  const cohortForAnalysis = (analysis: GoalAnalysisRecord) => {
+    if (!analysis.enrollment_id) return null;
+    const cohortId = enrollmentToCohort.get(analysis.enrollment_id);
+    return cohortId ? cohortById.get(cohortId) ?? null : null;
   };
 
   const handleDelete = async (id: string) => {
@@ -209,9 +262,9 @@ const GoalHistory = () => {
         </div>
         )}
 
-        {/* Search */}
+        {/* Search and cohort filter */}
         <Card className="bg-card border-border mb-8 animate-fade-in">
-          <CardContent className="pt-6">
+          <CardContent className="grid gap-3 pt-6 md:grid-cols-[1fr_240px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
@@ -222,6 +275,19 @@ const GoalHistory = () => {
                 className="pl-10 bg-background"
               />
             </div>
+            <Select value={selectedCohortId} onValueChange={setSelectedCohortId}>
+              <SelectTrigger>
+                <SelectValue placeholder="All GOALS years" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All GOALS years</SelectItem>
+                {cohorts.map((cohort) => (
+                  <SelectItem key={cohort.id} value={cohort.id}>
+                    {cohort.name}{cohort.is_current ? " · Current" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
@@ -251,6 +317,9 @@ const GoalHistory = () => {
                           <Calendar className="h-4 w-4" />
                           {format(new Date(analysis.created_at), "MMM d, yyyy")}
                         </div>
+                        <Badge variant="outline" className="bg-background">
+                          {cohortForAnalysis(analysis)?.name ?? "Pre-cohort history"}
+                        </Badge>
                         <Badge variant="outline" className="bg-background">
                           Score: {getOverallScore(analysis)}%
                         </Badge>
