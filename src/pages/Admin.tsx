@@ -97,10 +97,11 @@ interface UserRole {
 
 interface AccountabilityGroup {
   id: string;
+  cohort_id: string;
   name: string;
   mentor_id: string | null;
   created_at: string;
-  members?: Profile[];
+  members?: ProgramEnrollment[];
 }
 
 const Admin = () => {
@@ -109,6 +110,7 @@ const Admin = () => {
   const [goals, setGoals] = useState<GoalAnalysis[]>([]);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [groups, setGroups] = useState<AccountabilityGroup[]>([]);
+  const [accountabilityMemberships, setAccountabilityMemberships] = useState<Array<{ enrollment_id: string; group_id: string; status: string }>>([]);
   const [cohorts, setCohorts] = useState<ProgramCohort[]>([]);
   const [enrollments, setEnrollments] = useState<ProgramEnrollment[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
@@ -197,6 +199,7 @@ const Admin = () => {
         goalsResult,
         cohortsResult,
         enrollmentsResult,
+        accountabilityMembershipsResult,
       ] = await Promise.all([
         supabase
           .from("profiles")
@@ -205,7 +208,7 @@ const Admin = () => {
         supabase.from("user_roles").select("id,user_id,role"),
         supabase
           .from("accountability_groups")
-          .select("id,name,mentor_id,created_at")
+          .select("id,cohort_id,name,mentor_id,created_at")
           .order("created_at", { ascending: false }),
         supabase
           .from("goal_analyses")
@@ -219,6 +222,9 @@ const Admin = () => {
           .from("program_enrollments")
           .select("id,cohort_id,user_id,source_submission_id,email,first_name,last_name,status,registered_at,activated_at,completed_at")
           .order("registered_at", { ascending: false }),
+        supabase
+          .from("program_accountability_memberships")
+          .select("enrollment_id,group_id,status"),
       ]);
 
       if (profilesResult.error) throw profilesResult.error;
@@ -227,6 +233,7 @@ const Admin = () => {
       if (goalsResult.error) throw goalsResult.error;
       if (cohortsResult.error) throw cohortsResult.error;
       if (enrollmentsResult.error) throw enrollmentsResult.error;
+      if (accountabilityMembershipsResult.error) throw accountabilityMembershipsResult.error;
 
       const profilesData = profilesResult.data ?? [];
       const rolesData = rolesResult.data ?? [];
@@ -234,23 +241,32 @@ const Admin = () => {
       const goalsData = goalsResult.data ?? [];
       const cohortsData = cohortsResult.data ?? [];
       const enrollmentsData = enrollmentsResult.data ?? [];
+      const accountabilityMembershipsData = accountabilityMembershipsResult.data ?? [];
 
       setUsers(profilesData);
       setCohorts(cohortsData);
       setEnrollments(enrollmentsData);
+      setAccountabilityMemberships(accountabilityMembershipsData);
       setSelectedCohortId((current) => {
         if (current !== null) return current;
         return cohortsData.find((cohort) => cohort.is_current)?.id ?? "all";
       });
       setUserRoles(rolesData);
 
-      const membersByGroup = new Map<string, Profile[]>();
-      profilesData.forEach((profile) => {
-        if (!profile.group_id) return;
-        const members = membersByGroup.get(profile.group_id) ?? [];
-        members.push(profile);
-        membersByGroup.set(profile.group_id, members);
-      });
+      const enrollmentByIdForGroups = new Map(
+        enrollmentsData.map((enrollment) => [enrollment.id, enrollment] as const),
+      );
+      const membersByGroup = new Map<string, ProgramEnrollment[]>();
+
+      accountabilityMembershipsData
+        .filter((membership) => membership.status === "active")
+        .forEach((membership) => {
+          const enrollment = enrollmentByIdForGroups.get(membership.enrollment_id);
+          if (!enrollment) return;
+          const members = membersByGroup.get(membership.group_id) ?? [];
+          members.push(enrollment);
+          membersByGroup.set(membership.group_id, members);
+        });
 
       const groupsWithMembers = groupsData.map((group) => ({
         ...group,
@@ -403,8 +419,8 @@ const Admin = () => {
       const { data: chatGroup } = await supabase
         .from("chat_groups")
         .select("id")
-        .eq("name", group.name)
-        .single();
+        .eq("accountability_group_id", group.id)
+        .maybeSingle();
 
       if (chatGroup) {
         // Remove old mentor from chat group if exists
@@ -463,48 +479,25 @@ const Admin = () => {
 
   const deleteGroup = async (groupId: string) => {
     try {
-      // Get group name before deletion
-      const group = groups.find(g => g.id === groupId);
-      const groupName = group?.name;
+      const group = groups.find((item) => item.id === groupId);
+      if (!group) throw new Error("Group not found");
 
-      // First remove group_id from all members
-      const { error: membersError } = await supabase
-        .from("profiles")
-        .update({ group_id: null })
-        .eq("group_id", groupId);
-
-      if (membersError) throw membersError;
-
-      // Delete corresponding chat group and its members
-      if (groupName) {
-        const { data: chatGroup } = await supabase
-          .from("chat_groups")
-          .select("id")
-          .eq("name", groupName)
-          .single();
-
-        if (chatGroup) {
-          // Delete chat group members first
-          await supabase
-            .from("chat_group_members")
-            .delete()
-            .eq("group_id", chatGroup.id);
-
-          // Delete chat messages
-          await supabase
-            .from("chat_messages")
-            .delete()
-            .eq("group_id", chatGroup.id);
-
-          // Delete the chat group
-          await supabase
-            .from("chat_groups")
-            .delete()
-            .eq("id", chatGroup.id);
-        }
+      if ((group.members?.length ?? 0) > 0) {
+        throw new Error("Move or remove all cohort members before deleting this group.");
       }
 
-      // Then delete the accountability group
+      const { data: chatGroup } = await supabase
+        .from("chat_groups")
+        .select("id")
+        .eq("accountability_group_id", groupId)
+        .maybeSingle();
+
+      if (chatGroup) {
+        await supabase.from("chat_group_members").delete().eq("group_id", chatGroup.id);
+        await supabase.from("chat_messages").delete().eq("group_id", chatGroup.id);
+        await supabase.from("chat_groups").delete().eq("id", chatGroup.id);
+      }
+
       const { error } = await supabase
         .from("accountability_groups")
         .delete()
@@ -514,10 +507,10 @@ const Admin = () => {
 
       toast({
         title: "Group deleted",
-        description: "Accountability group and its chat have been deleted.",
+        description: "The empty cohort accountability group and its chat were deleted.",
       });
 
-      loadAdminData();
+      await loadAdminData();
     } catch (error: any) {
       toast({
         title: "Error deleting group",
@@ -538,6 +531,15 @@ const Admin = () => {
   };
 
   const createGroup = async () => {
+    if (!selectedCohortId || selectedCohortId === "all") {
+      toast({
+        title: "Choose a cohort",
+        description: "Select a specific GOALS cohort before creating an accountability group.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!newGroupName.trim()) {
       toast({
         title: "Error",
@@ -549,49 +551,44 @@ const Admin = () => {
 
     setCreatingGroup(true);
     try {
-      // Get current user for chat group creation
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Create accountability group
       const { data: groupData, error } = await supabase
         .from("accountability_groups")
-        .insert({ name: newGroupName.trim() })
+        .insert({ name: newGroupName.trim(), cohort_id: selectedCohortId })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Create corresponding chat group
       const { data: chatGroupData, error: chatError } = await supabase
         .from("chat_groups")
-        .insert({ 
+        .insert({
           name: newGroupName.trim(),
           created_by: user.id,
           description: `Chat for accountability group: ${newGroupName.trim()}`,
-          is_channel: false
+          is_channel: false,
+          accountability_group_id: groupData.id,
         })
         .select()
         .single();
 
       if (chatError) throw chatError;
 
-      // Add creator as admin member of chat group
-      await supabase
-        .from("chat_group_members")
-        .insert({
-          group_id: chatGroupData.id,
-          user_id: user.id,
-          role: 'admin'
-        });
+      await supabase.from("chat_group_members").insert({
+        group_id: chatGroupData.id,
+        user_id: user.id,
+        role: "admin",
+      });
 
       toast({
         title: "Group created",
-        description: `"${newGroupName}" has been created with its chat group.`,
+        description: `"${newGroupName}" has been created for ${selectedCohort?.name ?? "the selected cohort"}.`,
       });
 
       setNewGroupName("");
-      loadAdminData();
+      await loadAdminData();
     } catch (error: any) {
       toast({
         title: "Error creating group",
@@ -605,8 +602,19 @@ const Admin = () => {
 
   const moveUserToGroup = async (userId: string, groupId: string | null) => {
     try {
-      const { data, error } = await supabase.rpc("admin_bulk_assign_users_to_group", {
-        p_user_ids: [userId],
+      if (!selectedCohortId || selectedCohortId === "all") {
+        throw new Error("Choose a specific cohort before moving accountability members.");
+      }
+
+      const enrollment = enrollments.find(
+        (item) => item.cohort_id === selectedCohortId && item.user_id === userId,
+      );
+      if (!enrollment) {
+        throw new Error("This user does not have an enrollment in the selected cohort.");
+      }
+
+      const { data, error } = await supabase.rpc("admin_bulk_assign_enrollments_to_group", {
+        p_enrollment_ids: [enrollment.id],
         p_group_id: groupId,
       });
 
@@ -614,16 +622,16 @@ const Admin = () => {
 
       const result = data as { chatSynced?: boolean } | null;
       toast({
-        title: "User moved",
+        title: "Participant moved",
         description: groupId
-          ? `User moved to the accountability group${result?.chatSynced === false ? ". The matching chat does not exist yet." : " and chat membership is synchronized."}`
-          : "User removed from the accountability group and matching chat.",
+          ? `Participant moved to the accountability group${result?.chatSynced === false ? "." : " and chat membership is synchronized."}`
+          : "Participant removed from the selected cohort accountability group.",
       });
 
       await loadAdminData();
     } catch (error: any) {
       toast({
-        title: "Error moving user",
+        title: "Error moving participant",
         description: error.message,
         variant: "destructive",
       });
@@ -666,11 +674,33 @@ const Admin = () => {
       return;
     }
 
+    if (!selectedCohortId || selectedCohortId === "all") {
+      toast({
+        title: "Choose a cohort",
+        description: "Bulk accountability assignment requires a specific cohort.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setBulkAssigning(true);
     try {
       const userIds = Array.from(selectedUsers);
-      const { data, error } = await supabase.rpc("admin_bulk_assign_users_to_group", {
-        p_user_ids: userIds,
+      const enrollmentIds = enrollments
+        .filter(
+          (enrollment) =>
+            enrollment.cohort_id === selectedCohortId &&
+            enrollment.user_id &&
+            userIds.includes(enrollment.user_id),
+        )
+        .map((enrollment) => enrollment.id);
+
+      if (!enrollmentIds.length) {
+        throw new Error("None of the selected users has an enrollment in this cohort.");
+      }
+
+      const { data, error } = await supabase.rpc("admin_bulk_assign_enrollments_to_group", {
+        p_enrollment_ids: enrollmentIds,
         p_group_id: groupId,
       });
 
@@ -678,15 +708,15 @@ const Admin = () => {
 
       const result = data as { updatedCount?: number; chatSynced?: boolean } | null;
       toast({
-        title: "Users assigned",
-        description: `${result?.updatedCount ?? userIds.length} user(s) have been ${groupId ? "assigned to the accountability group" : "removed from accountability groups"}${groupId && result?.chatSynced === false ? ". The target chat does not exist yet." : " and chat membership is synchronized."}`,
+        title: "Participants assigned",
+        description: `${result?.updatedCount ?? enrollmentIds.length} cohort participant(s) updated.`,
       });
 
       setSelectedUsers(new Set());
       await loadAdminData();
     } catch (error: any) {
       toast({
-        title: "Error assigning users",
+        title: "Error assigning participants",
         description: error.message,
         variant: "destructive",
       });
@@ -727,6 +757,14 @@ const Admin = () => {
         ? cohorts.find((cohort) => cohort.id === selectedCohortId) ?? null
         : null,
     [cohorts, selectedCohortId],
+  );
+
+  const cohortGroups = useMemo(
+    () =>
+      selectedCohortId && selectedCohortId !== "all"
+        ? groups.filter((group) => group.cohort_id === selectedCohortId)
+        : groups,
+    [groups, selectedCohortId],
   );
 
   const cohortById = useMemo(
@@ -1169,7 +1207,7 @@ const Admin = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Remove from group</SelectItem>
-                          {groups.map((group) => (
+                          {cohortGroups.map((group) => (
                             <SelectItem key={group.id} value={group.id}>
                               {group.name}
                             </SelectItem>
@@ -1480,7 +1518,7 @@ const Admin = () => {
                     </Button>
                     <Button 
                       onClick={syncExistingGroupsToChat} 
-                      disabled={syncingChats || groups.length === 0} 
+                      disabled={syncingChats || cohortGroups.length === 0} 
                       size="sm"
                       variant="outline"
                     >
@@ -1555,7 +1593,7 @@ const Admin = () => {
                     </Card>
                   ))}
 
-                  {groups.length === 0 && (
+                  {cohortGroups.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       No accountability groups created yet.
                     </div>
