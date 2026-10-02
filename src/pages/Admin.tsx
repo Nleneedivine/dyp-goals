@@ -695,6 +695,48 @@ const Admin = () => {
     });
   }, [goals, normalizedSearch]);
 
+
+  const groupedLegacyGoals = useMemo(() => {
+    const grouped = new Map<string, {
+      key: string;
+      profile: Profile | null;
+      goals: GoalAnalysis[];
+      latestCreatedAt: string;
+    }>();
+
+    filteredGoals.forEach((goal) => {
+      const key = goal.user_id ?? goal.profiles?.email ?? `unknown:${goal.id}`;
+      const existing = grouped.get(key);
+
+      if (existing) {
+        existing.goals.push(goal);
+        if (new Date(goal.created_at).getTime() > new Date(existing.latestCreatedAt).getTime()) {
+          existing.latestCreatedAt = goal.created_at;
+        }
+        return;
+      }
+
+      grouped.set(key, {
+        key,
+        profile: goal.profiles ?? null,
+        goals: [goal],
+        latestCreatedAt: goal.created_at,
+      });
+    });
+
+    return Array.from(grouped.values())
+      .map((group) => ({
+        ...group,
+        goals: [...group.goals].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        ),
+      }))
+      .sort(
+        (a, b) =>
+          new Date(b.latestCreatedAt).getTime() - new Date(a.latestCreatedAt).getTime(),
+      );
+  }, [filteredGoals]);
+
   if (loading) {
     return (
       <div className={`min-h-screen ${isUi2 ? "pt-28 pb-16" : "pt-20 pb-12"} flex items-center justify-center`}>
@@ -982,77 +1024,113 @@ const Admin = () => {
           <TabsContent value="goals">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>Legacy Goal Submissions</CardTitle>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <CardTitle>Legacy Goal History by Participant</CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {groupedLegacyGoals.length} participant{groupedLegacyGoals.length === 1 ? "" : "s"} · {filteredGoals.length} submission{filteredGoals.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {filteredGoals.map((goal) => (
-                    <Card key={goal.id} className="bg-muted/30 border-border">
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <CardTitle className="text-lg mb-2">
-                              {goal.profiles 
-                                ? `${goal.profiles.first_name} ${goal.profiles.last_name}`
-                                : "Unknown User"
-                              }
-                            </CardTitle>
-                            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                {goal.profiles?.email || "N/A"}
+                <div className="space-y-6">
+                  {groupedLegacyGoals.map((group) => {
+                    const participantName = group.profile
+                      ? `${group.profile.first_name} ${group.profile.last_name}`
+                      : "Unknown User";
+
+                    return (
+                      <Card key={group.key} className="overflow-hidden border-border">
+                        <CardHeader className="bg-muted/25">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <CardTitle className="text-xl">{participantName}</CardTitle>
+                              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Mail className="h-3.5 w-3.5" />
+                                  {group.profile?.email || "N/A"}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3.5 w-3.5" />
+                                  Latest: {format(new Date(group.latestCreatedAt), "MMM d, yyyy")}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {format(new Date(goal.created_at), "MMM d, yyyy")}
-                              </div>
-                              {goal.refined_goals && (
-                                <Badge className="bg-accent text-accent-foreground">
-                                  Refined
-                                </Badge>
-                              )}
                             </div>
+                            <Badge variant="outline" className="w-fit bg-background">
+                              {group.goals.length} goal submission{group.goals.length === 1 ? "" : "s"}
+                            </Badge>
                           </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void openGoalDetails(goal)}
-                              disabled={selectedGoalLoading}
-                              title="View details"
+                        </CardHeader>
+
+                        <CardContent className="space-y-3 p-4 sm:p-5">
+                          {group.goals.map((goal, index) => (
+                            <div
+                              key={goal.id}
+                              className="rounded-xl border bg-background p-4"
                             >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {goal.refined_goals && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDownloadGoalPDF(goal)}
-                                disabled={exportingGoalId === goal.id}
-                                title="Download PDF"
-                              >
-                                {exportingGoalId === goal.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Download className="h-4 w-4" />
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">
-                            <strong>Original Goals:</strong>
-                          </p>
-                          <p className="text-sm text-foreground line-clamp-3">
-                            {goal.original_goals}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-semibold">
+                                      Submission {group.goals.length - index}
+                                    </p>
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(new Date(goal.created_at), "MMM d, yyyy")}
+                                    </span>
+                                    {goal.refined_goals && (
+                                      <Badge className="bg-accent text-accent-foreground">
+                                        Refined
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Original Goals
+                                  </p>
+                                  <p className="mt-1 line-clamp-3 text-sm text-foreground">
+                                    {goal.original_goals}
+                                  </p>
+                                </div>
+
+                                <div className="flex shrink-0 gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => void openGoalDetails(goal)}
+                                    disabled={selectedGoalLoading}
+                                    title="View details"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  {goal.refined_goals && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDownloadGoalPDF(goal)}
+                                      disabled={exportingGoalId === goal.id}
+                                      title="Download PDF"
+                                    >
+                                      {exportingGoalId === goal.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  {groupedLegacyGoals.length === 0 && (
+                    <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                      No legacy goal submissions match this search.
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
