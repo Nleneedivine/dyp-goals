@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw, Eye, Download, FileText, SlidersHorizontal } from "lucide-react";
+import { Loader2, Users, Target, Search, Mail, Calendar, Shield, UserCog, UsersRound, Trash2, Plus, CheckSquare, RefreshCw, Eye, Download, FileText, SlidersHorizontal, Layers3 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
@@ -58,11 +58,35 @@ interface Profile {
 interface GoalAnalysis {
   id: string;
   user_id: string | null;
+  enrollment_id: string | null;
   original_goals: string;
   ai_analysis?: any;
   refined_goals: string | null;
   created_at: string;
   profiles?: Profile | null;
+}
+
+interface ProgramCohort {
+  id: string;
+  slug: string;
+  name: string;
+  cohort_year: number;
+  status: string;
+  is_current: boolean;
+}
+
+interface ProgramEnrollment {
+  id: string;
+  cohort_id: string;
+  user_id: string | null;
+  source_submission_id: string | null;
+  email: string;
+  first_name: string;
+  last_name: string;
+  status: string;
+  registered_at: string;
+  activated_at: string | null;
+  completed_at: string | null;
 }
 
 interface UserRole {
@@ -85,6 +109,9 @@ const Admin = () => {
   const [goals, setGoals] = useState<GoalAnalysis[]>([]);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [groups, setGroups] = useState<AccountabilityGroup[]>([]);
+  const [cohorts, setCohorts] = useState<ProgramCohort[]>([]);
+  const [enrollments, setEnrollments] = useState<ProgramEnrollment[]>([]);
+  const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
@@ -163,7 +190,14 @@ const Admin = () => {
 
   const loadAdminData = async () => {
     try {
-      const [profilesResult, rolesResult, groupsResult, goalsResult] = await Promise.all([
+      const [
+        profilesResult,
+        rolesResult,
+        groupsResult,
+        goalsResult,
+        cohortsResult,
+        enrollmentsResult,
+      ] = await Promise.all([
         supabase
           .from("profiles")
           .select("id,email,first_name,last_name,created_at,group_id")
@@ -175,21 +209,39 @@ const Admin = () => {
           .order("created_at", { ascending: false }),
         supabase
           .from("goal_analyses")
-          .select("id,user_id,original_goals,refined_goals,created_at")
+          .select("id,user_id,enrollment_id,original_goals,refined_goals,created_at")
           .order("created_at", { ascending: false }),
+        supabase
+          .from("program_cohorts")
+          .select("id,slug,name,cohort_year,status,is_current")
+          .order("cohort_year", { ascending: false }),
+        supabase
+          .from("program_enrollments")
+          .select("id,cohort_id,user_id,source_submission_id,email,first_name,last_name,status,registered_at,activated_at,completed_at")
+          .order("registered_at", { ascending: false }),
       ]);
 
       if (profilesResult.error) throw profilesResult.error;
       if (rolesResult.error) throw rolesResult.error;
       if (groupsResult.error) throw groupsResult.error;
       if (goalsResult.error) throw goalsResult.error;
+      if (cohortsResult.error) throw cohortsResult.error;
+      if (enrollmentsResult.error) throw enrollmentsResult.error;
 
       const profilesData = profilesResult.data ?? [];
       const rolesData = rolesResult.data ?? [];
       const groupsData = groupsResult.data ?? [];
       const goalsData = goalsResult.data ?? [];
+      const cohortsData = cohortsResult.data ?? [];
+      const enrollmentsData = enrollmentsResult.data ?? [];
 
       setUsers(profilesData);
+      setCohorts(cohortsData);
+      setEnrollments(enrollmentsData);
+      setSelectedCohortId((current) => {
+        if (current !== null) return current;
+        return cohortsData.find((cohort) => cohort.is_current)?.id ?? "all";
+      });
       setUserRoles(rolesData);
 
       const membersByGroup = new Map<string, Profile[]>();
@@ -669,6 +721,24 @@ const Admin = () => {
     }
   };
 
+  const selectedCohort = useMemo(
+    () =>
+      selectedCohortId && selectedCohortId !== "all"
+        ? cohorts.find((cohort) => cohort.id === selectedCohortId) ?? null
+        : null,
+    [cohorts, selectedCohortId],
+  );
+
+  const cohortById = useMemo(
+    () => new Map(cohorts.map((cohort) => [cohort.id, cohort] as const)),
+    [cohorts],
+  );
+
+  const enrollmentById = useMemo(
+    () => new Map(enrollments.map((enrollment) => [enrollment.id, enrollment] as const)),
+    [enrollments],
+  );
+
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const filteredUsers = useMemo(() => {
@@ -679,9 +749,40 @@ const Admin = () => {
     });
   }, [normalizedSearch, users]);
 
+  const filteredEnrollments = useMemo(() => {
+    const cohortScoped =
+      selectedCohortId && selectedCohortId !== "all"
+        ? enrollments.filter((enrollment) => enrollment.cohort_id === selectedCohortId)
+        : enrollments;
+
+    if (!normalizedSearch) return cohortScoped;
+
+    return cohortScoped.filter((enrollment) => {
+      const name = `${enrollment.first_name} ${enrollment.last_name}`.toLowerCase();
+      return (
+        name.includes(normalizedSearch) ||
+        enrollment.email.toLowerCase().includes(normalizedSearch) ||
+        enrollment.status.toLowerCase().includes(normalizedSearch)
+      );
+    });
+  }, [enrollments, normalizedSearch, selectedCohortId]);
+
+  const activeEnrollmentCount = useMemo(
+    () => filteredEnrollments.filter((enrollment) => enrollment.status === "active").length,
+    [filteredEnrollments],
+  );
+
   const filteredGoals = useMemo(() => {
-    if (!normalizedSearch) return goals;
-    return goals.filter((goal) => {
+    const cohortScoped =
+      selectedCohortId && selectedCohortId !== "all"
+        ? goals.filter((goal) => {
+            if (!goal.enrollment_id) return false;
+            return enrollmentById.get(goal.enrollment_id)?.cohort_id === selectedCohortId;
+          })
+        : goals;
+
+    if (!normalizedSearch) return cohortScoped;
+    return cohortScoped.filter((goal) => {
       const originalGoals = goal.original_goals.toLowerCase();
       const refinedGoals = goal.refined_goals?.toLowerCase() || "";
       const userName = goal.profiles
@@ -693,7 +794,7 @@ const Admin = () => {
         userName.includes(normalizedSearch)
       );
     });
-  }, [goals, normalizedSearch]);
+  }, [enrollmentById, goals, normalizedSearch, selectedCohortId]);
 
 
   const groupedLegacyGoals = useMemo(() => {
@@ -799,6 +900,38 @@ const Admin = () => {
           </div>
         )}
 
+        <Card className="mb-6 border-primary/20">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Layers3 className="h-5 w-5 text-primary" />
+                <p className="font-semibold">Admin cohort view</p>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {selectedCohort
+                  ? `Viewing ${selectedCohort.name}. System-user management remains global.`
+                  : "Viewing all cohorts and historical activity."}
+              </p>
+            </div>
+            <Select
+              value={selectedCohortId ?? "all"}
+              onValueChange={setSelectedCohortId}
+            >
+              <SelectTrigger className="w-full sm:w-[240px]">
+                <SelectValue placeholder="Choose cohort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All cohorts</SelectItem>
+                {cohorts.map((cohort) => (
+                  <SelectItem key={cohort.id} value={cohort.id}>
+                    {cohort.name}{cohort.is_current ? " · Current" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
         <Card className="mb-8 border-primary/20">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -842,28 +975,46 @@ const Admin = () => {
         </Card>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
           <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Total Users
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <UsersRound className="h-5 w-5" />
+                Cohort participants
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-4xl font-bold text-primary">{users.length}</p>
+              <p className="text-4xl font-bold text-primary">{filteredEnrollments.length}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Active participants</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-4xl font-bold text-primary">{activeEnrollmentCount}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">System users</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-4xl font-bold">{users.length}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-secondary/10 to-accent/10 border-secondary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Target className="h-5 w-5" />
-                Legacy AI Goal Submissions
+                Cohort goal submissions
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-4xl font-bold text-secondary">{goals.length}</p>
+              <p className="text-4xl font-bold text-secondary">{filteredGoals.length}</p>
             </CardContent>
           </Card>
         </div>
@@ -885,11 +1036,15 @@ const Admin = () => {
         </Card>
 
         {/* Tabs */}
-        <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5 mb-8">
+        <Tabs defaultValue="participants" className="w-full">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-6 mb-8">
+            <TabsTrigger value="participants" className="flex items-center gap-2">
+              <UsersRound className="h-4 w-4" />
+              Participants ({filteredEnrollments.length})
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Users ({filteredUsers.length})
+              System Users ({filteredUsers.length})
             </TabsTrigger>
             <TabsTrigger value="goals" className="flex items-center gap-2">
               <Target className="h-4 w-4" />
@@ -909,11 +1064,90 @@ const Admin = () => {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="participants">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <div>
+                  <CardTitle>
+                    {selectedCohort?.name ?? "All Cohort Participants"}
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Enrollment status is cohort-specific. A person may appear in multiple years without creating duplicate accounts.
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Participant</TableHead>
+                        <TableHead>Cohort</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Account</TableHead>
+                        <TableHead>Registered</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredEnrollments.map((enrollment) => {
+                        const cohort = cohortById.get(enrollment.cohort_id);
+                        const displayName =
+                          [enrollment.first_name, enrollment.last_name].filter(Boolean).join(" ") ||
+                          enrollment.email ||
+                          "Unnamed participant";
+                        return (
+                          <TableRow key={enrollment.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{displayName}</p>
+                                <p className="text-sm text-muted-foreground">{enrollment.email || "No email captured"}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>{cohort?.name ?? "Unknown cohort"}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  enrollment.status === "active"
+                                    ? "secondary"
+                                    : enrollment.status === "completed"
+                                      ? "default"
+                                      : "outline"
+                                }
+                              >
+                                {enrollment.status.replaceAll("_", " ")}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {enrollment.user_id ? (
+                                <Badge variant="outline">Linked account</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-muted-foreground">Registration only</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(enrollment.registered_at), "MMM d, yyyy")}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {filteredEnrollments.length === 0 && (
+                  <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                    No participants match this cohort/search yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="users">
             <Card className="bg-card border-border">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <CardTitle>All Users</CardTitle>
+                  <CardTitle>All System Users</CardTitle>
                   {selectedUsers.size > 0 && (
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="flex items-center gap-1">
@@ -1026,9 +1260,11 @@ const Admin = () => {
               <CardHeader>
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <CardTitle>Legacy Goal History by Participant</CardTitle>
+                    <CardTitle>
+                      {selectedCohort ? `${selectedCohort.name} Goal History` : "Goal History by Participant"}
+                    </CardTitle>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {groupedLegacyGoals.length} participant{groupedLegacyGoals.length === 1 ? "" : "s"} · {filteredGoals.length} submission{filteredGoals.length === 1 ? "" : "s"}
+                      {groupedLegacyGoals.length} participant{groupedLegacyGoals.length === 1 ? "" : "s"} · {filteredGoals.length} scoped submission{filteredGoals.length === 1 ? "" : "s"}
                     </p>
                   </div>
                 </div>
