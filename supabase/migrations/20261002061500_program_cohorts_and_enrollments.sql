@@ -446,6 +446,47 @@ from public.program_form_submissions s
 join public.program_forms f on f.id = s.form_id
 where f.cohort_id is not null;
 
+-- Future top-level goal records inherit the user's active current cohort automatically.
+create or replace function public.assign_current_enrollment_to_goal_record()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $function$
+begin
+  if new.enrollment_id is null and new.user_id is not null then
+    select e.id
+    into new.enrollment_id
+    from public.program_enrollments e
+    join public.program_cohorts c on c.id = e.cohort_id
+    where e.user_id = new.user_id
+      and c.is_current
+      and e.status in ('active','completed')
+    order by
+      case when e.status = 'active' then 0 else 1 end,
+      e.activated_at desc nulls last,
+      e.registered_at desc
+    limit 1;
+  end if;
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists trg_assign_current_enrollment_to_goal
+on public.goals;
+create trigger trg_assign_current_enrollment_to_goal
+before insert or update of user_id, enrollment_id on public.goals
+for each row
+execute function public.assign_current_enrollment_to_goal_record();
+
+drop trigger if exists trg_assign_current_enrollment_to_goal_analysis
+on public.goal_analyses;
+create trigger trg_assign_current_enrollment_to_goal_analysis
+before insert or update of user_id, enrollment_id on public.goal_analyses
+for each row
+execute function public.assign_current_enrollment_to_goal_record();
+
 comment on table public.program_cohorts is
   'Program/cohort definitions such as GOALS 2025 and GOALS 2026.';
 comment on table public.program_enrollments is
