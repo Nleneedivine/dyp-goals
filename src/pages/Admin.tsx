@@ -749,15 +749,18 @@ const Admin = () => {
     });
   }, [normalizedSearch, users]);
 
-  const filteredEnrollments = useMemo(() => {
-    const cohortScoped =
+  const cohortEnrollments = useMemo(
+    () =>
       selectedCohortId && selectedCohortId !== "all"
         ? enrollments.filter((enrollment) => enrollment.cohort_id === selectedCohortId)
-        : enrollments;
+        : enrollments,
+    [enrollments, selectedCohortId],
+  );
 
-    if (!normalizedSearch) return cohortScoped;
+  const filteredEnrollments = useMemo(() => {
+    if (!normalizedSearch) return cohortEnrollments;
 
-    return cohortScoped.filter((enrollment) => {
+    return cohortEnrollments.filter((enrollment) => {
       const name = `${enrollment.first_name} ${enrollment.last_name}`.toLowerCase();
       return (
         name.includes(normalizedSearch) ||
@@ -765,24 +768,27 @@ const Admin = () => {
         enrollment.status.toLowerCase().includes(normalizedSearch)
       );
     });
-  }, [enrollments, normalizedSearch, selectedCohortId]);
+  }, [cohortEnrollments, normalizedSearch]);
 
   const activeEnrollmentCount = useMemo(
-    () => filteredEnrollments.filter((enrollment) => enrollment.status === "active").length,
-    [filteredEnrollments],
+    () => cohortEnrollments.filter((enrollment) => enrollment.status === "active").length,
+    [cohortEnrollments],
   );
 
-  const filteredGoals = useMemo(() => {
-    const cohortScoped =
+  const cohortScopedGoals = useMemo(
+    () =>
       selectedCohortId && selectedCohortId !== "all"
         ? goals.filter((goal) => {
             if (!goal.enrollment_id) return false;
             return enrollmentById.get(goal.enrollment_id)?.cohort_id === selectedCohortId;
           })
-        : goals;
+        : goals,
+    [enrollmentById, goals, selectedCohortId],
+  );
 
-    if (!normalizedSearch) return cohortScoped;
-    return cohortScoped.filter((goal) => {
+  const filteredGoals = useMemo(() => {
+    if (!normalizedSearch) return cohortScopedGoals;
+    return cohortScopedGoals.filter((goal) => {
       const originalGoals = goal.original_goals.toLowerCase();
       const refinedGoals = goal.refined_goals?.toLowerCase() || "";
       const userName = goal.profiles
@@ -794,7 +800,7 @@ const Admin = () => {
         userName.includes(normalizedSearch)
       );
     });
-  }, [enrollmentById, goals, normalizedSearch, selectedCohortId]);
+  }, [cohortScopedGoals, normalizedSearch]);
 
 
   const groupedLegacyGoals = useMemo(() => {
@@ -984,7 +990,7 @@ const Admin = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-4xl font-bold text-primary">{filteredEnrollments.length}</p>
+              <p className="text-4xl font-bold text-primary">{cohortEnrollments.length}</p>
             </CardContent>
           </Card>
 
@@ -1014,7 +1020,7 @@ const Admin = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-4xl font-bold text-secondary">{filteredGoals.length}</p>
+              <p className="text-4xl font-bold text-secondary">{cohortScopedGoals.length}</p>
             </CardContent>
           </Card>
         </div>
@@ -1114,7 +1120,7 @@ const Admin = () => {
                                       : "outline"
                                 }
                               >
-                                {enrollment.status.replaceAll("_", " ")}
+                                {enrollment.status.replace(/_/g, " ")}
                               </Badge>
                             </TableCell>
                             <TableCell>
