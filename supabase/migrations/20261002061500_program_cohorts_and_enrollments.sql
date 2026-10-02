@@ -267,6 +267,10 @@ begin
   order by pf.display_order
   limit 1;
 
+  v_email := coalesce(v_email, '');
+  v_first_name := coalesce(v_first_name, '');
+  v_last_name := coalesce(v_last_name, '');
+
   if v_email <> '' then
     select p.id
     into v_user_id
