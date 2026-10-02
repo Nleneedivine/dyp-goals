@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
+import { getCurrentGoalEnrollment } from "@/lib/cohortScope";
 
 const Mentorship = () => {
   const [formData, setFormData] = useState({
@@ -22,6 +23,7 @@ const Mentorship = () => {
   const [acceptedRules, setAcceptedRules] = useState(false);
   const [hasExistingRequest, setHasExistingRequest] = useState(false);
   const [groupInfo, setGroupInfo] = useState<{ name: string } | null>(null);
+  const [currentEnrollmentId, setCurrentEnrollmentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -40,37 +42,46 @@ const Mentorship = () => {
         return;
       }
 
-      // Check for an existing mentorship/accountability request
-      const { data: request } = await supabase
-        .from('mentorship_requests')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const currentEnrollment = await getCurrentGoalEnrollment(user.id);
+      setCurrentEnrollmentId(currentEnrollment?.id ?? null);
 
-      if (request) {
-        setHasExistingRequest(true);
+      if (!currentEnrollment) {
+        setHasExistingRequest(false);
+        setGroupInfo(null);
+        return;
       }
 
-      // Check if already in a group
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('group_id')
-        .eq('id', user.id)
-        .maybeSingle();
+      const [{ data: request }, { data: membership }] = await Promise.all([
+        supabase
+          .from("mentorship_requests")
+          .select("id")
+          .eq("enrollment_id", currentEnrollment.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("program_accountability_memberships")
+          .select("group_id")
+          .eq("enrollment_id", currentEnrollment.id)
+          .eq("status", "active")
+          .maybeSingle(),
+      ]);
 
-      if (profile?.group_id) {
+      setHasExistingRequest(Boolean(request));
+
+      if (membership?.group_id) {
         const { data: group } = await supabase
-          .from('accountability_groups')
-          .select('name')
-          .eq('id', profile.group_id)
+          .from("accountability_groups")
+          .select("name")
+          .eq("id", membership.group_id)
           .maybeSingle();
 
-        if (group) {
-          setGroupInfo(group);
-        }
+        setGroupInfo(group ?? null);
+      } else {
+        setGroupInfo(null);
       }
     } catch (error) {
-      console.error('Error checking status:', error);
+      console.error("Error checking status:", error);
     } finally {
       setIsLoading(false);
     }
@@ -102,11 +113,21 @@ const Mentorship = () => {
         return;
       }
 
-      // Save mentorship/accountability request
+      const currentEnrollment =
+        currentEnrollmentId
+          ? { id: currentEnrollmentId }
+          : await getCurrentGoalEnrollment(user.id);
+
+      if (!currentEnrollment) {
+        throw new Error("An active current GOALS enrollment is required before joining the Accountability Lab.");
+      }
+
+      // Save this request against the current cohort enrollment.
       const { error: requestError } = await supabase
-        .from('mentorship_requests')
+        .from("mentorship_requests")
         .insert({
           user_id: user.id,
+          enrollment_id: currentEnrollment.id,
           goals: formData.goals,
           areas: formData.areas,
           experience: formData.experience,
@@ -116,9 +137,9 @@ const Mentorship = () => {
 
       if (requestError) throw requestError;
 
-      // Assign user to accountability group
+      // Assign the current cohort enrollment to an accountability group.
       const { data: groupId, error: groupError } = await supabase
-        .rpc('assign_user_to_group', { _user_id: user.id });
+        .rpc("assign_current_user_to_accountability_group");
 
       if (groupError) throw groupError;
 
