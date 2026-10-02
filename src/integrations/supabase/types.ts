@@ -304,6 +304,7 @@ export type Database = {
         Row: {
           ai_analysis: Json
           created_at: string
+          enrollment_id: string | null
           id: string
           original_goals: string
           refined_goals: string | null
@@ -314,6 +315,7 @@ export type Database = {
         Insert: {
           ai_analysis: Json
           created_at?: string
+          enrollment_id?: string | null
           id?: string
           original_goals: string
           refined_goals?: string | null
@@ -324,6 +326,7 @@ export type Database = {
         Update: {
           ai_analysis?: Json
           created_at?: string
+          enrollment_id?: string | null
           id?: string
           original_goals?: string
           refined_goals?: string | null
@@ -331,7 +334,15 @@ export type Database = {
           user_id?: string | null
           user_responses?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "goal_analyses_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       goal_capacity_periods: {
         Row: {
@@ -766,6 +777,7 @@ export type Database = {
           coaching_context: Json
           created_at: string
           description: string
+          enrollment_id: string | null
           effort_source: string
           end_date: string | null
           estimated_hours_per_week: number
@@ -784,6 +796,7 @@ export type Database = {
           coaching_context?: Json
           created_at?: string
           description?: string
+          enrollment_id?: string | null
           effort_source?: string
           end_date?: string | null
           estimated_hours_per_week?: number
@@ -802,6 +815,7 @@ export type Database = {
           coaching_context?: Json
           created_at?: string
           description?: string
+          enrollment_id?: string | null
           effort_source?: string
           end_date?: string | null
           estimated_hours_per_week?: number
@@ -817,6 +831,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "goals_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "goals_source_analysis_id_fkey"
             columns: ["source_analysis_id"]
@@ -1356,10 +1377,134 @@ export type Database = {
           },
         ]
       }
+      program_cohorts: {
+        Row: {
+          cohort_year: number
+          created_at: string
+          ends_on: string | null
+          id: string
+          is_current: boolean
+          name: string
+          program_event_id: string | null
+          program_key: string
+          slug: string
+          starts_on: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cohort_year: number
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          is_current?: boolean
+          name: string
+          program_event_id?: string | null
+          program_key: string
+          slug: string
+          starts_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cohort_year?: number
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          is_current?: boolean
+          name?: string
+          program_event_id?: string | null
+          program_key?: string
+          slug?: string
+          starts_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_cohorts_program_event_id_fkey"
+            columns: ["program_event_id"]
+            isOneToOne: false
+            referencedRelation: "program_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_enrollments: {
+        Row: {
+          activated_at: string | null
+          cohort_id: string
+          completed_at: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          registered_at: string
+          source_submission_id: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          cohort_id: string
+          completed_at?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          registered_at?: string
+          source_submission_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          cohort_id?: string
+          completed_at?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          registered_at?: string
+          source_submission_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_enrollments_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "program_cohorts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_source_submission_id_fkey"
+            columns: ["source_submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_forms: {
         Row: {
           brand: string
           closes_at: string | null
+          cohort_id: string | null
           confirmation_email_enabled: boolean
           confirmation_message: string
           created_at: string
@@ -1380,6 +1525,7 @@ export type Database = {
         Insert: {
           brand?: string
           closes_at?: string | null
+          cohort_id?: string | null
           confirmation_email_enabled?: boolean
           confirmation_message?: string
           created_at?: string
@@ -1400,6 +1546,7 @@ export type Database = {
         Update: {
           brand?: string
           closes_at?: string | null
+          cohort_id?: string | null
           confirmation_email_enabled?: boolean
           confirmation_message?: string
           created_at?: string
@@ -1417,7 +1564,15 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "program_forms_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "program_cohorts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       program_participant_status: {
         Row: {
@@ -1950,6 +2105,10 @@ export type Database = {
       ensure_program_referral_code: {
         Args: { p_form_id: string; p_submission_id: string }
         Returns: string
+      }
+      ensure_program_enrollment_from_submission: {
+        Args: { p_submission_id: string }
+        Returns: string | null
       }
       get_accountability_program_trends: {
         Args: { p_week_start: string }
