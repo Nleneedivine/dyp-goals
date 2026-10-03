@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { linkAuthenticatedEnrollments, safeNextPath } from "@/lib/authOnboarding";
+import { lovable } from "@/integrations/lovable/index";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -86,24 +87,27 @@ const Auth = () => {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    const redirectTo = new URL("/auth/callback", window.location.origin);
-    redirectTo.searchParams.set("next", nextPath);
+    // Remember the intended destination; the callback reads it after the session exists.
+    sessionStorage.setItem("dyp-auth-next", nextPath);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: redirectTo.toString(),
-      },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}/auth/callback`,
     });
 
-    if (error) {
+    if (result.error) {
       setGoogleLoading(false);
       toast({
         title: "Google sign-in could not start",
-        description: error.message,
+        description: result.error.message,
         variant: "destructive",
       });
+      return;
     }
+
+    if (result.redirected) return;
+
+    // Popup flow (e.g. preview): session is already set; onAuthStateChange links + navigates.
+    setGoogleLoading(false);
   };
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {

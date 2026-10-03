@@ -16,7 +16,8 @@ export default function AuthCallback() {
     const complete = async () => {
       try {
         const params = new URLSearchParams(location.search);
-        const next = safeNextPath(params.get("next"));
+        const next = safeNextPath(params.get("next") ?? sessionStorage.getItem("dyp-auth-next"));
+        sessionStorage.removeItem("dyp-auth-next");
 
         let { data: { session } } = await supabase.auth.getSession();
 
