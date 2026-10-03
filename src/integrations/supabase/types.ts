@@ -39,7 +39,15 @@ export type Database = {
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "accountability_groups_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "program_cohorts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       accountability_sharing_preferences: {
         Row: {
@@ -146,7 +154,7 @@ export type Database = {
           {
             foreignKeyName: "chat_groups_accountability_group_id_fkey"
             columns: ["accountability_group_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "accountability_groups"
             referencedColumns: ["id"]
           },
@@ -791,9 +799,9 @@ export type Database = {
           coaching_context: Json
           created_at: string
           description: string
-          enrollment_id: string | null
           effort_source: string
           end_date: string | null
+          enrollment_id: string | null
           estimated_hours_per_week: number
           id: string
           life_area: string
@@ -810,9 +818,9 @@ export type Database = {
           coaching_context?: Json
           created_at?: string
           description?: string
-          enrollment_id?: string | null
           effort_source?: string
           end_date?: string | null
+          enrollment_id?: string | null
           estimated_hours_per_week?: number
           id?: string
           life_area?: string
@@ -829,9 +837,9 @@ export type Database = {
           coaching_context?: Json
           created_at?: string
           description?: string
-          enrollment_id?: string | null
           effort_source?: string
           end_date?: string | null
+          enrollment_id?: string | null
           estimated_hours_per_week?: number
           id?: string
           life_area?: string
@@ -1096,6 +1104,177 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "accountability_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_accountability_memberships: {
+        Row: {
+          created_at: string
+          enrollment_id: string
+          group_id: string
+          id: string
+          joined_at: string
+          left_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enrollment_id: string
+          group_id: string
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enrollment_id?: string
+          group_id?: string
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_accountability_memberships_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_accountability_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_cohorts: {
+        Row: {
+          cohort_year: number
+          created_at: string
+          ends_on: string | null
+          id: string
+          is_current: boolean
+          name: string
+          program_event_id: string | null
+          program_key: string
+          slug: string
+          starts_on: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cohort_year: number
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          is_current?: boolean
+          name: string
+          program_event_id?: string | null
+          program_key: string
+          slug: string
+          starts_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cohort_year?: number
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          is_current?: boolean
+          name?: string
+          program_event_id?: string | null
+          program_key?: string
+          slug?: string
+          starts_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_cohorts_program_event_id_fkey"
+            columns: ["program_event_id"]
+            isOneToOne: false
+            referencedRelation: "program_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_enrollments: {
+        Row: {
+          activated_at: string | null
+          cohort_id: string
+          completed_at: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          registered_at: string
+          source_submission_id: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          cohort_id: string
+          completed_at?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          registered_at?: string
+          source_submission_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          cohort_id?: string
+          completed_at?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          registered_at?: string
+          source_submission_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_enrollments_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "program_cohorts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_source_submission_id_fkey"
+            columns: ["source_submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1398,177 +1577,6 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: true
             referencedRelation: "program_form_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      program_accountability_memberships: {
-        Row: {
-          created_at: string
-          enrollment_id: string
-          group_id: string
-          id: string
-          joined_at: string
-          left_at: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          enrollment_id: string
-          group_id: string
-          id?: string
-          joined_at?: string
-          left_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          enrollment_id?: string
-          group_id?: string
-          id?: string
-          joined_at?: string
-          left_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "program_accountability_memberships_enrollment_id_fkey"
-            columns: ["enrollment_id"]
-            isOneToOne: false
-            referencedRelation: "program_enrollments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "program_accountability_memberships_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "accountability_groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      program_cohorts: {
-        Row: {
-          cohort_year: number
-          created_at: string
-          ends_on: string | null
-          id: string
-          is_current: boolean
-          name: string
-          program_event_id: string | null
-          program_key: string
-          slug: string
-          starts_on: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          cohort_year: number
-          created_at?: string
-          ends_on?: string | null
-          id?: string
-          is_current?: boolean
-          name: string
-          program_event_id?: string | null
-          program_key: string
-          slug: string
-          starts_on?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          cohort_year?: number
-          created_at?: string
-          ends_on?: string | null
-          id?: string
-          is_current?: boolean
-          name?: string
-          program_event_id?: string | null
-          program_key?: string
-          slug?: string
-          starts_on?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "program_cohorts_program_event_id_fkey"
-            columns: ["program_event_id"]
-            isOneToOne: false
-            referencedRelation: "program_events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      program_enrollments: {
-        Row: {
-          activated_at: string | null
-          cohort_id: string
-          completed_at: string | null
-          created_at: string
-          email: string
-          first_name: string
-          id: string
-          last_name: string
-          registered_at: string
-          source_submission_id: string | null
-          status: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          activated_at?: string | null
-          cohort_id: string
-          completed_at?: string | null
-          created_at?: string
-          email?: string
-          first_name?: string
-          id?: string
-          last_name?: string
-          registered_at?: string
-          source_submission_id?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          activated_at?: string | null
-          cohort_id?: string
-          completed_at?: string | null
-          created_at?: string
-          email?: string
-          first_name?: string
-          id?: string
-          last_name?: string
-          registered_at?: string
-          source_submission_id?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "program_enrollments_cohort_id_fkey"
-            columns: ["cohort_id"]
-            isOneToOne: false
-            referencedRelation: "program_cohorts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "program_enrollments_source_submission_id_fkey"
-            columns: ["source_submission_id"]
-            isOneToOne: true
-            referencedRelation: "program_form_submissions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "program_enrollments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2048,7 +2056,7 @@ export type Database = {
     }
     Functions: {
       admin_bulk_assign_enrollments_to_group: {
-        Args: { p_enrollment_ids: string[]; p_group_id: string | null }
+        Args: { p_enrollment_ids: string[]; p_group_id: string }
         Returns: Json
       }
       admin_bulk_assign_users_to_group: {
@@ -2140,6 +2148,7 @@ export type Database = {
           description: string
           effort_source: string
           end_date: string | null
+          enrollment_id: string | null
           estimated_hours_per_week: number
           id: string
           life_area: string
@@ -2174,6 +2183,10 @@ export type Database = {
         Args: never
         Returns: string
       }
+      assign_enrollment_to_available_group: {
+        Args: { p_enrollment_id: string }
+        Returns: string
+      }
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
       consume_edge_rate_limit: {
         Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
@@ -2183,27 +2196,27 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
-      ensure_program_referral_code: {
-        Args: { p_form_id: string; p_submission_id: string }
+      ensure_accountability_chat: {
+        Args: { p_group_id: string }
         Returns: string
       }
       ensure_program_enrollment_from_submission: {
         Args: { p_submission_id: string }
-        Returns: string | null
+        Returns: string
       }
-      link_current_user_enrollments: {
-        Args: never
-        Returns: Json
+      ensure_program_referral_code: {
+        Args: { p_form_id: string; p_submission_id: string }
+        Returns: string
       }
       get_accountability_program_trends: {
         Args: { p_week_start: string }
         Returns: Json
       }
+      get_next_group_name: { Args: never; Returns: string }
       get_next_group_name_for_cohort: {
         Args: { p_cohort_id: string }
         Returns: string
       }
-      get_next_group_name: { Args: never; Returns: string }
       get_program_form_performance: {
         Args: { p_form_ids: string[] }
         Returns: {
@@ -2268,6 +2281,7 @@ export type Database = {
         Args: { p_member_id: string; p_mentor_id: string }
         Returns: boolean
       }
+      link_current_user_enrollments: { Args: never; Returns: Json }
       record_program_referral: {
         Args: { p_referral_code: string; p_session_token: string }
         Returns: boolean
