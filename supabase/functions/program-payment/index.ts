@@ -26,14 +26,24 @@ const verifyPaystackSignature = async (
   signature: string,
   secret: string,
 ) => {
+  const secretBytes = new TextEncoder().encode(secret);
+  const secretBuffer = secretBytes.buffer.slice(
+    secretBytes.byteOffset,
+    secretBytes.byteOffset + secretBytes.byteLength,
+  ) as ArrayBuffer;
+  const payloadBuffer = rawBody.buffer.slice(
+    rawBody.byteOffset,
+    rawBody.byteOffset + rawBody.byteLength,
+  ) as ArrayBuffer;
+
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(secret),
+    secretBuffer,
     { name: "HMAC", hash: "SHA-512" },
     false,
     ["sign"],
   );
-  const digest = await crypto.subtle.sign("HMAC", key, rawBody);
+  const digest = await crypto.subtle.sign("HMAC", key, payloadBuffer);
   return hex(digest).toLowerCase() === signature.toLowerCase();
 };
 
@@ -160,6 +170,10 @@ Deno.serve(async (req) => {
         .select("slug")
         .eq("id", submission.form_id)
         .single();
+
+      if (!form?.slug) {
+        return respond({ error: "Registration form configuration was not found." }, 500);
+      }
 
       const { data: emailField } = await admin
         .from("program_form_fields")
