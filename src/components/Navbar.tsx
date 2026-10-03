@@ -193,6 +193,14 @@ const Navbar = () => {
                   </Link>
                 ))}
 
+                {!user && (
+                  <Button asChild size="sm" variant="outline" className="font-semibold">
+                    <Link to="/auth?next=%2Fjourney">
+                      Sign in
+                    </Link>
+                  </Button>
+                )}
+
                 <Button asChild size="sm" className="font-semibold">
                   <Link to="/apply/goals-masterclass-2026">
                     Register
@@ -309,17 +317,24 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsOpen(!isOpen)}
-            className="xl:hidden text-foreground"
-            aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
-          >
-            {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </Button>
+          {/* Mobile account entry + menu */}
+          <div className="flex items-center gap-2 xl:hidden">
+            {!user && (
+              <Button asChild size="sm" variant="outline" className="h-9 px-3 font-semibold">
+                <Link to="/auth?next=%2Fjourney">Sign in</Link>
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-foreground"
+              aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+            >
+              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </Button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
@@ -338,6 +353,14 @@ const Navbar = () => {
               </Link>
             ))}
             
+            {!user && (
+              <Link to="/auth?next=%2Fjourney" onClick={() => setIsOpen(false)}>
+                <Button variant="outline" className="w-full mb-3">
+                  Sign in / Participant Login
+                </Button>
+              </Link>
+            )}
+
             <Link to="/apply/goals-masterclass-2026" onClick={() => setIsOpen(false)}>
               <Button className="w-full mb-3">
                 Register for GOALS

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, Copy, CreditCard, ExternalLink, Landmark, Loader2, RefreshCw, Search, Share2, Star, UserRound, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Copy, CreditCard, ExternalLink, Landmark, Loader2, RefreshCw, Search, Share2, Star, UserRound, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,14 @@ import { parseOptions, type ProgramField, type ProgramForm } from "@/lib/formTyp
 
 type Answer = string | number | boolean | string[] | null;
 type Timing = { firstInputDelayMs: number | null; activeTimeMs: number | null };
+type WizardStep = {
+  id: string;
+  title: string;
+  description: string;
+  fields: ProgramField[];
+  includesReferral?: boolean;
+  review?: boolean;
+};
 type PaymentState = {
   available?: boolean;
   submissionId?: string;
@@ -52,6 +60,7 @@ export default function PublicForm() {
   const [manualReference, setManualReference] = useState("");
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [currentStep, setCurrentStep] = useState(0);
   const [files, setFiles] = useState<Record<string, File>>({});
   const [timings, setTimings] = useState<Record<string, Timing>>({});
   const startedAt = useRef(Date.now());
@@ -60,6 +69,139 @@ export default function PublicForm() {
   const deviceType = useMemo(() => window.innerWidth < 640 ? "mobile" : window.innerWidth < 1024 ? "tablet" : "desktop", []);
   const incomingReferralCode = useMemo(() => new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase() ?? "", []);
   const paymentReference = useMemo(() => new URLSearchParams(window.location.search).get("payment_reference")?.trim() ?? "", []);
+
+
+  const sectionGroups = useMemo(() => {
+    const groups: Array<{ id: string; title: string; description: string; fields: ProgramField[] }> = [];
+    let current: { id: string; title: string; description: string; fields: ProgramField[] } | null = null;
+
+    fields.forEach((field) => {
+      if (field.field_type === "section") {
+        current = {
+          id: field.id,
+          title: field.label,
+          description: field.helper_text || "",
+          fields: [],
+        };
+        groups.push(current);
+        return;
+      }
+
+      if (!current) {
+        current = {
+          id: "general",
+          title: "Registration details",
+          description: "",
+          fields: [],
+        };
+        groups.push(current);
+      }
+
+      current.fields.push(field);
+    });
+
+    return groups;
+  }, [fields]);
+
+  const wizardSteps = useMemo<WizardStep[]>(() => {
+    const hearField = fields.find((field) =>
+      field.label.toLowerCase().includes("how did you hear about"),
+    );
+
+    const steps: WizardStep[] = [];
+
+    sectionGroups.forEach((group) => {
+      const normalizedTitle = group.title.toLowerCase();
+      const isGoalsSection = normalizedTitle.includes("your goals");
+      const stepFields = isGoalsSection && hearField
+        ? group.fields.filter((field) => field.id !== hearField.id)
+        : group.fields;
+
+      if (stepFields.length > 0) {
+        steps.push({
+          id: group.id,
+          title: group.title,
+          description: group.description,
+          fields: stepFields,
+        });
+      }
+
+      if (isGoalsSection) {
+        steps.push({
+          id: "registration-details",
+          title: "Registration Details",
+          description: "Tell us how you found DYP GOALS and who referred you, if anyone.",
+          fields: hearField ? [hearField] : [],
+          includesReferral: true,
+        });
+      }
+    });
+
+    if (!steps.some((step) => step.includesReferral)) {
+      steps.push({
+        id: "registration-details",
+        title: "Registration Details",
+        description: "Tell us who referred you, if anyone.",
+        fields: [],
+        includesReferral: true,
+      });
+    }
+
+    steps.push({
+      id: "review",
+      title: "Review & Submit",
+      description: "Check your responses before submitting your registration.",
+      fields: [],
+      review: true,
+    });
+
+    return steps;
+  }, [fields, sectionGroups]);
+
+  const activeStep = wizardSteps[Math.min(currentStep, Math.max(0, wizardSteps.length - 1))];
+  const lastStepIndex = Math.max(0, wizardSteps.length - 1);
+
+  const hasAnswer = (field: ProgramField) => {
+    if (!field.required) return true;
+    const value = answers[field.id];
+
+    if (field.field_type === "checkbox") return value === true;
+    if (field.field_type === "multi_select") return Array.isArray(value) && value.length > 0;
+    if (field.field_type === "file") return Boolean(files[field.id] || value);
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value === "string") return value.trim().length > 0;
+    return value !== null && value !== undefined;
+  };
+
+  const validateActiveStep = () => {
+    if (!activeStep || activeStep.review) return true;
+
+    const missing = activeStep.fields.find((field) => !hasAnswer(field));
+    if (!missing) return true;
+
+    setError(`Please complete “${missing.label}” before continuing.`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return false;
+  };
+
+  const goToStep = (index: number) => {
+    setError("");
+    setCurrentStep(Math.max(0, Math.min(index, lastStepIndex)));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const nextStep = () => {
+    if (!validateActiveStep()) return;
+    goToStep(currentStep + 1);
+  };
+
+  const answerLabel = (field: ProgramField) => {
+    const value = answers[field.id];
+    if (Array.isArray(value)) return value.join(", ");
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (value === null || value === undefined || value === "") return "Not provided";
+    return String(value);
+  };
 
 
   const findReferrers = async (query = referrerQuery) => {
@@ -279,7 +421,456 @@ export default function PublicForm() {
     return <Input {...common} type={field.field_type === "phone" ? "tel" : field.field_type} value={String(value ?? "")} onChange={(event) => change(field.id, field.field_type === "number" ? Number(event.target.value) : event.target.value)} />;
   };
 
-  if (loading) return <main className="min-h-screen brand-wash grid place-items-center"><Loader2 className="h-9 w-9 animate-spin text-primary-foreground" /></main>;
-  if (!form) return <main className="min-h-screen brand-wash grid place-items-center p-4"><Card className="max-w-lg"><CardContent className="p-8 text-center"><h1 className="text-2xl font-bold">This form is not available</h1><p className="mt-3 text-muted-foreground">It may not be open yet, or submissions may have closed.</p></CardContent></Card></main>;
-  return <main className="min-h-screen bg-secondary/45 px-4 py-10 sm:py-16"><div className="mx-auto max-w-3xl"><BrandLogo brand={form.brand} className="mb-6" />{success ? <Card><CardContent className="p-8 sm:p-10"><div className="text-center"><CheckCircle2 className="mx-auto mb-5 h-14 w-14 text-primary" /><h1 className="text-3xl font-bold">Registration received</h1><p className="mt-4 text-muted-foreground">{success}</p></div>{paymentState?.available && <div className="mx-auto mt-7 max-w-xl rounded-2xl border p-5"><div className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary" /><p className="font-semibold">Complete your payment</p></div><p className="mt-2 text-sm text-muted-foreground">Amount: <strong>{((paymentState.amountMinor ?? 0) / 100).toLocaleString("en-NG", { style: "currency", currency: paymentState.currency ?? "NGN" })}</strong></p>{paymentState.paymentStatus === "paid" ? <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 text-center"><CheckCircle2 className="mx-auto h-7 w-7 text-primary" /><p className="mt-2 font-semibold">Payment confirmed</p>{paymentState.whatsappGroupUrl ? <Button asChild className="mt-4 gap-2"><a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">Join the WhatsApp group<ExternalLink className="h-4 w-4" /></a></Button> : <p className="mt-2 text-sm text-muted-foreground">WhatsApp access will appear here once the group link is configured.</p>}<div className="mt-5 border-t pt-5"><div className="flex items-center justify-center gap-2 text-primary"><UserRound className="h-5 w-5" /><p className="font-semibold">Next: activate your GOALS dashboard</p></div><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Sign in with an existing DYP account or create one using the same email you registered with. We’ll connect your paid GOALS enrollment automatically.</p><Button asChild variant="outline" className="mt-4"><a href="/auth?mode=activate&next=%2Fjourney">Activate / open my GOALS account</a></Button></div></div> : <><div className="mt-5 grid gap-3 sm:grid-cols-2">{paymentState.paystackEnabled && <Button type="button" className="min-h-12" onClick={() => void startPaystackPayment()} disabled={paymentLoading}>{paymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}Pay with Paystack</Button>}{paymentState.manualEnabled && <div className="rounded-xl border p-4 text-left sm:col-span-2"><div className="flex items-center gap-2"><Landmark className="h-4 w-4 text-primary" /><p className="font-medium">Manual bank transfer</p></div><div className="mt-3 space-y-1 text-sm"><p><span className="text-muted-foreground">Bank:</span> {paymentState.bankName || "Not configured"}</p><p><span className="text-muted-foreground">Account name:</span> {paymentState.accountName || "Not configured"}</p><p><span className="text-muted-foreground">Account number:</span> <strong>{paymentState.accountNumber || "Not configured"}</strong></p></div>{paymentState.manualInstructions && <p className="mt-3 text-sm text-muted-foreground">{paymentState.manualInstructions}</p>}<div className="mt-4 flex flex-col gap-2 sm:flex-row"><Input value={manualReference} onChange={(event) => setManualReference(event.target.value)} placeholder="Transfer reference / payment note" /><Button type="button" variant="outline" onClick={() => void submitManualPayment()} disabled={paymentLoading}>{paymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}I have paid</Button></div></div>}</div>{paymentState.paymentStatus === "pending" && <div className="mt-4 rounded-xl bg-muted/30 p-4 text-sm"><p className="font-medium">Payment awaiting confirmation</p><p className="mt-1 text-muted-foreground">{paymentState.paymentMethod === "manual" ? "An admin must verify your transfer before WhatsApp access is released." : "Your Paystack payment is still processing."}</p><Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => sessionToken && void loadPaymentState(sessionToken)}><RefreshCw className="mr-2 h-4 w-4" />Refresh status</Button></div>}{paymentState.paymentStatus === "rejected" && <p className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">The submitted payment could not be verified. Please check the details or choose another payment method.</p>}</>}{paymentError && <p className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{paymentError}</p>}</div>}{ownReferralCode && <div className="mx-auto mt-7 max-w-xl rounded-2xl border bg-muted/20 p-5 text-center"><div className="flex items-center justify-center gap-2 text-primary"><Share2 className="h-5 w-5" /><p className="font-semibold">Your referral code</p></div><p className="mt-3 font-mono text-2xl font-bold tracking-wider">{ownReferralCode}</p><p className="mt-2 text-sm text-muted-foreground">Share this code or your referral link. A referral counts toward the campaign leaderboard only after that participant completes the program and receives a certificate.</p><Button type="button" variant="outline" className="mt-4 gap-2" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/apply/${form.slug}?ref=${encodeURIComponent(ownReferralCode)}`)}><Copy className="h-4 w-4" />Copy referral link</Button></div>}</CardContent></Card> : <form onSubmit={submit}><header className="brand-wash rounded-t-lg px-5 py-8 text-primary-foreground sm:px-9"><h1 className="text-3xl font-bold sm:text-4xl">{form.title}</h1><p className="mt-3 max-w-2xl text-primary-foreground/85">{form.description}</p></header><Card className="rounded-t-none border-t-0"><CardContent className="space-y-7 p-5 sm:p-9"><div className="rounded-xl border bg-muted/15 p-4"><div className="flex items-start gap-3"><UserRound className="mt-1 h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 flex-1"><Label htmlFor="referrer-search" className="text-base">Who referred you? <span className="font-normal text-muted-foreground">(optional)</span></Label><p className="mt-1 text-sm text-muted-foreground">Search by the person's name or DYP referral code.</p>{selectedReferralCode ? <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background p-3"><div><p className="font-medium">{selectedReferrerName || "Referral code applied"}</p><p className="font-mono text-xs text-muted-foreground">{selectedReferralCode}</p></div><Button type="button" size="sm" variant="ghost" onClick={() => { setSelectedReferralCode(""); setSelectedReferrerName(""); setReferrerQuery(""); setReferrerResults([]); }}><X className="mr-1 h-4 w-4" />Change</Button></div> : <><div className="mt-3 flex gap-2"><Input id="referrer-search" value={referrerQuery} onChange={(event) => setReferrerQuery(event.target.value)} placeholder="Name or DYPGL code" /><Button type="button" variant="outline" onClick={() => void findReferrers()} disabled={searchingReferrers || referrerQuery.trim().length < 2}>{searchingReferrers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}<span className="sr-only">Find referrer</span></Button></div>{referrerResults.length > 0 && <div className="mt-2 space-y-2">{referrerResults.map((result) => <button key={result.referral_code} type="button" onClick={() => { setSelectedReferralCode(result.referral_code); setSelectedReferrerName(result.display_name); setReferrerResults([]); }} className="flex w-full items-center justify-between gap-3 rounded-lg border bg-background p-3 text-left hover:border-primary/40"><span className="font-medium">{result.display_name}</span><span className="font-mono text-xs text-muted-foreground">{result.referral_code}</span></button>)}</div>}</>}</div></div></div>{fields.map((field) => field.field_type === "section" ? <section key={field.id} className="border-b pb-3 pt-3"><h2 className="text-xl font-semibold text-primary">{field.label}</h2>{field.helper_text && <p className="mt-1 text-sm text-muted-foreground">{field.helper_text}</p>}</section> : <div key={field.id} className="space-y-2"><Label htmlFor={field.id} className="text-base">{field.label}{field.required && <span className="ml-1 text-destructive">*</span>}</Label>{field.helper_text && <p id={`${field.id}-help`} className="text-sm text-muted-foreground">{field.helper_text}</p>}{renderField(field)}</div>)}{error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}<Button type="submit" size="lg" className="min-h-12 w-full sm:w-auto" disabled={submitting}>{submitting ? "Submitting…" : "Submit application"}</Button></CardContent></Card></form>}</div></main>;
+  const renderReferralLookup = () => (
+    <div className="rounded-xl border bg-muted/15 p-4">
+      <div className="flex items-start gap-3">
+        <UserRound className="mt-1 h-5 w-5 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1">
+          <Label htmlFor="referrer-search" className="text-base">
+            Who referred you? <span className="font-normal text-muted-foreground">(optional)</span>
+          </Label>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Search by the person's name or DYP referral code.
+          </p>
+          {selectedReferralCode ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background p-3">
+              <div>
+                <p className="font-medium">{selectedReferrerName || "Referral code applied"}</p>
+                <p className="font-mono text-xs text-muted-foreground">{selectedReferralCode}</p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSelectedReferralCode("");
+                  setSelectedReferrerName("");
+                  setReferrerQuery("");
+                  setReferrerResults([]);
+                }}
+              >
+                <X className="mr-1 h-4 w-4" />
+                Change
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="mt-3 flex gap-2">
+                <Input
+                  id="referrer-search"
+                  value={referrerQuery}
+                  onChange={(event) => setReferrerQuery(event.target.value)}
+                  placeholder="Name or DYPGL code"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void findReferrers()}
+                  disabled={searchingReferrers || referrerQuery.trim().length < 2}
+                >
+                  {searchingReferrers ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  <span className="sr-only">Find referrer</span>
+                </Button>
+              </div>
+              {referrerResults.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {referrerResults.map((result) => (
+                    <button
+                      key={result.referral_code}
+                      type="button"
+                      onClick={() => {
+                        setSelectedReferralCode(result.referral_code);
+                        setSelectedReferrerName(result.display_name);
+                        setReferrerResults([]);
+                      }}
+                      className="flex w-full items-center justify-between gap-3 rounded-lg border bg-background p-3 text-left hover:border-primary/40"
+                    >
+                      <span className="font-medium">{result.display_name}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{result.referral_code}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderWizardField = (field: ProgramField) => (
+    <div key={field.id} className="space-y-2">
+      <Label htmlFor={field.id} className="text-base">
+        {field.label}
+        {field.required && <span className="ml-1 text-destructive">*</span>}
+      </Label>
+      {field.helper_text && (
+        <p id={`${field.id}-help`} className="text-sm text-muted-foreground">
+          {field.helper_text}
+        </p>
+      )}
+      {renderField(field)}
+    </div>
+  );
+
+  const reviewFields = fields.filter((field) => field.field_type !== "section");
+
+  if (loading) {
+    return (
+      <main className="min-h-screen brand-wash grid place-items-center">
+        <Loader2 className="h-9 w-9 animate-spin text-primary-foreground" />
+      </main>
+    );
+  }
+
+  if (!form) {
+    return (
+      <main className="min-h-screen brand-wash grid place-items-center p-4">
+        <Card className="max-w-lg">
+          <CardContent className="p-8 text-center">
+            <h1 className="text-2xl font-bold">This form is not available</h1>
+            <p className="mt-3 text-muted-foreground">
+              It may not be open yet, or submissions may have closed.
+            </p>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-secondary/45 px-4 pb-10 pt-28 sm:pb-16 sm:pt-32">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-6 flex min-h-20 items-center overflow-visible">
+          <BrandLogo
+            brand={form.brand}
+            className="h-16 w-auto max-w-[240px] object-contain sm:h-20 sm:max-w-[300px]"
+          />
+        </div>
+
+        {success ? (
+          <Card>
+            <CardContent className="p-8 sm:p-10">
+              <div className="text-center">
+                <CheckCircle2 className="mx-auto mb-5 h-14 w-14 text-primary" />
+                <h1 className="text-3xl font-bold">Registration received</h1>
+                <p className="mt-4 text-muted-foreground">{success}</p>
+              </div>
+
+              {paymentState?.available && (
+                <div className="mx-auto mt-7 max-w-xl rounded-2xl border p-5">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    <p className="font-semibold">Complete your payment</p>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Amount:{" "}
+                    <strong>
+                      {((paymentState.amountMinor ?? 0) / 100).toLocaleString("en-NG", {
+                        style: "currency",
+                        currency: paymentState.currency ?? "NGN",
+                      })}
+                    </strong>
+                  </p>
+
+                  {paymentState.paymentStatus === "paid" ? (
+                    <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
+                      <CheckCircle2 className="mx-auto h-7 w-7 text-primary" />
+                      <p className="mt-2 font-semibold">Payment confirmed</p>
+                      {paymentState.whatsappGroupUrl ? (
+                        <Button asChild className="mt-4 gap-2">
+                          <a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">
+                            Join the WhatsApp group
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          WhatsApp access will appear here once the group link is configured.
+                        </p>
+                      )}
+                      <div className="mt-5 border-t pt-5">
+                        <div className="flex items-center justify-center gap-2 text-primary">
+                          <UserRound className="h-5 w-5" />
+                          <p className="font-semibold">Next: activate your GOALS dashboard</p>
+                        </div>
+                        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                          Sign in with an existing DYP account or create one using the same email you registered with. We’ll connect your paid GOALS enrollment automatically.
+                        </p>
+                        <Button asChild variant="outline" className="mt-4">
+                          <a href="/auth?mode=activate&next=%2Fjourney">
+                            Activate / open my GOALS account
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {paymentState.paystackEnabled && (
+                          <Button
+                            type="button"
+                            className="min-h-12"
+                            onClick={() => void startPaystackPayment()}
+                            disabled={paymentLoading}
+                          >
+                            {paymentLoading ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <CreditCard className="mr-2 h-4 w-4" />
+                            )}
+                            Pay with Paystack
+                          </Button>
+                        )}
+                        {paymentState.manualEnabled && (
+                          <div className="rounded-xl border p-4 text-left sm:col-span-2">
+                            <div className="flex items-center gap-2">
+                              <Landmark className="h-4 w-4 text-primary" />
+                              <p className="font-medium">Manual bank transfer</p>
+                            </div>
+                            <div className="mt-3 space-y-1 text-sm">
+                              <p><span className="text-muted-foreground">Bank:</span> {paymentState.bankName || "Not configured"}</p>
+                              <p><span className="text-muted-foreground">Account name:</span> {paymentState.accountName || "Not configured"}</p>
+                              <p><span className="text-muted-foreground">Account number:</span> <strong>{paymentState.accountNumber || "Not configured"}</strong></p>
+                            </div>
+                            {paymentState.manualInstructions && (
+                              <p className="mt-3 text-sm text-muted-foreground">{paymentState.manualInstructions}</p>
+                            )}
+                            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                              <Input
+                                value={manualReference}
+                                onChange={(event) => setManualReference(event.target.value)}
+                                placeholder="Transfer reference / payment note"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => void submitManualPayment()}
+                                disabled={paymentLoading}
+                              >
+                                {paymentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                I have paid
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {paymentState.paymentStatus === "pending" && (
+                        <div className="mt-4 rounded-xl bg-muted/30 p-4 text-sm">
+                          <p className="font-medium">Payment awaiting confirmation</p>
+                          <p className="mt-1 text-muted-foreground">
+                            {paymentState.paymentMethod === "manual"
+                              ? "An admin must verify your transfer before WhatsApp access is released."
+                              : "Your Paystack payment is still processing."}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => sessionToken && void loadPaymentState(sessionToken)}
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Refresh status
+                          </Button>
+                        </div>
+                      )}
+
+                      {paymentState.paymentStatus === "rejected" && (
+                        <p className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+                          The submitted payment could not be verified. Please check the details or choose another payment method.
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  {paymentError && (
+                    <p className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                      {paymentError}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {ownReferralCode && (
+                <div className="mx-auto mt-7 max-w-xl rounded-2xl border bg-muted/20 p-5 text-center">
+                  <div className="flex items-center justify-center gap-2 text-primary">
+                    <Share2 className="h-5 w-5" />
+                    <p className="font-semibold">Your referral code</p>
+                  </div>
+                  <p className="mt-3 font-mono text-2xl font-bold tracking-wider">{ownReferralCode}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Share this code or your referral link. A referral counts toward the campaign leaderboard only after that participant completes the program and receives a certificate.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4 gap-2"
+                    onClick={() =>
+                      void navigator.clipboard.writeText(
+                        `${window.location.origin}/apply/${form.slug}?ref=${encodeURIComponent(ownReferralCode)}`,
+                      )
+                    }
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy referral link
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <form
+            onSubmit={(event) => {
+              if (currentStep < lastStepIndex) {
+                event.preventDefault();
+                nextStep();
+                return;
+              }
+              void submit(event);
+            }}
+          >
+            <header className="brand-wash rounded-t-lg px-5 py-8 text-primary-foreground sm:px-9">
+              <h1 className="text-3xl font-bold sm:text-4xl">{form.title}</h1>
+              <p className="mt-3 max-w-2xl text-primary-foreground/85">{form.description}</p>
+            </header>
+
+            <Card className="rounded-t-none border-t-0">
+              <CardContent className="p-5 sm:p-9">
+                <div className="mb-8">
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <span className="font-semibold text-primary">
+                      Step {Math.min(currentStep + 1, wizardSteps.length)} of {wizardSteps.length}
+                    </span>
+                    <span className="text-muted-foreground">{activeStep?.title}</span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{
+                        width: `${wizardSteps.length ? ((currentStep + 1) / wizardSteps.length) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="mt-4 hidden gap-2 sm:grid" style={{ gridTemplateColumns: `repeat(${wizardSteps.length}, minmax(0, 1fr))` }}>
+                    {wizardSteps.map((step, index) => (
+                      <button
+                        key={step.id}
+                        type="button"
+                        onClick={() => {
+                          if (index <= currentStep) goToStep(index);
+                        }}
+                        className={
+                          "rounded-lg px-2 py-2 text-left text-xs transition-colors " +
+                          (index === currentStep
+                            ? "bg-primary/10 font-semibold text-primary"
+                            : index < currentStep
+                              ? "text-foreground hover:bg-muted"
+                              : "cursor-default text-muted-foreground/60")
+                        }
+                      >
+                        {index + 1}. {step.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <section className="min-h-[360px]">
+                  <div className="mb-7">
+                    <h2 className="text-2xl font-semibold text-foreground">{activeStep?.title}</h2>
+                    {activeStep?.description && (
+                      <p className="mt-2 text-sm text-muted-foreground">{activeStep.description}</p>
+                    )}
+                  </div>
+
+                  {activeStep?.includesReferral && (
+                    <div className="mb-7">{renderReferralLookup()}</div>
+                  )}
+
+                  {activeStep?.review ? (
+                    <div className="space-y-5">
+                      <div className="rounded-xl border bg-muted/15 p-4">
+                        <h3 className="font-semibold">Your responses</h3>
+                        <div className="mt-4 divide-y">
+                          {reviewFields.map((field) => (
+                            <div key={field.id} className="py-3 first:pt-0 last:pb-0">
+                              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {field.label}
+                              </p>
+                              <p className="mt-1 whitespace-pre-wrap text-sm font-medium">
+                                {answerLabel(field)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border bg-muted/15 p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Referrer
+                        </p>
+                        <p className="mt-1 text-sm font-medium">
+                          {selectedReferralCode
+                            ? `${selectedReferrerName || "Referral code"} · ${selectedReferralCode}`
+                            : "No referrer selected"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {activeStep?.fields.map(renderWizardField)}
+                    </div>
+                  )}
+                </section>
+
+                {error && (
+                  <p role="alert" className="mt-6 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <div className="mt-8 flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 sm:min-w-28"
+                    disabled={currentStep === 0 || submitting}
+                    onClick={() => goToStep(currentStep - 1)}
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
+
+                  {currentStep < lastStepIndex ? (
+                    <Button
+                      type="button"
+                      className="min-h-11 sm:min-w-32"
+                      onClick={nextStep}
+                    >
+                      Next
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      size="lg"
+                      className="min-h-12 sm:min-w-44"
+                      disabled={submitting}
+                    >
+                      {submitting ? "Submitting…" : "Submit registration"}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </form>
+        )}
+      </div>
+    </main>
+  );
 }
