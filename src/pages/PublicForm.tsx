@@ -396,7 +396,7 @@ export default function PublicForm() {
 
       const referralJourney = Boolean(referralCodeForSession);
 
-      if (paymentReference && storedToken && !referralJourney) {
+      if (paymentReference && storedToken) {
         setPaymentLoading(true);
         const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
           "program-payment",
@@ -408,7 +408,7 @@ export default function PublicForm() {
         }
       }
 
-      if (storedToken && !referralJourney) {
+      if (storedToken && (!referralJourney || Boolean(paymentReference))) {
         const state = await loadPaymentState(storedToken);
         if (state?.available) {
           setSessionToken(storedToken);
@@ -600,7 +600,11 @@ export default function PublicForm() {
         p_referral_code: referralCodeToRecord,
         p_visitor_token: referralVisitorToken || undefined,
       });
-      if (referralError) console.error("Referral attribution could not be recorded:", referralError);
+      if (referralError) {
+        console.error("Referral attribution could not be recorded:", referralError);
+      } else if (form) {
+        window.localStorage.removeItem(`dyp-referral-attribution:${form.slug}`);
+      }
     }
 
     const { data: referralCode, error: referralCodeError } = await supabase.rpc(
