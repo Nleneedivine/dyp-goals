@@ -40,6 +40,7 @@ import AdminAppearance from "./pages/admin/AdminAppearance";
 import AdminProgramSettings from "./pages/admin/AdminProgramSettings";
 import { UiModeProvider } from "./components/UiModeProvider";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { GuidedTourProvider } from "./components/GuidedTourProvider";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
       <Sonner />
       <UiModeProvider>
       <BrowserRouter>
+        <GuidedTourProvider>
         <div className="min-h-screen bg-background text-foreground">
           <ScrollToTop />
           <Navbar />
@@ -108,6 +110,7 @@ const App = () => (
           </Routes>
           <Footer />
         </div>
+        </GuidedTourProvider>
       </BrowserRouter>
       </UiModeProvider>
     </TooltipProvider>
