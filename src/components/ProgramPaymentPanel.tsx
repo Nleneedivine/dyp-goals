@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, CreditCard, RefreshCw, XCircle } from "lucide-react";
+import { CheckCircle2, CreditCard, FileImage, RefreshCw, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { answerAsText, type ProgramField } from "@/lib/formTypes";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,8 @@ export function ProgramPaymentPanel({
   const [payments, setPayments] = useState<Payment[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
@@ -46,7 +49,23 @@ export function ProgramPaymentPanel({
       return;
     }
 
-    setPayments(data ?? []);
+    const loaded = data ?? [];
+    setPayments(loaded);
+
+    const proofEntries = await Promise.all(
+      loaded
+        .filter((payment) => Boolean(payment.proof_path))
+        .map(async (payment) => {
+          const { data: signed } = await supabase.storage
+            .from("payment-proofs")
+            .createSignedUrl(payment.proof_path!, 60 * 60);
+          return [payment.submission_id, signed?.signedUrl ?? ""] as const;
+        }),
+    );
+
+    setProofUrls(
+      Object.fromEntries(proofEntries.filter(([, url]) => Boolean(url))),
+    );
   };
 
   useEffect(() => {
@@ -94,10 +113,21 @@ export function ProgramPaymentPanel({
     submissionId: string,
     status: "paid" | "rejected" | "pending",
   ) => {
+    const rejectionReason = rejectionReasons[submissionId]?.trim() ?? "";
+    if (status === "rejected" && rejectionReason.length < 3) {
+      toast({
+        title: "Add a rejection reason",
+        description: "Tell the participant what needs to be corrected before they upload another proof.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSavingId(submissionId);
     const { data, error } = await supabase.rpc("admin_set_program_payment_status", {
       p_submission_id: submissionId,
       p_status: status,
+      p_rejection_reason: status === "rejected" ? rejectionReason : undefined,
     });
     setSavingId(null);
 
@@ -114,6 +144,9 @@ export function ProgramPaymentPanel({
       data,
       ...current.filter((item) => item.submission_id !== submissionId),
     ]);
+    if (status !== "rejected") {
+      setRejectionReasons((current) => ({ ...current, [submissionId]: "" }));
+    }
 
     toast({
       title:
@@ -217,9 +250,59 @@ export function ProgramPaymentPanel({
                   <p className="mt-1 font-mono text-xs text-muted-foreground">
                     {payment.provider_reference || payment.manual_reference || "No reference"}
                   </p>
+
+                  {payment.method === "manual" && payment.proof_path && (
+                    <div className="mt-3">
+                      {proofUrls[submission.id] ? (
+                        <a
+                          href={proofUrls[submission.id]}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex max-w-full items-center gap-2 rounded-lg border bg-muted/20 p-2 text-sm font-medium hover:border-primary/40"
+                        >
+                          <img
+                            src={proofUrls[submission.id]}
+                            alt="Uploaded payment proof"
+                            className="h-20 w-20 shrink-0 rounded-md border object-cover"
+                          />
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-1">
+                              <FileImage className="h-4 w-4 text-primary" />
+                              View payment proof
+                            </span>
+                            <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                              Uploaded {payment.proof_uploaded_at ? new Date(payment.proof_uploaded_at).toLocaleString() : ""}
+                            </span>
+                          </span>
+                        </a>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Loading proof preview…</p>
+                      )}
+                    </div>
+                  )}
+
+                  {payment.status === "rejected" && payment.rejection_reason && (
+                    <p className="mt-3 rounded-lg bg-destructive/10 p-2 text-xs text-destructive">
+                      Rejection reason: {payment.rejection_reason}
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex min-w-0 flex-col gap-2 lg:items-end">
+                  {payment.method === "manual" && payment.status !== "paid" && (
+                    <Input
+                      className="w-full lg:w-[280px]"
+                      value={rejectionReasons[submission.id] ?? ""}
+                      onChange={(event) =>
+                        setRejectionReasons((current) => ({
+                          ...current,
+                          [submission.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Reason if rejecting"
+                    />
+                  )}
+                  <div className="flex flex-wrap gap-2">
                   {payment.status !== "paid" && (
                     <Button
                       size="sm"
@@ -251,6 +334,7 @@ export function ProgramPaymentPanel({
                       Reset pending
                     </Button>
                   )}
+                  </div>
                 </div>
               </div>
             );
