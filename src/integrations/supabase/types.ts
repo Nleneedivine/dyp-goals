@@ -1905,6 +1905,224 @@ export type Database = {
           },
         ]
       }
+      program_referral_reward_settings: {
+        Row: {
+          base_commission_bps: number
+          base_qualification: string
+          form_id: string
+          minimum_rank_referrals: number
+          rank_basis: string
+          rank_bonus_bps: number[]
+          rank_bonus_enabled: boolean
+          rank_bonus_finalized_at: string | null
+          reward_end_at: string | null
+          reward_start_at: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          base_commission_bps?: number
+          base_qualification?: string
+          form_id: string
+          minimum_rank_referrals?: number
+          rank_basis?: string
+          rank_bonus_bps?: number[]
+          rank_bonus_enabled?: boolean
+          rank_bonus_finalized_at?: string | null
+          reward_end_at?: string | null
+          reward_start_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          base_commission_bps?: number
+          base_qualification?: string
+          form_id?: string
+          minimum_rank_referrals?: number
+          rank_basis?: string
+          rank_bonus_bps?: number[]
+          rank_bonus_enabled?: boolean
+          rank_bonus_finalized_at?: string | null
+          reward_end_at?: string | null
+          reward_start_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_referral_reward_settings_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: true
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_referral_earnings: {
+        Row: {
+          amount_minor: number
+          approved_at: string | null
+          created_at: string
+          currency: string
+          description: string
+          earning_type: string
+          form_id: string
+          id: string
+          paid_at: string | null
+          payout_reference: string | null
+          promoter_id: string | null
+          rank_position: number | null
+          referral_code: string
+          referred_submission_id: string | null
+          referrer_submission_id: string | null
+          source_key: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          approved_at?: string | null
+          created_at?: string
+          currency?: string
+          description?: string
+          earning_type: string
+          form_id: string
+          id?: string
+          paid_at?: string | null
+          payout_reference?: string | null
+          promoter_id?: string | null
+          rank_position?: number | null
+          referral_code: string
+          referred_submission_id?: string | null
+          referrer_submission_id?: string | null
+          source_key: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          approved_at?: string | null
+          created_at?: string
+          currency?: string
+          description?: string
+          earning_type?: string
+          form_id?: string
+          id?: string
+          paid_at?: string | null
+          payout_reference?: string | null
+          promoter_id?: string | null
+          rank_position?: number | null
+          referral_code?: string
+          referred_submission_id?: string | null
+          referrer_submission_id?: string | null
+          source_key?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_referral_earnings_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_earnings_promoter_id_fkey"
+            columns: ["promoter_id"]
+            isOneToOne: false
+            referencedRelation: "program_referral_promoters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_earnings_referred_submission_id_fkey"
+            columns: ["referred_submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_earnings_referrer_submission_id_fkey"
+            columns: ["referrer_submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_referral_payouts: {
+        Row: {
+          amount_minor: number
+          approved_at: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          form_id: string
+          id: string
+          note: string
+          paid_at: string | null
+          promoter_id: string | null
+          referral_code: string
+          reference: string | null
+          referrer_submission_id: string | null
+          status: string
+        }
+        Insert: {
+          amount_minor: number
+          approved_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          form_id: string
+          id?: string
+          note?: string
+          paid_at?: string | null
+          promoter_id?: string | null
+          referral_code: string
+          reference?: string | null
+          referrer_submission_id?: string | null
+          status?: string
+        }
+        Update: {
+          amount_minor?: number
+          approved_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          form_id?: string
+          id?: string
+          note?: string
+          paid_at?: string | null
+          promoter_id?: string | null
+          referral_code?: string
+          reference?: string | null
+          referrer_submission_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_referral_payouts_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_payouts_promoter_id_fkey"
+            columns: ["promoter_id"]
+            isOneToOne: false
+            referencedRelation: "program_referral_promoters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_payouts_referrer_submission_id_fkey"
+            columns: ["referrer_submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_referral_visits: {
         Row: {
           click_count: number
@@ -2297,6 +2515,46 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      admin_finalize_program_referral_rank_bonuses: {
+        Args: { p_form_id: string }
+        Returns: Json
+      }
+      admin_recalculate_program_referral_rewards: {
+        Args: { p_form_id: string }
+        Returns: number
+      }
+      admin_record_referral_payout: {
+        Args: {
+          p_amount_minor: number
+          p_form_id: string
+          p_note?: string
+          p_reference?: string
+          p_referral_code: string
+          p_status?: string
+        }
+        Returns: {
+          amount_minor: number
+          approved_at: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          form_id: string
+          id: string
+          note: string
+          paid_at: string | null
+          promoter_id: string | null
+          referral_code: string
+          reference: string | null
+          referrer_submission_id: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "program_referral_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_sync_accountability_chats: { Args: never; Returns: Json }
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
