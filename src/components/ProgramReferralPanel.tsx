@@ -78,9 +78,6 @@ const money = (minor: number, currency = "NGN") =>
 
 export function ProgramReferralPanel({
   formId,
-  submissions: _submissions,
-  fields: _fields,
-  answers: _answers,
 }: {
   formId: string;
   submissions: Submission[];
