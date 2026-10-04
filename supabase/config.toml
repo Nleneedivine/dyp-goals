@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.program-payment]
 verify_jwt = false
+
+[functions.goals-guide]
+verify_jwt = true
