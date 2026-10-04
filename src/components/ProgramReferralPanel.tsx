@@ -91,6 +91,7 @@ export function ProgramReferralPanel({
   const [rows, setRows] = useState<FunnelRow[]>([]);
   const [promoters, setPromoters] = useState<Promoter[]>([]);
   const [rewardSettings, setRewardSettings] = useState<RewardSettings | null>(null);
+  const [currency, setCurrency] = useState("NGN");
   const [earnedByCode, setEarnedByCode] = useState<Record<string, number>>({});
   const [paidOutByCode, setPaidOutByCode] = useState<Record<string, number>>({});
   const [promoterName, setPromoterName] = useState("");
@@ -112,6 +113,7 @@ export function ProgramReferralPanel({
       rewardResult,
       earningsResult,
       payoutsResult,
+      paymentSettingsResult,
     ] = await Promise.all([
       supabase.rpc("get_program_referral_funnel_admin", { p_form_id: formId }),
       supabase
@@ -132,6 +134,11 @@ export function ProgramReferralPanel({
         .from("program_referral_payouts")
         .select("referral_code,amount_minor,status")
         .eq("form_id", formId),
+      supabase
+        .from("program_payment_settings")
+        .select("currency")
+        .eq("form_id", formId)
+        .maybeSingle(),
     ]);
     setLoading(false);
 
@@ -161,6 +168,7 @@ export function ProgramReferralPanel({
     );
     setPromoters(promoterResult.data ?? []);
     setRewardSettings((rewardResult.data ?? null) as RewardSettings | null);
+    setCurrency(paymentSettingsResult.data?.currency ?? "NGN");
 
     const earned: Record<string, number> = {};
     for (const entry of earningsResult.data ?? []) {
@@ -497,16 +505,16 @@ export function ProgramReferralPanel({
                       <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
                         <div>
                           <p className="text-xs text-muted-foreground">Earned</p>
-                          <p className="font-bold">{money(earned)}</p>
+                          <p className="font-bold">{money(earned, currency)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Paid out</p>
-                          <p className="font-bold">{money(paidOut)}</p>
+                          <p className="font-bold">{money(paidOut, currency)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Outstanding</p>
                           <p className="font-bold text-primary">
-                            {money(Math.max(earned - paidOut, 0))}
+                            {money(Math.max(earned - paidOut, 0), currency)}
                           </p>
                         </div>
                       </div>
