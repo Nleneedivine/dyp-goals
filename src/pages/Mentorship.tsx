@@ -92,8 +92,8 @@ const Mentorship = () => {
 
     if (!acceptedRules) {
       toast({
-        title: "Accept the accountability rules",
-        description: "Please confirm the participation and privacy commitments before joining an accountability group.",
+        title: "Confirm the mentorship request",
+        description: "Please confirm that you understand mentorship is optional support and that you will respect mentor/group privacy.",
         variant: "destructive",
       });
       return;
@@ -119,7 +119,7 @@ const Mentorship = () => {
           : await getCurrentGoalEnrollment(user.id);
 
       if (!currentEnrollment) {
-        throw new Error("An active current GOALS enrollment is required before joining the Accountability Lab.");
+        throw new Error("An active current GOALS enrollment is required before requesting mentorship.");
       }
 
       // Save this request against the current cohort enrollment.
@@ -137,29 +137,10 @@ const Mentorship = () => {
 
       if (requestError) throw requestError;
 
-      // Assign the current cohort enrollment to an accountability group.
-      const { data: groupId, error: groupError } = await supabase
-        .rpc("assign_current_user_to_accountability_group");
-
-      if (groupError) throw groupError;
-
-      // Fetch group info
-      if (groupId) {
-        const { data: group } = await supabase
-          .from('accountability_groups')
-          .select('name')
-          .eq('id', groupId)
-          .maybeSingle();
-
-        if (group) {
-          setGroupInfo(group);
-        }
-      }
-
       setHasExistingRequest(true);
       toast({
-        title: "Request Submitted!",
-        description: "You've been assigned to an accountability group. The DYP team will assign a mentor when one is available.",
+        title: "Mentorship request submitted",
+        description: "Your request is now separate from Accountability Lab placement. The DYP team can review it for optional mentor support.",
       });
 
       setFormData({
@@ -199,14 +180,14 @@ const Mentorship = () => {
     <div className={`min-h-screen ${isUi2 ? "pt-28 pb-16" : "pt-20 pb-12"} font-poppins`}>
       <div className="container mx-auto px-4">
         {isUi2 ? (
-          <Ui2PageHeader eyebrow="Accountability network" title="Mentorship & Accountability" description={`Connect with mentors and a small accountability group that helps you keep moving. Accountability Lab begins ${formatProgramDate(configuration.accountability_lab_start_date)}.`} icon={Users} />
+          <Ui2PageHeader eyebrow="Optional deeper support" title="Mentorship" description={`Accountability Lab is built into your GOALS journey. Use this page only when you want additional mentor support. Accountability Lab begins ${formatProgramDate(configuration.accountability_lab_start_date)}.`} icon={Users} />
         ) : (
         <div className="text-center mb-12 animate-fade-in">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Mentorship & <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Accountability</span>
+            Optional <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Mentorship</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Connect with experienced mentors and join accountability groups to stay on track with your goals. The Accountability Lab begins {formatProgramDate(configuration.accountability_lab_start_date)}.
+            Accountability Lab is now part of your GOALS journey. Use this page only when you want additional mentor support beyond your accountability group. The Accountability Lab begins {formatProgramDate(configuration.accountability_lab_start_date)}.
           </p>
         </div>
         )}
@@ -221,9 +202,9 @@ const Mentorship = () => {
                     <Users className="h-6 w-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2">Mentor-supported accountability</h3>
+                    <h3 className="text-xl font-semibold mb-2">Optional mentor guidance</h3>
                     <p className="text-muted-foreground">
-                      Work within an accountability group that can be supported by an assigned mentor for guidance, check-ins and execution support.
+                      Request additional guidance from a mentor when you need perspective beyond normal accountability check-ins.
                     </p>
                   </div>
                 </div>
@@ -237,9 +218,9 @@ const Mentorship = () => {
                     <Heart className="h-6 w-6 text-secondary-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2">Accountability Groups</h3>
+                    <h3 className="text-xl font-semibold mb-2">Your accountability group stays in GOALS</h3>
                     <p className="text-muted-foreground">
-                      Join small groups of 3-5 peers working on similar goals. Share progress, challenges, and celebrate wins together.
+                      Group matching now happens directly from your saved GOALS portfolio, availability and commitment — no second accountability application is required.
                     </p>
                   </div>
                 </div>
@@ -269,9 +250,9 @@ const Mentorship = () => {
                     <MessageSquare className="h-6 w-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2">Structured Group Placement</h3>
+                    <h3 className="text-xl font-semibold mb-2">Mentorship is separate</h3>
                     <p className="text-muted-foreground">
-                      GOALS places participants into available accountability groups with capacity, while admins can assign mentors and manage groups as the program grows.
+                      Submitting this mentorship form does not create or change your accountability-group placement. It is an optional support request.
                     </p>
                   </div>
                 </div>
@@ -297,10 +278,10 @@ const Mentorship = () => {
                   {groupInfo && (
                     <Card className="bg-gradient-to-r from-primary/20 to-secondary/20 border-0">
                       <CardContent className="p-6">
-                        <h4 className="font-semibold mb-2">Your Accountability Group</h4>
+                        <h4 className="font-semibold mb-2">Current Accountability Group</h4>
                         <p className="text-2xl font-bold text-primary">{groupInfo.name}</p>
                         <p className="text-sm text-muted-foreground mt-2">
-                          Your group is active. The DYP team will assign or confirm a mentor when one is available.
+                          Your accountability placement is managed from My GOALS / Journey. This mentorship request is separate.
                         </p>
                       </CardContent>
                     </Card>
@@ -311,15 +292,15 @@ const Mentorship = () => {
                     <ul className="space-y-2 text-muted-foreground">
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-primary" />
-                        A mentor will be assigned to your group
+                        The DYP team will review your mentorship request
                       </li>
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-primary" />
-                        You'll receive an introduction email
+                        If matched, you'll receive mentor introduction details
                       </li>
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Check-in cadence and meeting details will be communicated by the DYP team
+                        Your Accountability Lab group continues independently of this request
                       </li>
                     </ul>
                   </div>
@@ -373,7 +354,7 @@ const Mentorship = () => {
                         onCheckedChange={(checked) => setAcceptedRules(checked === true)}
                       />
                       <span className="text-sm leading-6 text-muted-foreground">
-                        I agree to participate in the Accountability Lab/group check-ins communicated by DYP, keep my goal progress reasonably current for accountability, respect other participants&apos; privacy, and follow the group conduct rules. I understand that continued group membership depends on following these commitments.
+                        I understand that mentorship is optional support, separate from Accountability Lab placement. I will respect mentor and participant privacy and use the mentorship relationship responsibly.
                       </span>
                     </label>
                   </div>
@@ -406,18 +387,18 @@ const Mentorship = () => {
               {[
                 {
                   step: "1",
-                  title: "Submit Your Request",
-                  description: "Fill out the form with your goals and areas of interest.",
+                  title: "Request Extra Support",
+                  description: "Tell us where you would value mentor perspective beyond your normal accountability group.",
                 },
                 {
                   step: "2",
-                  title: "Join a Group",
-                  description: "The system places you into an available accountability group, and the DYP team manages mentor assignment.",
+                  title: "DYP Reviews the Request",
+                  description: "Your accountability group is already managed inside GOALS; this request is reviewed only for optional mentor support.",
                 },
                 {
                   step: "3",
-                  title: "Start Growing",
-                  description: "Begin your journey with regular check-ins and support.",
+                  title: "Connect if Matched",
+                  description: "If mentor capacity and fit are available, DYP will connect you without changing your accountability placement.",
                 },
               ].map((item, index) => (
                 <div key={index} className="text-center">
