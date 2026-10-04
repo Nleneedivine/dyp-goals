@@ -331,3 +331,120 @@ $function$;
 revoke all on function public.get_program_referral_people_admin(uuid,text) from public;
 grant execute on function public.get_program_referral_people_admin(uuid,text)
   to authenticated, service_role;
+
+
+-- Prevent Admin from recording payouts beyond confirmed earnings.
+create or replace function public.admin_record_referral_payout(
+  p_form_id uuid,
+  p_referral_code text,
+  p_amount_minor integer,
+  p_status text default 'paid',
+  p_reference text default null,
+  p_note text default ''
+)
+returns public.program_referral_payouts
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_code text := public.normalize_program_referral_code(p_referral_code);
+  v_referrer_submission_id uuid;
+  v_promoter_id uuid;
+  v_currency text := 'NGN';
+  v_total_earned integer := 0;
+  v_committed_payouts integer := 0;
+  v_result public.program_referral_payouts;
+begin
+  if auth.uid() is null
+     or not public.has_role(auth.uid(), 'admin'::public.app_role) then
+    raise exception 'Admin access required';
+  end if;
+
+  if p_amount_minor <= 0 then
+    raise exception 'Payout amount must be greater than zero';
+  end if;
+
+  if p_status not in ('pending','approved','paid','cancelled') then
+    raise exception 'Invalid payout status';
+  end if;
+
+  select submission_id
+  into v_referrer_submission_id
+  from public.program_referral_codes
+  where form_id = p_form_id and code = v_code
+  limit 1;
+
+  if v_referrer_submission_id is null then
+    select id
+    into v_promoter_id
+    from public.program_referral_promoters
+    where form_id = p_form_id and code = v_code
+    limit 1;
+  end if;
+
+  if v_referrer_submission_id is null and v_promoter_id is null then
+    raise exception 'Referral source not found';
+  end if;
+
+  select coalesce(sum(amount_minor),0)::integer
+  into v_total_earned
+  from public.program_referral_earnings
+  where form_id = p_form_id
+    and referral_code = v_code
+    and status <> 'reversed';
+
+  select coalesce(sum(amount_minor),0)::integer
+  into v_committed_payouts
+  from public.program_referral_payouts
+  where form_id = p_form_id
+    and referral_code = v_code
+    and status in ('pending','approved','paid');
+
+  if p_status <> 'cancelled'
+     and v_committed_payouts + p_amount_minor > v_total_earned then
+    raise exception 'Payout exceeds available referral earnings';
+  end if;
+
+  select currency
+  into v_currency
+  from public.program_payment_settings
+  where form_id = p_form_id;
+
+  insert into public.program_referral_payouts (
+    form_id,
+    referrer_submission_id,
+    promoter_id,
+    referral_code,
+    amount_minor,
+    currency,
+    status,
+    reference,
+    note,
+    created_by,
+    approved_at,
+    paid_at
+  )
+  values (
+    p_form_id,
+    v_referrer_submission_id,
+    v_promoter_id,
+    v_code,
+    p_amount_minor,
+    coalesce(v_currency,'NGN'),
+    p_status,
+    p_reference,
+    coalesce(p_note,''),
+    auth.uid(),
+    case when p_status in ('approved','paid') then now() else null end,
+    case when p_status = 'paid' then now() else null end
+  )
+  returning * into v_result;
+
+  return v_result;
+end;
+$function$;
+
+revoke all on function public.admin_record_referral_payout(uuid,text,integer,text,text,text) from public;
+grant execute on function public.admin_record_referral_payout(uuid,text,integer,text,text,text)
+  to authenticated, service_role;
