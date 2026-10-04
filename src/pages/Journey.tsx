@@ -362,8 +362,8 @@ export default function Journey() {
       detail: accountabilityGroupId
         ? `Accountability group assigned · Lab starts ${formatProgramDate(configuration.accountability_lab_start_date)}`
         : `No accountability group assigned yet · Lab starts ${formatProgramDate(configuration.accountability_lab_start_date)}`,
-      href: "/mentorship",
-      cta: accountabilityGroupId ? "Open accountability" : "Join accountability",
+      href: "/my-goals",
+      cta: accountabilityGroupId ? "Review accountability" : "Join accountability",
       icon: Users,
     },
     {
@@ -455,7 +455,7 @@ export default function Journey() {
         </Card>
 
         <div className="mb-6">
-          <AccountabilityLabCard />
+          <AccountabilityLabCard onJoined={setAccountabilityGroupId} />
         </div>
 
         <div className="space-y-3">
