@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      accountability_lab_preferences: {
+        Row: {
+          availability: string[]
+          commitment_accepted: boolean
+          created_at: string
+          enrollment_id: string
+          goal_areas: string[]
+          joined_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          availability?: string[]
+          commitment_accepted?: boolean
+          created_at?: string
+          enrollment_id: string
+          goal_areas?: string[]
+          joined_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          availability?: string[]
+          commitment_accepted?: boolean
+          created_at?: string
+          enrollment_id?: string
+          goal_areas?: string[]
+          joined_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accountability_lab_preferences_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: true
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accountability_groups: {
         Row: {
           cohort_id: string
@@ -2288,6 +2326,10 @@ export type Database = {
       is_user_accountability_mentor: {
         Args: { p_member_id: string; p_mentor_id: string }
         Returns: boolean
+      }
+      join_current_accountability_lab: {
+        Args: { p_availability: string[] }
+        Returns: Json
       }
       link_current_user_enrollments: { Args: never; Returns: Json }
       record_program_referral: {
