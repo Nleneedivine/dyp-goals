@@ -20,7 +20,7 @@ type JoinResult = {
   goalAreas?: string[];
 };
 
-export function AccountabilityLabCard() {
+export function AccountabilityLabCard({ onJoined }: { onJoined?: (groupId: string) => void } = {}) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -165,6 +165,7 @@ export function AccountabilityLabCard() {
     const result = (data ?? {}) as JoinResult;
     setGroupName(result.groupName ?? "Your accountability group");
     setGoalAreas(result.goalAreas ?? goalAreas);
+    if (result.groupId) onJoined?.(result.groupId);
 
     toast({
       title: "Accountability group ready",
