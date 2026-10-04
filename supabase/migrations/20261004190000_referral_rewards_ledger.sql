@@ -197,12 +197,15 @@ begin
   from public.program_participant_status
   where submission_id = p_referred_submission_id;
 
-  v_qualifies := public.referral_stage_qualifies(
-    v_settings.base_qualification,
-    v_payment.status,
-    v_status.completion_status,
-    v_status.certificate_issued_at
-  );
+  v_qualifies :=
+    (v_settings.reward_start_at is null or v_referral.created_at >= v_settings.reward_start_at)
+    and (v_settings.reward_end_at is null or v_referral.created_at <= v_settings.reward_end_at)
+    and public.referral_stage_qualifies(
+      v_settings.base_qualification,
+      v_payment.status,
+      v_status.completion_status,
+      v_status.certificate_issued_at
+    );
 
   v_source_key := 'base:' || v_referral.form_id::text || ':' || p_referred_submission_id::text;
   v_amount := greatest(
@@ -381,6 +384,8 @@ begin
       left join public.program_participant_status ps
         on ps.submission_id = r.referred_submission_id
       where r.form_id = p_form_id
+        and (v_settings.reward_start_at is null or r.created_at >= v_settings.reward_start_at)
+        and (v_settings.reward_end_at is null or r.created_at <= v_settings.reward_end_at)
       group by r.referral_code, r.referrer_submission_id, r.promoter_id
     )
     select *,
