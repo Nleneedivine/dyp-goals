@@ -125,7 +125,7 @@ export function ProgramAccessHub() {
   const finalizedBonus = Number(data.finalizedRankBonusMinor ?? 0);
 
   return (
-    <Card className="overflow-hidden border-primary/20">
+    <Card data-tour="program-access" className="overflow-hidden border-primary/20">
       <CardHeader className="bg-primary/5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
