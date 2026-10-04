@@ -1802,6 +1802,10 @@ export type Database = {
           form_id: string
           manual_reference: string | null
           method: string
+          proof_content_type: string | null
+          proof_path: string | null
+          proof_uploaded_at: string | null
+          rejection_reason: string | null
           paid_at: string | null
           provider_reference: string | null
           status: string
@@ -1817,6 +1821,10 @@ export type Database = {
           form_id: string
           manual_reference?: string | null
           method: string
+          proof_content_type?: string | null
+          proof_path?: string | null
+          proof_uploaded_at?: string | null
+          rejection_reason?: string | null
           paid_at?: string | null
           provider_reference?: string | null
           status?: string
@@ -1832,6 +1840,10 @@ export type Database = {
           form_id?: string
           manual_reference?: string | null
           method?: string
+          proof_content_type?: string | null
+          proof_path?: string | null
+          proof_uploaded_at?: string | null
+          rejection_reason?: string | null
           paid_at?: string | null
           provider_reference?: string | null
           status?: string
@@ -2144,7 +2156,11 @@ export type Database = {
         }
       }
       admin_set_program_payment_status: {
-        Args: { p_status: string; p_submission_id: string }
+        Args: {
+          p_rejection_reason?: string
+          p_status: string
+          p_submission_id: string
+        }
         Returns: {
           amount_minor: number
           created_at: string
@@ -2153,6 +2169,10 @@ export type Database = {
           manual_reference: string | null
           method: string
           paid_at: string | null
+          proof_content_type: string | null
+          proof_path: string | null
+          proof_uploaded_at: string | null
+          rejection_reason: string | null
           provider_reference: string | null
           status: string
           submission_id: string
@@ -2371,6 +2391,15 @@ export type Database = {
           display_name: string
           referral_code: string
         }[]
+      }
+      submit_manual_program_payment_with_proof: {
+        Args: {
+          p_manual_reference: string
+          p_proof_content_type: string
+          p_proof_path: string
+          p_session_token: string
+        }
+        Returns: Json
       }
       submit_manual_program_payment: {
         Args: { p_manual_reference: string; p_session_token: string }
