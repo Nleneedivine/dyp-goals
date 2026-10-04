@@ -387,7 +387,7 @@ export default function Journey() {
 
   if (loading) {
     return (
-      <main className="min-h-screen px-4 pb-16 pt-28">
+      <main data-tour="journey-page" className="min-h-screen px-4 pb-16 pt-28">
         <div className="container mx-auto max-w-5xl animate-pulse space-y-5">
           <div className="h-12 w-72 rounded bg-muted" />
           <div className="h-36 rounded-2xl bg-muted" />
@@ -424,7 +424,7 @@ export default function Journey() {
           <ProgramAccessHub />
         </div>
 
-        <Card className="mb-6 border-primary/20 bg-primary/5">
+        <Card data-tour="journey-progress" className="mb-6 border-primary/20 bg-primary/5">
           <CardContent className="space-y-4 pt-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>

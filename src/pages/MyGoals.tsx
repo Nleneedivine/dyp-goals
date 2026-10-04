@@ -834,7 +834,7 @@ export default function MyGoals() {
 
   if (loading) {
     return (
-      <main className="min-h-screen pt-28 pb-16">
+      <main data-tour="my-goals-page" className="min-h-screen pt-28 pb-16">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-6xl animate-pulse space-y-5">
             <div className="h-12 w-64 rounded bg-muted" />
@@ -847,7 +847,7 @@ export default function MyGoals() {
   }
 
   return (
-    <main className="min-h-screen pt-28 pb-16">
+    <main data-tour="my-goals-page" className="min-h-screen pt-28 pb-16">
       <div className="container mx-auto px-4">
         <div className="mx-auto max-w-6xl">
           {isUi2 ? (

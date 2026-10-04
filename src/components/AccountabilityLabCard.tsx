@@ -175,7 +175,7 @@ export function AccountabilityLabCard({ onJoined }: { onJoined?: (groupId: strin
 
   if (loading) {
     return (
-      <Card className="border-primary/20">
+      <Card data-tour="accountability-lab" className="border-primary/20">
         <CardContent className="flex min-h-36 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </CardContent>
@@ -189,7 +189,7 @@ export function AccountabilityLabCard({ onJoined }: { onJoined?: (groupId: strin
 
   if (groupName) {
     return (
-      <Card className="border-primary/20 bg-primary/5">
+      <Card data-tour="accountability-lab" className="border-primary/20 bg-primary/5">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -212,7 +212,7 @@ export function AccountabilityLabCard({ onJoined }: { onJoined?: (groupId: strin
   }
 
   return (
-    <Card className="border-primary/20">
+    <Card data-tour="accountability-lab" className="border-primary/20">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="h-5 w-5 text-primary" />

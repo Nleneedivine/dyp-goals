@@ -2346,6 +2346,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_tour_state: {
+        Row: {
+          auto_disabled: boolean
+          completed_at: string | null
+          created_at: string
+          dismissed_at: string | null
+          last_step: number
+          tour_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_disabled?: boolean
+          completed_at?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          last_step?: number
+          tour_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_disabled?: boolean
+          completed_at?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          last_step?: number
+          tour_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_tour_state_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_planning_vision: {
         Row: {
           created_at: string
@@ -2680,6 +2721,10 @@ export type Database = {
           p_visitor_token?: string
         }
         Returns: boolean
+      }
+      get_goals_guide_context: {
+        Args: never
+        Returns: Json
       }
       get_current_user_referral_dashboard: {
         Args: never
