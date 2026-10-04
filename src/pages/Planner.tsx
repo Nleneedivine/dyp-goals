@@ -1747,7 +1747,7 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
 
   if (loading) {
     return (
-      <main className="min-h-screen px-4 pb-16 pt-28">
+      <main data-tour="planner-page" className="min-h-screen px-4 pb-16 pt-28">
         <div className="container mx-auto max-w-7xl animate-pulse space-y-5">
           <div className="h-12 w-64 rounded bg-muted" />
           <div className="h-20 rounded-2xl bg-muted" />
@@ -1758,7 +1758,7 @@ export default function Planner({ initialView }: { initialView?: PlannerView }) 
   }
 
   return (
-    <main className="min-h-screen px-4 pb-16 pt-28">
+    <main data-tour="planner-page" className="min-h-screen px-4 pb-16 pt-28">
       <div className="container mx-auto max-w-7xl">
         {isUi2 ? (
           <Ui2PageHeader
