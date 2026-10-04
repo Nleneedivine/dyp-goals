@@ -270,7 +270,7 @@ export default function ProgressDashboard() {
 
   if (loading) {
     return (
-      <main className="min-h-screen px-4 pb-16 pt-28">
+      <main data-tour="progress-page" className="min-h-screen px-4 pb-16 pt-28">
         <div className="container mx-auto max-w-7xl animate-pulse space-y-5">
           <div className="h-12 w-72 rounded bg-muted" />
           <div className="grid gap-3 sm:grid-cols-4">
@@ -285,7 +285,7 @@ export default function ProgressDashboard() {
   }
 
   return (
-    <main className="min-h-screen px-4 pb-16 pt-28">
+    <main data-tour="progress-page" className="min-h-screen px-4 pb-16 pt-28">
       <div className="container mx-auto max-w-7xl">
         {isUi2 ? (
           <Ui2PageHeader
