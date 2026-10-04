@@ -914,15 +914,35 @@ export default function PublicForm() {
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   Choose a screenshot from your gallery or take a clear photo. JPG, PNG or WebP, up to 8 MB.
                                 </p>
-                                <Input
-                                  id="manual-payment-proof"
-                                  type="file"
-                                  accept="image/jpeg,image/png,image/webp"
-                                  capture="environment"
-                                  className="mt-3 h-auto py-2"
-                                  onChange={(event) => void chooseManualProof(event.target.files?.[0] ?? null)}
-                                  disabled={paymentLoading || proofChecking}
-                                />
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                  <div>
+                                    <Label htmlFor="manual-payment-proof-gallery" className="text-xs text-muted-foreground">
+                                      Choose from gallery
+                                    </Label>
+                                    <Input
+                                      id="manual-payment-proof-gallery"
+                                      type="file"
+                                      accept="image/jpeg,image/png,image/webp"
+                                      className="mt-1 h-auto py-2"
+                                      onChange={(event) => void chooseManualProof(event.target.files?.[0] ?? null)}
+                                      disabled={paymentLoading || proofChecking}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="manual-payment-proof-camera" className="text-xs text-muted-foreground">
+                                      Take a photo
+                                    </Label>
+                                    <Input
+                                      id="manual-payment-proof-camera"
+                                      type="file"
+                                      accept="image/*"
+                                      capture="environment"
+                                      className="mt-1 h-auto py-2"
+                                      onChange={(event) => void chooseManualProof(event.target.files?.[0] ?? null)}
+                                      disabled={paymentLoading || proofChecking}
+                                    />
+                                  </div>
+                                </div>
                                 {proofChecking && (
                                   <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
