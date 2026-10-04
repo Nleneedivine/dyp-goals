@@ -48,6 +48,16 @@ const Auth = () => {
     [searchParams],
   );
   const activationMode = searchParams.get("mode") === "activate";
+  const notRegisteredError = searchParams.get("error") === "not-registered";
+
+  const ensureAppAccess = async () => {
+    const { data, error } = await supabase.rpc("current_user_has_app_access");
+    if (error) throw error;
+    if (!data) {
+      await supabase.auth.signOut();
+      throw new Error("We couldn't find an eligible DYP program registration for this account.");
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -58,8 +68,13 @@ const Auth = () => {
 
       try {
         await linkAuthenticatedEnrollments();
+        await ensureAppAccess();
       } catch (error) {
-        console.error("Enrollment linking failed:", error);
+        console.error("Authentication access check failed:", error);
+        if (active) {
+          navigate("/auth?error=not-registered", { replace: true });
+        }
+        return;
       }
 
       if (active) navigate(nextPath, { replace: true });
@@ -72,10 +87,12 @@ const Auth = () => {
       window.setTimeout(async () => {
         try {
           await linkAuthenticatedEnrollments();
+          await ensureAppAccess();
+          if (active) navigate(nextPath, { replace: true });
         } catch (error) {
-          console.error("Enrollment linking failed:", error);
+          console.error("Authentication access check failed:", error);
+          if (active) navigate("/auth?error=not-registered", { replace: true });
         }
-        if (active) navigate(nextPath, { replace: true });
       }, 0);
     });
 
@@ -125,6 +142,7 @@ const Auth = () => {
       if (error) throw error;
 
       await linkAuthenticatedEnrollments();
+      await ensureAppAccess();
 
       toast({
         title: "Welcome back!",
@@ -156,6 +174,19 @@ const Auth = () => {
     try {
       signupSchema.parse({ firstName, lastName, email, password });
 
+      if (!activationMode) {
+        throw new Error("Create your DYP account from the activation step after an eligible GOALS registration.");
+      }
+
+      const { data: canActivate, error: eligibilityError } = await supabase.rpc(
+        "can_activate_goals_account",
+        { p_email: email.trim() },
+      );
+      if (eligibilityError) throw eligibilityError;
+      if (!canActivate) {
+        throw new Error("We couldn't find an eligible GOALS registration for this email. Complete registration and payment first.");
+      }
+
       const callbackUrl = new URL("/auth/callback", window.location.origin);
       callbackUrl.searchParams.set("next", nextPath);
 
@@ -175,6 +206,7 @@ const Auth = () => {
 
       if (data.session) {
         await linkAuthenticatedEnrollments();
+        await ensureAppAccess();
         toast({
           title: "Account created",
           description: "Your DYP account has been linked to your GOALS participation.",
@@ -212,6 +244,11 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {notRegisteredError && (
+            <div className="mb-5 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+              This account is not linked to an eligible DYP program registration. Register for GOALS first, or use the account you previously registered with.
+            </div>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -229,10 +266,10 @@ const Auth = () => {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs defaultValue={activationMode ? "signup" : "login"} className="w-full">
+            <TabsList className={activationMode ? "grid w-full grid-cols-2" : "grid w-full grid-cols-1"}>
               <TabsTrigger value="login">Sign in</TabsTrigger>
-              <TabsTrigger value="signup">Create account</TabsTrigger>
+              {activationMode && <TabsTrigger value="signup">Create account</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="login">
@@ -315,9 +352,13 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
 
-          {activationMode && (
+          {activationMode ? (
             <p className="mt-5 rounded-lg bg-muted/30 p-3 text-center text-xs text-muted-foreground">
               Already participated in DYP before? Sign in with your existing account instead of creating another one.
+            </p>
+          ) : (
+            <p className="mt-5 rounded-lg bg-muted/30 p-3 text-center text-xs text-muted-foreground">
+              New here? Complete GOALS registration first. Account creation is offered after an eligible registration is activated.
             </p>
           )}
         </CardContent>
