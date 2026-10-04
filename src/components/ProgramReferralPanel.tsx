@@ -152,19 +152,26 @@ export function ProgramReferralPanel({
     }
 
     setRows(
-      (funnelResult.data ?? []).map((row) => ({
-        ...row,
-        total_clicks: Number(row.total_clicks),
-        unique_visitors: Number(row.unique_visitors),
-        registration_starts: Number(row.registration_starts),
-        submitted_registrations: Number(row.submitted_registrations),
-        pending_registrations: Number(row.pending_registrations),
-        pending_payments: Number(row.pending_payments),
-        paid_referrals: Number(row.paid_referrals),
-        activated_accounts: Number(row.activated_accounts),
-        completed_training: Number(row.completed_training),
-        certified_referrals: Number(row.certified_referrals),
-      })),
+      (funnelResult.data ?? [])
+        .map((row) => ({
+          ...row,
+          total_clicks: Number(row.total_clicks),
+          unique_visitors: Number(row.unique_visitors),
+          registration_starts: Number(row.registration_starts),
+          submitted_registrations: Number(row.submitted_registrations),
+          pending_registrations: Number(row.pending_registrations),
+          pending_payments: Number(row.pending_payments),
+          paid_referrals: Number(row.paid_referrals),
+          activated_accounts: Number(row.activated_accounts),
+          completed_training: Number(row.completed_training),
+          certified_referrals: Number(row.certified_referrals),
+        }))
+        .filter(
+          (row) =>
+            Boolean(row.promoter_id) ||
+            row.total_clicks > 0 ||
+            row.submitted_registrations > 0,
+        ),
     );
     setPromoters(promoterResult.data ?? []);
     setRewardSettings((rewardResult.data ?? null) as RewardSettings | null);
