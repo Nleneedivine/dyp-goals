@@ -37,8 +37,94 @@ type PaymentState = {
   paymentStatus?: "unpaid" | "pending" | "paid" | "rejected";
   paymentMethod?: "manual" | "paystack" | null;
   paymentReference?: string | null;
+  proofUploaded?: boolean;
+  rejectionReason?: string | null;
   whatsappGroupUrl?: string;
 };
+
+type ProofQualityResult = {
+  ok: boolean;
+  message: string;
+  width?: number;
+  height?: number;
+};
+
+const checkPaymentProofImage = async (file: File): Promise<ProofQualityResult> => {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    return { ok: false, message: "Upload a JPG, PNG or WebP image." };
+  }
+
+  if (file.size > 8 * 1024 * 1024) {
+    return { ok: false, message: "The payment proof must be smaller than 8 MB." };
+  }
+
+  if (file.size < 20 * 1024) {
+    return { ok: false, message: "This image is unusually small. Please upload a clearer screenshot or photo." };
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("The image could not be opened."));
+      element.src = objectUrl;
+    });
+
+    const width = image.naturalWidth;
+    const height = image.naturalHeight;
+    if (Math.max(width, height) < 600 || Math.min(width, height) < 300) {
+      return {
+        ok: false,
+        message: "This image is too small to review comfortably. Please upload a higher-resolution proof.",
+        width,
+        height,
+      };
+    }
+
+    const sampleWidth = Math.min(180, width);
+    const sampleHeight = Math.max(1, Math.round((height / width) * sampleWidth));
+    const canvas = document.createElement("canvas");
+    canvas.width = sampleWidth;
+    canvas.height = Math.min(220, sampleHeight);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return { ok: true, message: "Image ready for review.", width, height };
+
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const luminance: number[] = [];
+
+    for (let index = 0; index < pixels.length; index += 16) {
+      const r = pixels[index];
+      const g = pixels[index + 1];
+      const b = pixels[index + 2];
+      luminance.push(0.2126 * r + 0.7152 * g + 0.0722 * b);
+    }
+
+    const mean = luminance.reduce((sum, value) => sum + value, 0) / Math.max(1, luminance.length);
+    const variance =
+      luminance.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) /
+      Math.max(1, luminance.length);
+    const standardDeviation = Math.sqrt(variance);
+
+    if (mean < 18) {
+      return { ok: false, message: "This image is too dark to review. Please retake or upload a brighter proof.", width, height };
+    }
+    if (mean > 248 && standardDeviation < 8) {
+      return { ok: false, message: "This image appears blank or overexposed. Please upload another proof.", width, height };
+    }
+    if (standardDeviation < 10) {
+      return { ok: false, message: "There is not enough visible detail in this image. Please upload a clearer proof.", width, height };
+    }
+
+    return { ok: true, message: "Image is clear enough for human review.", width, height };
+  } catch {
+    return { ok: false, message: "We could not read this image. Please choose another file." };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
+
 
 export default function PublicForm() {
   const { slug } = useParams();
@@ -58,6 +144,9 @@ export default function PublicForm() {
   const [searchingReferrers, setSearchingReferrers] = useState(false);
   const [paymentState, setPaymentState] = useState<PaymentState | null>(null);
   const [manualReference, setManualReference] = useState("");
+  const [manualProof, setManualProof] = useState<File | null>(null);
+  const [proofQuality, setProofQuality] = useState<ProofQualityResult | null>(null);
+  const [proofChecking, setProofChecking] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [currentStep, setCurrentStep] = useState(0);
@@ -318,23 +407,84 @@ export default function PublicForm() {
     return null;
   };
 
+  const chooseManualProof = async (file: File | null) => {
+    setManualProof(null);
+    setProofQuality(null);
+    setPaymentError("");
+    if (!file) return;
+
+    setProofChecking(true);
+    const quality = await checkPaymentProofImage(file);
+    setProofChecking(false);
+    setProofQuality(quality);
+
+    if (!quality.ok) {
+      setPaymentError(quality.message);
+      return;
+    }
+
+    setManualProof(file);
+  };
+
   const submitManualPayment = async () => {
     if (!sessionToken || manualReference.trim().length < 3) {
       setPaymentError("Enter your bank transfer reference or payment note.");
       return;
     }
+    if (!manualProof || !proofQuality?.ok) {
+      setPaymentError("Upload a clear payment proof image before submitting your transfer.");
+      return;
+    }
+
     setPaymentLoading(true);
     setPaymentError("");
-    const { data, error } = await supabase.rpc("submit_manual_program_payment", {
+
+    const { data: upload, error: uploadRequestError } = await supabase.functions.invoke(
+      "program-payment",
+      {
+        body: {
+          action: "prepare-proof-upload",
+          sessionToken,
+          fileName: manualProof.name,
+          contentType: manualProof.type,
+        },
+      },
+    );
+
+    if (uploadRequestError || upload?.error || !upload?.path || !upload?.token) {
+      setPaymentLoading(false);
+      setPaymentError(upload?.error ?? uploadRequestError?.message ?? "Could not prepare the payment proof upload.");
+      return;
+    }
+
+    const { error: uploadError } = await supabase.storage
+      .from("payment-proofs")
+      .uploadToSignedUrl(upload.path, upload.token, manualProof, {
+        contentType: manualProof.type,
+      });
+
+    if (uploadError) {
+      setPaymentLoading(false);
+      setPaymentError("The payment proof could not be uploaded. Please try again.");
+      return;
+    }
+
+    const { data, error } = await supabase.rpc("submit_manual_program_payment_with_proof", {
       p_session_token: sessionToken,
       p_manual_reference: manualReference.trim(),
+      p_proof_path: upload.path,
+      p_proof_content_type: manualProof.type,
     });
+
     setPaymentLoading(false);
     if (error) {
       setPaymentError(error.message);
       return;
     }
+
     setPaymentState((data ?? null) as PaymentState | null);
+    setManualProof(null);
+    setProofQuality(null);
   };
 
   const startPaystackPayment = async () => {
@@ -640,20 +790,51 @@ export default function PublicForm() {
                             {paymentState.manualInstructions && (
                               <p className="mt-3 text-sm text-muted-foreground">{paymentState.manualInstructions}</p>
                             )}
-                            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                            <div className="mt-4 space-y-3">
                               <Input
                                 value={manualReference}
                                 onChange={(event) => setManualReference(event.target.value)}
                                 placeholder="Transfer reference / payment note"
                               />
+
+                              <div className="rounded-xl border bg-muted/15 p-3">
+                                <Label htmlFor="manual-payment-proof" className="font-medium">
+                                  Upload payment proof
+                                </Label>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Choose a screenshot from your gallery or take a clear photo. JPG, PNG or WebP, up to 8 MB.
+                                </p>
+                                <Input
+                                  id="manual-payment-proof"
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp"
+                                  capture="environment"
+                                  className="mt-3 h-auto py-2"
+                                  onChange={(event) => void chooseManualProof(event.target.files?.[0] ?? null)}
+                                  disabled={paymentLoading || proofChecking}
+                                />
+                                {proofChecking && (
+                                  <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    Checking whether the image is readable…
+                                  </p>
+                                )}
+                                {proofQuality && (
+                                  <p className={`mt-2 text-xs ${proofQuality.ok ? "text-primary" : "text-destructive"}`}>
+                                    {proofQuality.message}
+                                  </p>
+                                )}
+                              </div>
+
                               <Button
                                 type="button"
                                 variant="outline"
+                                className="w-full sm:w-auto"
                                 onClick={() => void submitManualPayment()}
-                                disabled={paymentLoading}
+                                disabled={paymentLoading || proofChecking || !manualProof}
                               >
                                 {paymentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                I have paid
+                                Submit payment proof
                               </Button>
                             </div>
                           </div>
@@ -682,9 +863,12 @@ export default function PublicForm() {
                       )}
 
                       {paymentState.paymentStatus === "rejected" && (
-                        <p className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
-                          The submitted payment could not be verified. Please check the details or choose another payment method.
-                        </p>
+                        <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+                          <p className="font-medium">Payment proof needs attention</p>
+                          <p className="mt-1">
+                            {paymentState.rejectionReason || "The submitted payment could not be verified. Please upload another clear proof or choose another payment method."}
+                          </p>
+                        </div>
                       )}
                     </>
                   )}

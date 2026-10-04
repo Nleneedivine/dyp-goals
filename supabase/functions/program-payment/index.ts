@@ -4,10 +4,12 @@ import { z } from "npm:zod@3";
 import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const RequestSchema = z.object({
-  action: z.enum(["initialize", "verify"]),
+  action: z.enum(["initialize", "verify", "prepare-proof-upload"]),
   sessionToken: z.string().uuid().optional(),
   reference: z.string().min(6).max(120).optional(),
   returnUrl: z.string().url().optional(),
+  fileName: z.string().min(1).max(180).optional(),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
 });
 
 const respond = (body: unknown, status = 200) =>
@@ -119,6 +121,66 @@ Deno.serve(async (req) => {
     }
 
     const body = parsed.data;
+
+    if (body.action === "prepare-proof-upload") {
+      if (!body.sessionToken || !body.fileName || !body.contentType) {
+        return respond({ error: "Missing payment proof upload details." }, 400);
+      }
+
+      const { data: session } = await admin
+        .from("program_form_sessions")
+        .select("id,form_id,completed_at")
+        .eq("session_token", body.sessionToken)
+        .maybeSingle();
+
+      if (!session?.completed_at) {
+        return respond({ error: "Complete registration before uploading payment proof." }, 409);
+      }
+
+      const { data: submission } = await admin
+        .from("program_form_submissions")
+        .select("id,form_id")
+        .eq("session_id", session.id)
+        .maybeSingle();
+
+      if (!submission) {
+        return respond({ error: "Registration submission not found." }, 404);
+      }
+
+      const { data: settings } = await admin
+        .from("program_payment_settings")
+        .select("manual_enabled")
+        .eq("form_id", submission.form_id)
+        .maybeSingle();
+
+      if (!settings?.manual_enabled) {
+        return respond({ error: "Manual payment is not enabled." }, 409);
+      }
+
+      const extension =
+        body.contentType === "image/png"
+          ? "png"
+          : body.contentType === "image/webp"
+            ? "webp"
+            : "jpg";
+      const path = `${submission.id}/${crypto.randomUUID()}.${extension}`;
+
+      const { data: signedUpload, error: signedUploadError } = await admin.storage
+        .from("payment-proofs")
+        .createSignedUploadUrl(path);
+
+      if (signedUploadError || !signedUpload?.token) {
+        return respond(
+          { error: signedUploadError?.message ?? "Unable to prepare payment proof upload." },
+          500,
+        );
+      }
+
+      return respond({
+        path,
+        token: signedUpload.token,
+      });
+    }
 
     if (body.action === "initialize") {
       if (!body.sessionToken || !body.returnUrl) {
