@@ -2208,6 +2208,14 @@ export type Database = {
         Args: { p_form_id: string; p_submission_id: string }
         Returns: string
       }
+      can_activate_goals_account: {
+        Args: { p_email: string }
+        Returns: boolean
+      }
+      current_user_has_app_access: {
+        Args: never
+        Returns: boolean
+      }
       get_accountability_program_trends: {
         Args: { p_week_start: string }
         Returns: Json
