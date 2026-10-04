@@ -807,35 +807,66 @@ export default function PublicForm() {
                   </p>
 
                   {paymentState.paymentStatus === "paid" ? (
-                    <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
-                      <CheckCircle2 className="mx-auto h-7 w-7 text-primary" />
-                      <p className="mt-2 font-semibold">Payment confirmed</p>
-                      {paymentState.whatsappGroupUrl ? (
-                        <Button asChild className="mt-4 gap-2">
-                          <a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">
-                            Join the WhatsApp group
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      ) : (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          WhatsApp access will appear here once the group link is configured.
+                    <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+                      <div className="text-center">
+                        <CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
+                        <p className="mt-2 text-lg font-semibold">Payment confirmed — you’re in</p>
+                        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                          Choose what you want to do now. Both options remain available later from your GOALS dashboard.
                         </p>
-                      )}
-                      <div className="mt-5 border-t pt-5">
-                        <div className="flex items-center justify-center gap-2 text-primary">
-                          <UserRound className="h-5 w-5" />
-                          <p className="font-semibold">Next: activate your GOALS dashboard</p>
-                        </div>
-                        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                          Sign in with an existing DYP account or create one using the same email you registered with. We’ll connect your paid GOALS enrollment automatically.
-                        </p>
-                        <Button asChild variant="outline" className="mt-4">
+                      </div>
+
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {paymentState.whatsappGroupUrl ? (
+                          <Button asChild size="lg" className="min-h-14 w-full whitespace-normal text-center leading-snug">
+                            <a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">
+                              Join WhatsApp Group
+                              <ExternalLink className="ml-2 h-4 w-4 shrink-0" />
+                            </a>
+                          </Button>
+                        ) : (
+                          <div className="flex min-h-14 items-center justify-center rounded-xl border bg-background px-4 py-3 text-center text-sm text-muted-foreground">
+                            WhatsApp link will appear here once Admin configures it.
+                          </div>
+                        )}
+
+                        <Button
+                          asChild
+                          size="lg"
+                          variant="outline"
+                          className="min-h-14 w-full whitespace-normal text-center leading-snug"
+                        >
                           <a href="/auth?mode=activate&next=%2Fjourney">
-                            Activate / open my GOALS account
+                            <UserRound className="mr-2 h-4 w-4 shrink-0" />
+                            Open My GOALS Dashboard
                           </a>
                         </Button>
                       </div>
+
+                      {ownReferralCode && (
+                        <div className="mt-5 border-t pt-4 text-center">
+                          <p className="text-sm font-medium">Start referring immediately</p>
+                          <p className="mt-1 break-all font-mono text-sm text-primary">
+                            {ownReferralCode}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() =>
+                              void navigator.clipboard.writeText(
+                                `${window.location.origin}/r/${encodeURIComponent(
+                                  ownReferralCode.replace(/^DYPGL-/i, ""),
+                                )}`,
+                              )
+                            }
+                          >
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy referral link
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -883,15 +914,35 @@ export default function PublicForm() {
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   Choose a screenshot from your gallery or take a clear photo. JPG, PNG or WebP, up to 8 MB.
                                 </p>
-                                <Input
-                                  id="manual-payment-proof"
-                                  type="file"
-                                  accept="image/jpeg,image/png,image/webp"
-                                  capture="environment"
-                                  className="mt-3 h-auto py-2"
-                                  onChange={(event) => void chooseManualProof(event.target.files?.[0] ?? null)}
-                                  disabled={paymentLoading || proofChecking}
-                                />
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                  <div>
+                                    <Label htmlFor="manual-payment-proof-gallery" className="text-xs text-muted-foreground">
+                                      Choose from gallery
+                                    </Label>
+                                    <Input
+                                      id="manual-payment-proof-gallery"
+                                      type="file"
+                                      accept="image/jpeg,image/png,image/webp"
+                                      className="mt-1 h-auto py-2"
+                                      onChange={(event) => void chooseManualProof(event.target.files?.[0] ?? null)}
+                                      disabled={paymentLoading || proofChecking}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="manual-payment-proof-camera" className="text-xs text-muted-foreground">
+                                      Take a photo
+                                    </Label>
+                                    <Input
+                                      id="manual-payment-proof-camera"
+                                      type="file"
+                                      accept="image/*"
+                                      capture="environment"
+                                      className="mt-1 h-auto py-2"
+                                      onChange={(event) => void chooseManualProof(event.target.files?.[0] ?? null)}
+                                      disabled={paymentLoading || proofChecking}
+                                    />
+                                  </div>
+                                </div>
                                 {proofChecking && (
                                   <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -960,7 +1011,7 @@ export default function PublicForm() {
                 </div>
               )}
 
-              {ownReferralCode && (
+              {ownReferralCode && paymentState?.paymentStatus !== "paid" && (
                 <div className="mx-auto mt-7 max-w-xl rounded-2xl border bg-muted/20 p-5 text-center">
                   <div className="flex items-center justify-center gap-2 text-primary">
                     <Share2 className="h-5 w-5" />

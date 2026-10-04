@@ -2681,6 +2681,27 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_current_user_referral_dashboard: {
+        Args: never
+        Returns: Json
+      }
+      get_program_referral_people_admin: {
+        Args: {
+          p_form_id: string
+          p_referral_code?: string
+        }
+        Returns: {
+          account_activated: boolean
+          certificate_issued_at: string | null
+          completion_status: string
+          display_name: string
+          email: string
+          payment_status: string
+          referral_code: string
+          referred_submission_id: string
+          submitted_at: string
+        }[]
+      }
       get_accountability_program_trends: {
         Args: { p_week_start: string }
         Returns: Json
