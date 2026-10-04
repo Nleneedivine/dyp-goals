@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      accountability_groups: {
+        Row: {
+          cohort_id: string
+          created_at: string
+          id: string
+          mentor_id: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          cohort_id: string
+          created_at?: string
+          id?: string
+          mentor_id?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          cohort_id?: string
+          created_at?: string
+          id?: string
+          mentor_id?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accountability_groups_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "program_cohorts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accountability_lab_preferences: {
         Row: {
           availability: string[]
@@ -48,41 +83,6 @@ export type Database = {
             columns: ["enrollment_id"]
             isOneToOne: true
             referencedRelation: "program_enrollments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      accountability_groups: {
-        Row: {
-          cohort_id: string
-          created_at: string
-          id: string
-          mentor_id: string | null
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          cohort_id: string
-          created_at?: string
-          id?: string
-          mentor_id?: string | null
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          cohort_id?: string
-          created_at?: string
-          id?: string
-          mentor_id?: string | null
-          name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "accountability_groups_cohort_id_fkey"
-            columns: ["cohort_id"]
-            isOneToOne: false
-            referencedRelation: "program_cohorts"
             referencedColumns: ["id"]
           },
         ]
@@ -1802,12 +1802,12 @@ export type Database = {
           form_id: string
           manual_reference: string | null
           method: string
+          paid_at: string | null
           proof_content_type: string | null
           proof_path: string | null
           proof_uploaded_at: string | null
-          rejection_reason: string | null
-          paid_at: string | null
           provider_reference: string | null
+          rejection_reason: string | null
           status: string
           submission_id: string
           updated_at: string
@@ -1821,12 +1821,12 @@ export type Database = {
           form_id: string
           manual_reference?: string | null
           method: string
+          paid_at?: string | null
           proof_content_type?: string | null
           proof_path?: string | null
           proof_uploaded_at?: string | null
-          rejection_reason?: string | null
-          paid_at?: string | null
           provider_reference?: string | null
+          rejection_reason?: string | null
           status?: string
           submission_id: string
           updated_at?: string
@@ -1840,12 +1840,12 @@ export type Database = {
           form_id?: string
           manual_reference?: string | null
           method?: string
+          paid_at?: string | null
           proof_content_type?: string | null
           proof_path?: string | null
           proof_uploaded_at?: string | null
-          rejection_reason?: string | null
-          paid_at?: string | null
           provider_reference?: string | null
+          rejection_reason?: string | null
           status?: string
           submission_id?: string
           updated_at?: string
@@ -2155,38 +2155,67 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      admin_set_program_payment_status: {
-        Args: {
-          p_rejection_reason?: string
-          p_status: string
-          p_submission_id: string
-        }
-        Returns: {
-          amount_minor: number
-          created_at: string
-          currency: string
-          form_id: string
-          manual_reference: string | null
-          method: string
-          paid_at: string | null
-          proof_content_type: string | null
-          proof_path: string | null
-          proof_uploaded_at: string | null
-          rejection_reason: string | null
-          provider_reference: string | null
-          status: string
-          submission_id: string
-          updated_at: string
-          verified_at: string | null
-          verified_by: string | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "program_payments"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      admin_set_program_payment_status:
+        | {
+            Args: { p_status: string; p_submission_id: string }
+            Returns: {
+              amount_minor: number
+              created_at: string
+              currency: string
+              form_id: string
+              manual_reference: string | null
+              method: string
+              paid_at: string | null
+              proof_content_type: string | null
+              proof_path: string | null
+              proof_uploaded_at: string | null
+              provider_reference: string | null
+              rejection_reason: string | null
+              status: string
+              submission_id: string
+              updated_at: string
+              verified_at: string | null
+              verified_by: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "program_payments"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_rejection_reason?: string
+              p_status: string
+              p_submission_id: string
+            }
+            Returns: {
+              amount_minor: number
+              created_at: string
+              currency: string
+              form_id: string
+              manual_reference: string | null
+              method: string
+              paid_at: string | null
+              proof_content_type: string | null
+              proof_path: string | null
+              proof_uploaded_at: string | null
+              provider_reference: string | null
+              rejection_reason: string | null
+              status: string
+              submission_id: string
+              updated_at: string
+              verified_at: string | null
+              verified_by: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "program_payments"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       admin_sync_accountability_chats: { Args: never; Returns: Json }
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
@@ -2246,6 +2275,10 @@ export type Database = {
         Returns: string
       }
       assign_user_to_group: { Args: { _user_id: string }; Returns: string }
+      can_activate_goals_account: {
+        Args: { p_email: string }
+        Returns: boolean
+      }
       consume_edge_rate_limit: {
         Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
         Returns: {
@@ -2254,6 +2287,7 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
+      current_user_has_app_access: { Args: never; Returns: boolean }
       ensure_accountability_chat: {
         Args: { p_group_id: string }
         Returns: string
@@ -2265,14 +2299,6 @@ export type Database = {
       ensure_program_referral_code: {
         Args: { p_form_id: string; p_submission_id: string }
         Returns: string
-      }
-      can_activate_goals_account: {
-        Args: { p_email: string }
-        Returns: boolean
-      }
-      current_user_has_app_access: {
-        Args: never
-        Returns: boolean
       }
       get_accountability_program_trends: {
         Args: { p_week_start: string }
@@ -2392,6 +2418,10 @@ export type Database = {
           referral_code: string
         }[]
       }
+      submit_manual_program_payment: {
+        Args: { p_manual_reference: string; p_session_token: string }
+        Returns: Json
+      }
       submit_manual_program_payment_with_proof: {
         Args: {
           p_manual_reference: string
@@ -2399,10 +2429,6 @@ export type Database = {
           p_proof_path: string
           p_session_token: string
         }
-        Returns: Json
-      }
-      submit_manual_program_payment: {
-        Args: { p_manual_reference: string; p_session_token: string }
         Returns: Json
       }
       users_share_group: {
