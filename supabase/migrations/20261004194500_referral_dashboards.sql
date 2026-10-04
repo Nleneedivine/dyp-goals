@@ -69,7 +69,13 @@ begin
   where submission_id = v_submission_id;
 
   if v_code is null then
-    v_code := public.ensure_program_referral_code(v_submission_id, v_form_id);
+    return jsonb_build_object(
+      'available', true,
+      'formId', v_form_id,
+      'formSlug', v_form_slug,
+      'formTitle', v_form_title,
+      'referralAvailable', false
+    );
   end if;
 
   v_short_code := regexp_replace(v_code, '^DYPGL-', '');
