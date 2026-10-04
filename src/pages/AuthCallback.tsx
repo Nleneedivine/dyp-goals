@@ -36,6 +36,14 @@ export default function AuthCallback() {
 
         await linkAuthenticatedEnrollments();
 
+        const { data: hasAccess, error: accessError } = await supabase.rpc("current_user_has_app_access");
+        if (accessError) throw accessError;
+        if (!hasAccess) {
+          await supabase.auth.signOut();
+          if (active) navigate("/auth?error=not-registered", { replace: true });
+          return;
+        }
+
         if (active) navigate(next, { replace: true });
       } catch (err) {
         if (!active) return;
