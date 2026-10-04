@@ -203,8 +203,12 @@ export default function AdminProgramSettings() {
           rank_basis: rewards.rank_basis,
           rank_bonus_bps: rewards.rank_bonus_bps,
           minimum_rank_referrals: rewards.minimum_rank_referrals,
-          reward_start_at: rewards.reward_start_at || null,
-          reward_end_at: rewards.reward_end_at || null,
+          reward_start_at: rewards.reward_start_at
+            ? new Date(rewards.reward_start_at).toISOString()
+            : null,
+          reward_end_at: rewards.reward_end_at
+            ? new Date(rewards.reward_end_at).toISOString()
+            : null,
           rank_bonus_finalized_at: rewards.rank_bonus_finalized_at,
           updated_at: new Date().toISOString(),
         });
