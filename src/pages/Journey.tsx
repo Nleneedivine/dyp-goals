@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { JourneyExecutionSnapshot } from "@/components/JourneyExecutionSnapshot";
+import { AccountabilityLabCard } from "@/components/AccountabilityLabCard";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
@@ -361,8 +362,8 @@ export default function Journey() {
       detail: accountabilityGroupId
         ? `Accountability group assigned · Lab starts ${formatProgramDate(configuration.accountability_lab_start_date)}`
         : `No accountability group assigned yet · Lab starts ${formatProgramDate(configuration.accountability_lab_start_date)}`,
-      href: "/mentorship",
-      cta: accountabilityGroupId ? "Open accountability" : "Join accountability",
+      href: "/my-goals",
+      cta: accountabilityGroupId ? "Review accountability" : "Join accountability",
       icon: Users,
     },
     {
@@ -452,6 +453,10 @@ export default function Journey() {
             )}
           </CardContent>
         </Card>
+
+        <div className="mb-6">
+          <AccountabilityLabCard onJoined={setAccountabilityGroupId} />
+        </div>
 
         <div className="space-y-3">
           {steps.map((step, index) => {
