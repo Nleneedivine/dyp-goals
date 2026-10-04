@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { JourneyExecutionSnapshot } from "@/components/JourneyExecutionSnapshot";
+import { AccountabilityLabCard } from "@/components/AccountabilityLabCard";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
@@ -452,6 +453,10 @@ export default function Journey() {
             )}
           </CardContent>
         </Card>
+
+        <div className="mb-6">
+          <AccountabilityLabCard />
+        </div>
 
         <div className="space-y-3">
           {steps.map((step, index) => {
