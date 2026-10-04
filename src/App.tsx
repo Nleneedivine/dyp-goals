@@ -35,6 +35,7 @@ import FormManager from "./pages/admin/FormManager";
 import FormBuilder from "./pages/admin/FormBuilder";
 import FormAnalytics from "./pages/admin/FormAnalytics";
 import PublicForm from "./pages/PublicForm";
+import ReferralRedirect from "./pages/ReferralRedirect";
 import AdminAppearance from "./pages/admin/AdminAppearance";
 import AdminProgramSettings from "./pages/admin/AdminProgramSettings";
 import { UiModeProvider } from "./components/UiModeProvider";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/apply/:slug" element={<PublicForm />} />
+              <Route path="/r/:code" element={<ReferralRedirect />} />
               <Route path="/" element={<Home />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
