@@ -289,7 +289,7 @@ export default function Vision() {
 
   if (loading) {
     return (
-      <main className="min-h-screen px-4 pb-16 pt-28">
+      <main data-tour="vision-page" className="min-h-screen px-4 pb-16 pt-28">
         <div className="container mx-auto flex max-w-5xl items-center justify-center py-24">
           <Loader2 className="h-7 w-7 animate-spin text-primary" />
         </div>
@@ -299,7 +299,7 @@ export default function Vision() {
 
   if (!available) {
     return (
-      <main className="min-h-screen px-4 pb-16 pt-28">
+      <main data-tour="vision-page" className="min-h-screen px-4 pb-16 pt-28">
         <div className="container mx-auto max-w-4xl">
           <Card className="border-primary/15">
             <CardHeader>
@@ -320,7 +320,7 @@ export default function Vision() {
   }
 
   return (
-    <main className="min-h-screen px-4 pb-16 pt-28">
+    <main data-tour="vision-page" className="min-h-screen px-4 pb-16 pt-28">
       <div className="container mx-auto max-w-5xl">
         {isUi2 ? (
           <Ui2PageHeader
