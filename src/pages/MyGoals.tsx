@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { AccountabilitySharingCard } from "@/components/AccountabilitySharingCard";
+import { AccountabilityLabCard } from "@/components/AccountabilityLabCard";
 import { GoalAIRefinementDialog } from "@/components/GoalAIRefinementDialog";
 import { GoalCapacityChecker, type CapacityReviewWindow } from "@/components/GoalCapacityChecker";
 import { GoalDependenciesCard } from "@/components/GoalDependenciesCard";
@@ -926,6 +927,10 @@ export default function MyGoals() {
           </Card>
 
           <GoalDependenciesCard goals={goals} />
+
+          <div className="mb-8">
+            <AccountabilityLabCard />
+          </div>
 
           <AccountabilitySharingCard />
 
