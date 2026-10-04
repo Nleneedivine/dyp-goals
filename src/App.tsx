@@ -38,6 +38,7 @@ import PublicForm from "./pages/PublicForm";
 import AdminAppearance from "./pages/admin/AdminAppearance";
 import AdminProgramSettings from "./pages/admin/AdminProgramSettings";
 import { UiModeProvider } from "./components/UiModeProvider";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
       <UiModeProvider>
       <BrowserRouter>
         <div className="min-h-screen bg-background text-foreground">
+          <ScrollToTop />
           <Navbar />
           <Routes>
               <Route path="/auth" element={<Auth />} />

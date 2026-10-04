@@ -39,16 +39,16 @@ const Home = () => {
     <div className="min-h-screen font-poppins">
       {/* Hero Section */}
       <section
-        className="relative min-h-screen flex items-center justify-center bg-cover bg-center"
+        className="relative flex min-h-[100svh] items-start justify-center bg-cover bg-center pt-28 pb-16 sm:items-center sm:pt-32 md:pt-24"
         style={{ backgroundImage: `url(${heroImage})` }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/80 to-background"></div>
-        <div className="container mx-auto px-4 relative z-10 text-center">
+        <div className="container relative z-10 mx-auto px-4 pt-4 text-center sm:pt-0">
           <div className="animate-fade-in">
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 text-foreground leading-tight">
+            <h1 className="mb-6 text-[2.5rem] font-bold leading-[1.05] text-foreground sm:text-5xl sm:leading-tight md:text-7xl">
               Transform Your Purpose Into Action
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+            <p className="mx-auto mb-8 max-w-3xl text-lg leading-relaxed text-muted-foreground sm:text-xl md:text-2xl">
               Join DYP GOALS - A virtual masterclass teaching vision casting, goal setting, and time management for youth and young adults.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
