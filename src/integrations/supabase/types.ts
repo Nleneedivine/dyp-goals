@@ -1905,6 +1905,87 @@ export type Database = {
           },
         ]
       }
+      program_referral_visits: {
+        Row: {
+          click_count: number
+          created_at: string
+          first_clicked_at: string
+          form_id: string
+          id: string
+          last_clicked_at: string
+          promoter_id: string | null
+          referral_code: string
+          referred_submission_id: string | null
+          referrer_submission_id: string | null
+          registration_session_id: string | null
+          visitor_token: string
+        }
+        Insert: {
+          click_count?: number
+          created_at?: string
+          first_clicked_at?: string
+          form_id: string
+          id?: string
+          last_clicked_at?: string
+          promoter_id?: string | null
+          referral_code: string
+          referred_submission_id?: string | null
+          referrer_submission_id?: string | null
+          registration_session_id?: string | null
+          visitor_token: string
+        }
+        Update: {
+          click_count?: number
+          created_at?: string
+          first_clicked_at?: string
+          form_id?: string
+          id?: string
+          last_clicked_at?: string
+          promoter_id?: string | null
+          referral_code?: string
+          referred_submission_id?: string | null
+          referrer_submission_id?: string | null
+          registration_session_id?: string | null
+          visitor_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_referral_visits_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_visits_promoter_id_fkey"
+            columns: ["promoter_id"]
+            isOneToOne: false
+            referencedRelation: "program_referral_promoters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_visits_referred_submission_id_fkey"
+            columns: ["referred_submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_visits_referrer_submission_id_fkey"
+            columns: ["referrer_submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_referral_visits_registration_session_id_fkey"
+            columns: ["registration_session_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_referral_promoters: {
         Row: {
           active: boolean
@@ -2299,6 +2380,48 @@ export type Database = {
       ensure_program_referral_code: {
         Args: { p_form_id: string; p_submission_id: string }
         Returns: string
+      }
+      attach_program_referral_visit: {
+        Args: {
+          p_referral_code: string
+          p_session_token: string
+          p_visitor_token: string
+        }
+        Returns: boolean
+      }
+      get_program_referral_funnel_admin: {
+        Args: { p_form_id: string }
+        Returns: {
+          activated_accounts: number
+          certified_referrals: number
+          completed_training: number
+          display_name: string
+          paid_referrals: number
+          pending_payments: number
+          pending_registrations: number
+          promoter_id: string | null
+          referral_code: string
+          referrer_submission_id: string | null
+          registration_starts: number
+          submitted_registrations: number
+          total_clicks: number
+          unique_visitors: number
+        }[]
+      }
+      record_program_referral_click: {
+        Args: {
+          p_code: string
+          p_visitor_token?: string
+        }
+        Returns: Json
+      }
+      record_program_referral_v2: {
+        Args: {
+          p_referral_code: string
+          p_session_token: string
+          p_visitor_token?: string
+        }
+        Returns: boolean
       }
       get_accountability_program_trends: {
         Args: { p_week_start: string }

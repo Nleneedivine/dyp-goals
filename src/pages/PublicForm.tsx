@@ -141,6 +141,8 @@ export default function PublicForm() {
   const [referrerResults, setReferrerResults] = useState<Array<{ referral_code: string; display_name: string }>>([]);
   const [selectedReferralCode, setSelectedReferralCode] = useState("");
   const [selectedReferrerName, setSelectedReferrerName] = useState("");
+  const [stickyReferralCode, setStickyReferralCode] = useState("");
+  const [referralVisitorToken, setReferralVisitorToken] = useState("");
   const [searchingReferrers, setSearchingReferrers] = useState(false);
   const [paymentState, setPaymentState] = useState<PaymentState | null>(null);
   const [manualReference, setManualReference] = useState("");
@@ -157,7 +159,9 @@ export default function PublicForm() {
 
   const deviceType = useMemo(() => window.innerWidth < 640 ? "mobile" : window.innerWidth < 1024 ? "tablet" : "desktop", []);
   const incomingReferralCode = useMemo(() => new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase() ?? "", []);
+  const incomingReferralVisitorToken = useMemo(() => new URLSearchParams(window.location.search).get("rv")?.trim() ?? "", []);
   const paymentReference = useMemo(() => new URLSearchParams(window.location.search).get("payment_reference")?.trim() ?? "", []);
+  const effectiveReferralCode = selectedReferralCode || incomingReferralCode || stickyReferralCode;
 
 
   const sectionGroups = useMemo(() => {
@@ -314,8 +318,9 @@ export default function PublicForm() {
     const results = data ?? [];
     setError("");
     setReferrerResults(results);
-    if (incomingReferralCode && !selectedReferralCode) {
-      const exact = results.find((item) => item.referral_code.toUpperCase() === incomingReferralCode);
+    const referralCode = incomingReferralCode || stickyReferralCode;
+    if (referralCode && !selectedReferralCode) {
+      const exact = results.find((item) => item.referral_code.toUpperCase() === referralCode);
       if (exact) {
         setSelectedReferralCode(exact.referral_code);
         setSelectedReferrerName(exact.display_name);
@@ -324,10 +329,11 @@ export default function PublicForm() {
   };
 
   useEffect(() => {
-    if (!form || !incomingReferralCode) return;
-    setReferrerQuery(incomingReferralCode);
-    void findReferrers(incomingReferralCode);
-  }, [form, incomingReferralCode]);
+    const referralCode = incomingReferralCode || stickyReferralCode;
+    if (!form || !referralCode) return;
+    setReferrerQuery(referralCode);
+    void findReferrers(referralCode);
+  }, [form, incomingReferralCode, stickyReferralCode]);
 
   useEffect(() => {
     const load = async () => {
@@ -353,6 +359,42 @@ export default function PublicForm() {
 
       const storageKey = `dyp-program-session:${formData.slug}`;
       const storedToken = window.localStorage.getItem(storageKey);
+      const attributionKey = `dyp-referral-attribution:${formData.slug}`;
+
+      let referralCodeForSession = incomingReferralCode;
+      let visitorTokenForSession = incomingReferralVisitorToken;
+
+      if (incomingReferralCode) {
+        setStickyReferralCode(incomingReferralCode);
+        if (incomingReferralVisitorToken) {
+          setReferralVisitorToken(incomingReferralVisitorToken);
+        }
+        window.localStorage.setItem(
+          attributionKey,
+          JSON.stringify({
+            referralCode: incomingReferralCode,
+            visitorToken: incomingReferralVisitorToken,
+            savedAt: new Date().toISOString(),
+          }),
+        );
+      } else {
+        try {
+          const savedAttribution = JSON.parse(
+            window.localStorage.getItem(attributionKey) ?? "null",
+          ) as { referralCode?: string; visitorToken?: string } | null;
+
+          if (savedAttribution?.referralCode) {
+            referralCodeForSession = savedAttribution.referralCode.toUpperCase();
+            visitorTokenForSession = savedAttribution.visitorToken ?? "";
+            setStickyReferralCode(referralCodeForSession);
+            setReferralVisitorToken(visitorTokenForSession);
+          }
+        } catch {
+          window.localStorage.removeItem(attributionKey);
+        }
+      }
+
+      const referralJourney = Boolean(referralCodeForSession);
 
       if (paymentReference && storedToken) {
         setPaymentLoading(true);
@@ -366,7 +408,7 @@ export default function PublicForm() {
         }
       }
 
-      if (storedToken) {
+      if (storedToken && (!referralJourney || Boolean(paymentReference))) {
         const state = await loadPaymentState(storedToken);
         if (state?.available) {
           setSessionToken(storedToken);
@@ -388,12 +430,26 @@ export default function PublicForm() {
           browserFamily: navigator.userAgent.slice(0, 80),
         },
       });
-      if (data?.sessionToken) setSessionToken(data.sessionToken);
+
+      if (data?.sessionToken) {
+        setSessionToken(data.sessionToken);
+
+        if (referralCodeForSession && visitorTokenForSession) {
+          const { error: attachError } = await supabase.rpc("attach_program_referral_visit", {
+            p_session_token: data.sessionToken,
+            p_referral_code: referralCodeForSession,
+            p_visitor_token: visitorTokenForSession,
+          });
+          if (attachError) {
+            console.error("Referral visit could not be attached to the registration session:", attachError);
+          }
+        }
+      }
       setLoading(false);
     };
 
     void load();
-  }, [slug, deviceType, paymentReference]);
+  }, [slug, deviceType, paymentReference, incomingReferralCode, incomingReferralVisitorToken]);
 
 
   const loadPaymentState = async (token: string) => {
@@ -537,13 +593,18 @@ export default function PublicForm() {
       return setError(data?.error ?? invokeError?.message ?? "Your response could not be submitted.");
     }
 
-    const referralCodeToRecord = selectedReferralCode || incomingReferralCode;
+    const referralCodeToRecord = effectiveReferralCode;
     if (referralCodeToRecord) {
-      const { error: referralError } = await supabase.rpc("record_program_referral", {
+      const { error: referralError } = await supabase.rpc("record_program_referral_v2", {
         p_session_token: sessionToken,
         p_referral_code: referralCodeToRecord,
+        p_visitor_token: referralVisitorToken || undefined,
       });
-      if (referralError) console.error("Referral attribution could not be recorded:", referralError);
+      if (referralError) {
+        console.error("Referral attribution could not be recorded:", referralError);
+      } else if (form) {
+        window.localStorage.removeItem(`dyp-referral-attribution:${form.slug}`);
+      }
     }
 
     const { data: referralCode, error: referralCodeError } = await supabase.rpc(
@@ -595,6 +656,11 @@ export default function PublicForm() {
                 onClick={() => {
                   setSelectedReferralCode("");
                   setSelectedReferrerName("");
+                  setStickyReferralCode("");
+                  setReferralVisitorToken("");
+                  if (form) {
+                    window.localStorage.removeItem(`dyp-referral-attribution:${form.slug}`);
+                  }
                   setReferrerQuery("");
                   setReferrerResults([]);
                 }}
@@ -635,6 +701,19 @@ export default function PublicForm() {
                       onClick={() => {
                         setSelectedReferralCode(result.referral_code);
                         setSelectedReferrerName(result.display_name);
+                        setReferralVisitorToken("");
+                        setStickyReferralCode(result.referral_code);
+                        if (form) {
+                          window.localStorage.setItem(
+                            `dyp-referral-attribution:${form.slug}`,
+                            JSON.stringify({
+                              referralCode: result.referral_code,
+                              visitorToken: "",
+                              displayName: result.display_name,
+                              savedAt: new Date().toISOString(),
+                            }),
+                          );
+                        }
                         setReferrerResults([]);
                       }}
                       className="flex w-full items-center justify-between gap-3 rounded-lg border bg-background p-3 text-left hover:border-primary/40"
@@ -897,7 +976,7 @@ export default function PublicForm() {
                     className="mt-4 gap-2"
                     onClick={() =>
                       void navigator.clipboard.writeText(
-                        `${window.location.origin}/apply/${form.slug}?ref=${encodeURIComponent(ownReferralCode)}`,
+                        `${window.location.origin}/r/${encodeURIComponent(ownReferralCode.replace(/^DYPGL-/i, ""))}`,
                       )
                     }
                   >
