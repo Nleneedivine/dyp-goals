@@ -70,6 +70,7 @@ const PARTICIPANT_ROUTES = [
   "/mentorship",
   "/profile",
   "/goal-history",
+  "/accountability/chat",
 ];
 
 const EMPTY_CONTEXT: GuideContext = {
