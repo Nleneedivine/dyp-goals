@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, Users } from "lucide-react";
+import { CheckCircle2, Loader2, MessageSquare, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -201,6 +202,12 @@ export function AccountabilityLabCard({ onJoined }: { onJoined?: (groupId: strin
           <p className="mt-1 text-sm text-muted-foreground">
             Your group is tied to this GOALS cohort. Your previous-year accountability history remains separate.
           </p>
+          <Button asChild className="mt-4 w-full sm:w-auto">
+            <Link to="/accountability/chat">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Open group chat
+            </Link>
+          </Button>
           {goalAreas.length > 0 && (
             <p className="mt-3 text-xs text-muted-foreground">
               Goal areas: {goalAreas.join(", ")}
