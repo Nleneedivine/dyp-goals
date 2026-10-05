@@ -20,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { JourneyExecutionSnapshot } from "@/components/JourneyExecutionSnapshot";
 import { AccountabilityLabCard } from "@/components/AccountabilityLabCard";
-import { ProgramAccessHub } from "@/components/ProgramAccessHub";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
@@ -419,10 +418,6 @@ export default function Journey() {
             </p>
           </div>
         )}
-
-        <div className="mb-6">
-          <ProgramAccessHub />
-        </div>
 
         <Card data-tour="journey-progress" className="mb-6 border-primary/20 bg-primary/5">
           <CardContent className="space-y-4 pt-6">
