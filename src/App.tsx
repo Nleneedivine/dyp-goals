@@ -37,10 +37,12 @@ import FormBuilder from "./pages/admin/FormBuilder";
 import FormAnalytics from "./pages/admin/FormAnalytics";
 import PublicForm from "./pages/PublicForm";
 import ReferralRedirect from "./pages/ReferralRedirect";
+import SponsorshipRedirect from "./pages/SponsorshipRedirect";
 import AdminAppearance from "./pages/admin/AdminAppearance";
 import AdminProgramSettings from "./pages/admin/AdminProgramSettings";
 import AdminPeopleRoles from "./pages/admin/AdminPeopleRoles";
 import AdminCommunications from "./pages/admin/AdminCommunications";
+import AdminSponsorships from "./pages/admin/AdminSponsorships";
 import { UiModeProvider } from "./components/UiModeProvider";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { GuidedTourProvider } from "./components/GuidedTourProvider";
@@ -65,6 +67,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/apply/:slug" element={<PublicForm />} />
               <Route path="/r/:code" element={<ReferralRedirect />} />
+              <Route path="/s/:code" element={<SponsorshipRedirect />} />
               <Route path="/" element={<Home />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
@@ -112,6 +115,7 @@ const App = () => (
               <Route path="/admin/settings" element={<AdminRoute><AdminProgramSettings /></AdminRoute>} />
               <Route path="/admin/people" element={<AdminRoute><AdminPeopleRoles /></AdminRoute>} />
               <Route path="/admin/communications" element={<AdminRoute><AdminCommunications /></AdminRoute>} />
+              <Route path="/admin/sponsorships" element={<AdminRoute><AdminSponsorships /></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
           </Routes>

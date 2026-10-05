@@ -22,6 +22,17 @@ type ReferralDashboard = {
   formTitle?: string;
   enrollmentStatus?: string;
   paymentStatus?: string;
+  fundingType?: "self_paid" | "sponsored";
+  financiallySatisfied?: boolean;
+  sponsorshipStatus?: string | null;
+  sponsorName?: string | null;
+  sponsorshipCampaignName?: string | null;
+  participantAmountMinor?: number;
+  sponsoredSeatValueMinor?: number;
+  sponsorshipRejectionReason?: string | null;
+  referralAvailable?: boolean;
+  reason?: string;
+  message?: string;
   whatsappGroupUrl?: string;
   referralCode?: string;
   shortCode?: string;
@@ -118,7 +129,26 @@ export function ProgramAccessHub() {
     );
   }
 
-  if (!data?.available) return null;
+  if (!data?.available) {
+    return (
+      <Card data-tour="program-access" className="overflow-hidden border-primary/20">
+        <CardHeader className="bg-primary/5">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+            Program access
+          </p>
+          <CardTitle className="mt-1 text-xl">My GOALS Program Access</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6">
+          <div className="rounded-2xl border border-dashed p-5">
+            <p className="font-semibold">No linked GOALS registration yet</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {data?.message ?? "No current GOALS registration is linked to this account. If you already registered, make sure you signed in with the same email address you used during registration."}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const currency = data.currency ?? "NGN";
   const projectedBonus = Number(data.projectedRankBonusMinor ?? 0);
@@ -147,13 +177,68 @@ export function ProgramAccessHub() {
       </CardHeader>
 
       <CardContent className="space-y-6 p-4 sm:p-6">
+        <div className="rounded-2xl border bg-muted/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Funding & access</p>
+              {data.fundingType === "sponsored" ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Sponsored by <strong>{data.sponsorName ?? "DIT"}</strong>
+                  {data.sponsorshipCampaignName ? ` · ${data.sponsorshipCampaignName}` : ""}.
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Participant-funded registration.
+                </p>
+              )}
+            </div>
+            <Badge variant={data.financiallySatisfied ? "secondary" : "outline"}>
+              {data.fundingType === "sponsored"
+                ? data.sponsorshipStatus === "approved"
+                  ? "DIT Sponsored · Approved"
+                  : data.sponsorshipStatus === "pending"
+                    ? "DIT Sponsorship · Pending"
+                    : data.sponsorshipStatus === "rejected"
+                      ? "DIT Sponsorship · Not approved"
+                      : "DIT Sponsorship"
+                : data.paymentStatus === "paid"
+                  ? "Payment confirmed"
+                  : "Payment required"}
+            </Badge>
+          </div>
+
+          {data.fundingType === "sponsored" && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Participant contribution</p>
+                <p className="text-lg font-bold">{money(Number(data.participantAmountMinor ?? 0), data.currency ?? "NGN")}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sponsored seat value</p>
+                <p className="text-lg font-bold">{money(Number(data.sponsoredSeatValueMinor ?? 0), data.currency ?? "NGN")}</p>
+              </div>
+            </div>
+          )}
+
+          {data.sponsorshipStatus === "pending" && (
+            <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">
+              Your DIT sponsorship request is awaiting Admin verification. You do not need to pay while it is pending.
+            </p>
+          )}
+
+          {data.sponsorshipStatus === "rejected" && (
+            <p className="mt-4 rounded-lg bg-destructive/5 p-3 text-sm text-destructive">
+              {data.sponsorshipRejectionReason || "This sponsorship request was not approved. You can continue with the normal registration payment option."}
+            </p>
+          )}
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-2xl border p-4">
             <p className="text-sm font-semibold">WhatsApp group</p>
             {data.whatsappGroupUrl ? (
               <>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Your payment is confirmed. You can reopen the program WhatsApp group anytime.
+                  Your program access is active. You can reopen the program WhatsApp group anytime.
                 </p>
                 <Button asChild className="mt-4 w-full sm:w-auto">
                   <a href={data.whatsappGroupUrl} target="_blank" rel="noreferrer">
@@ -165,10 +250,12 @@ export function ProgramAccessHub() {
             ) : (
               <div className="mt-2">
                 <Badge variant="outline">
-                  Payment: {data.paymentStatus ?? "unpaid"}
+                  {data.fundingType === "sponsored"
+                    ? `Sponsorship: ${data.sponsorshipStatus ?? "pending"}`
+                    : `Payment: ${data.paymentStatus ?? "unpaid"}`}
                 </Badge>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  WhatsApp access appears automatically after payment is confirmed.
+                  WhatsApp access appears automatically when payment is confirmed or a DIT sponsorship is approved.
                 </p>
               </div>
             )}
@@ -176,31 +263,24 @@ export function ProgramAccessHub() {
 
           <div className="rounded-2xl border p-4">
             <p className="text-sm font-semibold">Your referral link</p>
-            <p className="mt-2 break-all font-mono text-sm text-primary">
-              {data.referralCode}
-            </p>
-            <p className="mt-1 break-all text-xs text-muted-foreground">
-              {referralLink}
-            </p>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => void copyReferralLink()}
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Copy link
-              </Button>
-              <Button
-                type="button"
-                className="w-full sm:w-auto"
-                onClick={() => void shareReferralLink()}
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
-            </div>
+            {data.referralAvailable !== false && data.referralCode ? (
+              <>
+                <p className="mt-2 break-all font-mono text-sm text-primary">{data.referralCode}</p>
+                <p className="mt-1 break-all text-xs text-muted-foreground">{referralLink}</p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => void copyReferralLink()}>
+                    <Copy className="mr-2 h-4 w-4" />Copy link
+                  </Button>
+                  <Button type="button" className="w-full sm:w-auto" onClick={() => void shareReferralLink()}>
+                    <Share2 className="mr-2 h-4 w-4" />Share
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Your referral code is not available yet. Program Access remains visible even when referral activity is zero.
+              </p>
+            )}
           </div>
         </div>
 

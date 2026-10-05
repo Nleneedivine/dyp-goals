@@ -2386,6 +2386,209 @@ export type Database = {
           },
         ]
       }
+      program_sponsorship_campaigns: {
+        Row: {
+          active: boolean
+          approval_required: boolean
+          code: string
+          count_for_referral_leaderboard: boolean
+          created_at: string
+          created_by: string | null
+          currency: string
+          ends_at: string | null
+          form_id: string
+          id: string
+          name: string
+          participant_amount_minor: number
+          questions_enabled: boolean
+          referral_commission_mode: string
+          seat_limit: number | null
+          seat_value_minor: number
+          sponsor_name: string
+          starts_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          approval_required?: boolean
+          code: string
+          count_for_referral_leaderboard?: boolean
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          ends_at?: string | null
+          form_id: string
+          id?: string
+          name: string
+          participant_amount_minor?: number
+          questions_enabled?: boolean
+          referral_commission_mode?: string
+          seat_limit?: number | null
+          seat_value_minor?: number
+          sponsor_name?: string
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          approval_required?: boolean
+          code?: string
+          count_for_referral_leaderboard?: boolean
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          ends_at?: string | null
+          form_id?: string
+          id?: string
+          name?: string
+          participant_amount_minor?: number
+          questions_enabled?: boolean
+          referral_commission_mode?: string
+          seat_limit?: number | null
+          seat_value_minor?: number
+          sponsor_name?: string
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_sponsorship_campaigns_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_sponsorship_questions: {
+        Row: {
+          active: boolean
+          archived_at: string | null
+          campaign_id: string
+          created_at: string
+          display_order: number
+          field_type: string
+          helper_text: string
+          id: string
+          label: string
+          options: Json
+          required: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          archived_at?: string | null
+          campaign_id: string
+          created_at?: string
+          display_order?: number
+          field_type?: string
+          helper_text?: string
+          id?: string
+          label: string
+          options?: Json
+          required?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          archived_at?: string | null
+          campaign_id?: string
+          created_at?: string
+          display_order?: number
+          field_type?: string
+          helper_text?: string
+          id?: string
+          label?: string
+          options?: Json
+          required?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_sponsorship_questions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "program_sponsorship_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_sponsorship_claims: {
+        Row: {
+          answers: Json
+          campaign_id: string
+          covered_amount_minor: number
+          created_at: string
+          currency: string
+          form_id: string
+          id: string
+          participant_amount_minor: number
+          rejection_reason: string
+          requested_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submission_id: string
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          campaign_id: string
+          covered_amount_minor?: number
+          created_at?: string
+          currency?: string
+          form_id: string
+          id?: string
+          participant_amount_minor?: number
+          rejection_reason?: string
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submission_id: string
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          campaign_id?: string
+          covered_amount_minor?: number
+          created_at?: string
+          currency?: string
+          form_id?: string
+          id?: string
+          participant_amount_minor?: number
+          rejection_reason?: string
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submission_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_sponsorship_claims_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "program_sponsorship_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_sponsorship_claims_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "program_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_sponsorship_claims_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_submission_referrals: {
         Row: {
           created_at: string
@@ -2914,6 +3117,83 @@ export type Database = {
           submissions: number
           visits: number
         }[]
+      }
+      admin_create_sponsorship_campaign: {
+        Args: {
+          p_form_id: string
+          p_name: string
+          p_seat_limit?: number
+          p_sponsor_name?: string
+        }
+        Returns: {
+          active: boolean
+          approval_required: boolean
+          code: string
+          count_for_referral_leaderboard: boolean
+          created_at: string
+          created_by: string | null
+          currency: string
+          ends_at: string | null
+          form_id: string
+          id: string
+          name: string
+          participant_amount_minor: number
+          questions_enabled: boolean
+          referral_commission_mode: string
+          seat_limit: number | null
+          seat_value_minor: number
+          sponsor_name: string
+          starts_at: string | null
+          updated_at: string
+        }
+      }
+      admin_review_sponsorship_claim: {
+        Args: {
+          p_approve: boolean
+          p_claim_id: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      get_sponsorship_analytics_admin: {
+        Args: { p_campaign_id: string }
+        Returns: Json
+      }
+      get_sponsorship_claims_admin: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          answers: Json
+          claim_id: string
+          covered_amount_minor: number
+          currency: string
+          participant_amount_minor: number
+          participant_email: string
+          participant_name: string
+          rejection_reason: string
+          requested_at: string
+          reviewed_at: string | null
+          status: string
+          submission_id: string
+        }[]
+      }
+      get_public_sponsorship_campaign: {
+        Args: {
+          p_code: string
+          p_form_id: string
+        }
+        Returns: Json
+      }
+      resolve_sponsorship_link: {
+        Args: { p_code: string }
+        Returns: Json
+      }
+      submit_program_sponsorship_claim: {
+        Args: {
+          p_answers?: Json
+          p_code: string
+          p_session_token: string
+        }
+        Returns: Json
       }
       get_program_payment_state: {
         Args: { p_session_token: string }
