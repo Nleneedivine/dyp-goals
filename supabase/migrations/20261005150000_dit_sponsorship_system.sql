@@ -753,3 +753,144 @@ $function$;
 revoke all on function public.resolve_sponsorship_link(text) from public;
 grant execute on function public.resolve_sponsorship_link(text)
 to anon, authenticated, service_role;
+
+
+create or replace function public.get_sponsorship_claims_admin(p_campaign_id uuid)
+returns table (
+  claim_id uuid,
+  submission_id uuid,
+  status text,
+  requested_at timestamptz,
+  reviewed_at timestamptz,
+  rejection_reason text,
+  covered_amount_minor integer,
+  participant_amount_minor integer,
+  currency text,
+  participant_name text,
+  participant_email text,
+  answers jsonb
+)
+language sql
+stable
+security definer
+set search_path = public
+as $function$
+  select
+    c.id,
+    c.submission_id,
+    c.status,
+    c.requested_at,
+    c.reviewed_at,
+    c.rejection_reason,
+    c.covered_amount_minor,
+    c.participant_amount_minor,
+    c.currency,
+    coalesce(
+      nullif(trim(first_name.answer #>> '{}'),''),
+      nullif(trim(full_name.answer #>> '{}'),''),
+      'Participant'
+    ),
+    coalesce(nullif(trim(email_answer.answer #>> '{}'),''),''),
+    c.answers
+  from public.program_sponsorship_claims c
+  left join lateral (
+    select a.answer
+    from public.program_form_answers a
+    join public.program_form_fields f on f.id=a.field_id
+    where a.submission_id=c.submission_id
+      and position('first name' in lower(f.label)) > 0
+    order by f.display_order
+    limit 1
+  ) first_name on true
+  left join lateral (
+    select a.answer
+    from public.program_form_answers a
+    join public.program_form_fields f on f.id=a.field_id
+    where a.submission_id=c.submission_id
+      and (position('full name' in lower(f.label)) > 0 or lower(trim(f.label))='name')
+    order by f.display_order
+    limit 1
+  ) full_name on true
+  left join lateral (
+    select a.answer
+    from public.program_form_answers a
+    join public.program_form_fields f on f.id=a.field_id
+    where a.submission_id=c.submission_id
+      and f.field_type='email'
+    order by f.display_order
+    limit 1
+  ) email_answer on true
+  where c.campaign_id=p_campaign_id
+    and auth.uid() is not null
+    and public.has_role(auth.uid(),'admin'::public.app_role)
+  order by
+    case c.status when 'pending' then 0 when 'approved' then 1 when 'rejected' then 2 else 3 end,
+    c.requested_at desc;
+$function$;
+
+grant execute on function public.get_sponsorship_claims_admin(uuid)
+to authenticated, service_role;
+
+create or replace function public.get_sponsorship_analytics_admin(p_campaign_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $function$
+declare
+  v_campaign public.program_sponsorship_campaigns;
+  v_pending integer := 0;
+  v_approved integer := 0;
+  v_rejected integer := 0;
+  v_revoked integer := 0;
+  v_completed integer := 0;
+  v_certified integer := 0;
+  v_accounts integer := 0;
+begin
+  if auth.uid() is null
+     or not public.has_role(auth.uid(),'admin'::public.app_role) then
+    raise exception 'Admin access required';
+  end if;
+
+  select * into v_campaign
+  from public.program_sponsorship_campaigns
+  where id=p_campaign_id;
+
+  if not found then raise exception 'Campaign not found'; end if;
+
+  select
+    count(*) filter (where c.status='pending'),
+    count(*) filter (where c.status='approved'),
+    count(*) filter (where c.status='rejected'),
+    count(*) filter (where c.status='revoked'),
+    count(*) filter (where ps.completion_status='completed'),
+    count(*) filter (where ps.certificate_issued_at is not null),
+    count(*) filter (where e.user_id is not null)
+  into
+    v_pending,v_approved,v_rejected,v_revoked,v_completed,v_certified,v_accounts
+  from public.program_sponsorship_claims c
+  left join public.program_participant_status ps on ps.submission_id=c.submission_id
+  left join public.program_enrollments e on e.source_submission_id=c.submission_id
+  where c.campaign_id=p_campaign_id;
+
+  return jsonb_build_object(
+    'seatLimit', v_campaign.seat_limit,
+    'pending', v_pending,
+    'approved', v_approved,
+    'rejected', v_rejected,
+    'revoked', v_revoked,
+    'claimed', v_pending+v_approved,
+    'remaining', case when v_campaign.seat_limit is null then null else greatest(v_campaign.seat_limit-(v_pending+v_approved),0) end,
+    'approvedSeatValueMinor', v_approved*v_campaign.seat_value_minor,
+    'potentialSeatValueMinor', (v_pending+v_approved)*v_campaign.seat_value_minor,
+    'accountsActivated', v_accounts,
+    'trainingCompleted', v_completed,
+    'certified', v_certified,
+    'currency', v_campaign.currency
+  );
+end;
+$function$;
+
+grant execute on function public.get_sponsorship_analytics_admin(uuid)
+to authenticated, service_role;
