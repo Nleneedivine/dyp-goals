@@ -528,3 +528,62 @@ drop trigger if exists trg_notify_certificate_issued on public.program_participa
 create trigger trg_notify_certificate_issued
 after insert or update of certificate_issued_at on public.program_participant_status
 for each row execute function public.notify_certificate_issued();
+
+
+create or replace function public.admin_send_program_announcement(
+  p_title text,
+  p_body text,
+  p_action_label text default null,
+  p_action_path text default null,
+  p_cohort_id uuid default null,
+  p_email boolean default true
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_recipient record;
+  v_count integer := 0;
+begin
+  if auth.uid() is null
+     or not public.has_role(auth.uid(), 'admin'::public.app_role) then
+    raise exception 'Admin access required';
+  end if;
+
+  if char_length(trim(coalesce(p_title,''))) < 3 then
+    raise exception 'Announcement title is required';
+  end if;
+
+  if char_length(trim(coalesce(p_body,''))) < 3 then
+    raise exception 'Announcement body is required';
+  end if;
+
+  for v_recipient in
+    select distinct e.user_id
+    from public.program_enrollments e
+    where e.user_id is not null
+      and (p_cohort_id is null or e.cohort_id = p_cohort_id)
+      and e.status in ('active','completed')
+  loop
+    perform public.queue_user_notification(
+      v_recipient.user_id,
+      'admin_announcement',
+      trim(p_title),
+      trim(p_body),
+      nullif(trim(coalesce(p_action_label,'')),''),
+      nullif(trim(coalesce(p_action_path,'')),''),
+      jsonb_build_object('cohortId', p_cohort_id),
+      p_email
+    );
+    v_count := v_count + 1;
+  end loop;
+
+  return v_count;
+end;
+$function$;
+
+revoke all on function public.admin_send_program_announcement(text,text,text,text,uuid,boolean) from public;
+grant execute on function public.admin_send_program_announcement(text,text,text,text,uuid,boolean)
+to authenticated, service_role;
