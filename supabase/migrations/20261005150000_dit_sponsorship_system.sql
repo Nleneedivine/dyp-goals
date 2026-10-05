@@ -723,7 +723,7 @@ declare
   v_campaign public.program_sponsorship_campaigns;
   v_slug text;
 begin
-  select c.*, f.slug
+  select c, f.slug
   into v_campaign, v_slug
   from public.program_sponsorship_campaigns c
   join public.program_forms f on f.id = c.form_id
