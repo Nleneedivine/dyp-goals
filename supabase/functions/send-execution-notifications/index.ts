@@ -226,7 +226,11 @@ serve(async (req) => {
     const token = authHeader.replace(/^Bearer\s+/i, "");
     const payload = decodeJwtPayload(token);
 
-    if (payload?.role !== "service_role") {
+    const cronSecret = Deno.env.get("EXECUTION_NOTIFICATIONS_CRON_SECRET");
+    const isTrustedCron =
+      !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
+
+    if (payload?.role !== "service_role" && !isTrustedCron) {
       return new Response(JSON.stringify({ error: "Service role required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
