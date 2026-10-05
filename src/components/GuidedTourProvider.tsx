@@ -49,6 +49,27 @@ type GuideReply = {
   ctaLabel?: string;
 };
 
+type ProgramAccessState = {
+  available?: boolean;
+  reason?: string;
+  message?: string;
+  enrollmentStatus?: string;
+  fundingType?: "self_paid" | "sponsored";
+  financiallySatisfied?: boolean;
+  paymentStatus?: string;
+  sponsorshipStatus?: string | null;
+  sponsorName?: string | null;
+  referralAvailable?: boolean;
+  referralCode?: string | null;
+  totalClicks?: number;
+  submittedRegistrations?: number;
+  paidReferrals?: number;
+  certifiedReferrals?: number;
+  totalEarnedMinor?: number;
+  currency?: string;
+  whatsappGroupUrl?: string;
+};
+
 type TourContextValue = {
   startMainTour: () => void;
   startTour: (tour: TourDefinition) => void;
@@ -108,6 +129,7 @@ export function GuidedTourProvider({ children }: { children: ReactNode }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<SpotlightRect | null>(null);
   const [targetReady, setTargetReady] = useState(false);
+  const [targetIssue, setTargetIssue] = useState<string | null>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideQuestion, setGuideQuestion] = useState("");
@@ -142,6 +164,7 @@ export function GuidedTourProvider({ children }: { children: ReactNode }) {
     previousInlineStyle.current = null;
     setRect(null);
     setTargetReady(false);
+    setTargetIssue(null);
   }, []);
 
   const updateRect = useCallback((element: HTMLElement) => {
@@ -173,6 +196,9 @@ export function GuidedTourProvider({ children }: { children: ReactNode }) {
           attempts += 1;
           if (attempts >= maxAttempts) {
             setTargetReady(true);
+            setTargetIssue(
+              `I reached ${target.label}, but the section I expected is not currently available on this page for your account.`,
+            );
             return;
           }
           await new Promise((resolve) => window.setTimeout(resolve, 100));
@@ -204,6 +230,7 @@ export function GuidedTourProvider({ children }: { children: ReactNode }) {
           window.innerWidth < 640 ? "scale(1.015)" : "scale(1.035)";
 
         updateRect(element);
+        setTargetIssue(null);
         setTargetReady(true);
       };
 
@@ -380,6 +407,124 @@ export function GuidedTourProvider({ children }: { children: ReactNode }) {
     void persistTourState(tour.key, { last_step: nextIndex });
   }, [tour, stepIndex, persistTourState]);
 
+  const getProgramAccessGuideState = useCallback(async (): Promise<GuideReply> => {
+    const { data, error } = await supabase.rpc("get_current_user_referral_dashboard");
+
+    if (error) {
+      return {
+        answer:
+          "Program Access lives in your Profile, but I couldn't verify its current status for this account right now. You can still open Profile to check it.",
+        target: "program-access",
+        route: "/profile",
+        ctaLabel: "Open Program Access",
+      };
+    }
+
+    const access = (data ?? {}) as ProgramAccessState;
+
+    if (!access.available) {
+      return {
+        answer:
+          access.message ??
+          "Program Access normally lives in Profile, but no current DYP GOALS registration is linked to this account. If you already registered, make sure you signed in with the same email address used during registration.",
+        target: "program-access",
+        route: "/profile",
+        ctaLabel: "Check Program Access",
+      };
+    }
+
+    if (access.fundingType === "sponsored") {
+      if (access.sponsorshipStatus === "pending") {
+        return {
+          answer:
+            `Program Access is in Profile. Your ${access.sponsorName ?? "DIT"} sponsorship request is still awaiting Admin verification, so WhatsApp access is not open yet.`,
+          target: "program-access",
+          route: "/profile",
+          ctaLabel: "Show sponsorship status",
+        };
+      }
+
+      if (access.sponsorshipStatus === "approved") {
+        return {
+          answer:
+            `Program Access is active in Profile. Your seat is sponsored by ${access.sponsorName ?? "DIT"}, and your WhatsApp access, referral tools and program details are available there.`,
+          target: "program-access",
+          route: "/profile",
+          ctaLabel: "Show Program Access",
+        };
+      }
+
+      if (access.sponsorshipStatus === "rejected") {
+        return {
+          answer:
+            "Program Access is in Profile. Your sponsorship request was not approved, so the regular payment path is available there instead.",
+          target: "program-access",
+          route: "/profile",
+          ctaLabel: "Review Program Access",
+        };
+      }
+    }
+
+    if (access.paymentStatus === "pending") {
+      return {
+        answer:
+          "Program Access is already visible in Profile, but payment is still pending. WhatsApp access will appear there automatically once payment is confirmed.",
+        target: "program-access",
+        route: "/profile",
+        ctaLabel: "Show payment status",
+      };
+    }
+
+    if (access.paymentStatus === "rejected") {
+      return {
+        answer:
+          "Program Access is in Profile. Your payment proof needs attention, and the section will show what needs to be corrected.",
+        target: "program-access",
+        route: "/profile",
+        ctaLabel: "Review payment status",
+      };
+    }
+
+    if (access.paymentStatus === "paid" || access.financiallySatisfied) {
+      const referrals = Number(access.submittedRegistrations ?? 0);
+      if (access.referralAvailable === false || !access.referralCode) {
+        return {
+          answer:
+            "Program Access is active in Profile. Your payment/access is confirmed, but a referral code is not available yet. The Program Access section still remains visible.",
+          target: "program-access",
+          route: "/profile",
+          ctaLabel: "Show Program Access",
+        };
+      }
+
+      if (referrals === 0) {
+        return {
+          answer:
+            "Program Access is active in Profile. Your referral link is available, but nobody has completed registration through it yet, so your referral statistics and earnings are currently at zero.",
+          target: "program-access",
+          route: "/profile",
+          ctaLabel: "Show my referral dashboard",
+        };
+      }
+
+      return {
+        answer:
+          `Program Access is active in Profile. You currently have ${referrals} referred registration${referrals === 1 ? "" : "s"} recorded there, along with WhatsApp access and referral earnings.`,
+        target: "program-access",
+        route: "/profile",
+        ctaLabel: "Show my referral dashboard",
+      };
+    }
+
+    return {
+      answer:
+        "Program Access is visible in Profile. Your current registration still requires payment before WhatsApp access becomes available.",
+      target: "program-access",
+      route: "/profile",
+      ctaLabel: "Show Program Access",
+    };
+  }, []);
+
   const showTarget = useCallback(
     (target: TourTargetId, message?: string) => {
       const registryTarget = TOUR_TARGETS[target];
@@ -419,12 +564,19 @@ export function GuidedTourProvider({ children }: { children: ReactNode }) {
         typeof data.answer === "string" &&
         (!data.target || data.target in TOUR_TARGETS)
       ) {
-        setGuideReply({
-          answer: data.answer,
-          target: data.target as TourTargetId | undefined,
-          route: data.route,
-          ctaLabel: data.ctaLabel ?? "Show me",
-        });
+        const target = data.target as TourTargetId | undefined;
+        if (target === "program-access") {
+          setGuideReply(await getProgramAccessGuideState());
+        } else {
+          setGuideReply({
+            answer: data.answer,
+            target,
+            route: data.route,
+            ctaLabel: data.ctaLabel ?? "Show me",
+          });
+        }
+      } else if (fallback.target === "program-access") {
+        setGuideReply(await getProgramAccessGuideState());
       } else {
         setGuideReply(fallback);
       }
@@ -433,7 +585,7 @@ export function GuidedTourProvider({ children }: { children: ReactNode }) {
     } finally {
       setGuideLoading(false);
     }
-  }, [guideQuestion, context]);
+  }, [guideQuestion, context, getProgramAccessGuideState]);
 
   const dismissWelcome = useCallback(
     (disableAutomatic: boolean) => {
@@ -636,6 +788,12 @@ export function GuidedTourProvider({ children }: { children: ReactNode }) {
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               {activeDescription}
             </p>
+
+            {targetIssue && (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                {targetIssue}
+              </p>
+            )}
 
             {!targetReady && (
               <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
