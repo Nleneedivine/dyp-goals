@@ -217,7 +217,7 @@ export function fallbackGuideAnswer(
 
   if (q.includes("referr") || q.includes("earning") || q.includes("whatsapp") || q.includes("payment")) {
     return {
-      answer: "Your program access, WhatsApp link, referral link and referral earnings are together in Program Access on Journey.",
+      answer: "Your program access, WhatsApp link, referral link and referral earnings are together in Program Access inside your Profile.",
       target: "program-access",
       route: "/profile",
       ctaLabel: "Show me",
