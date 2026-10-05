@@ -710,3 +710,46 @@ where c.code='DITGOALS26'
     select 1 from public.program_sponsorship_questions existing
     where existing.campaign_id=c.id and existing.label=q.label
   );
+
+
+create or replace function public.resolve_sponsorship_link(p_code text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $function$
+declare
+  v_campaign public.program_sponsorship_campaigns;
+  v_slug text;
+begin
+  select c.*, f.slug
+  into v_campaign, v_slug
+  from public.program_sponsorship_campaigns c
+  join public.program_forms f on f.id = c.form_id
+  where c.code = public.normalize_sponsorship_code(p_code)
+    and c.active
+    and f.status = 'published'
+    and (c.starts_at is null or c.starts_at <= now())
+    and (c.ends_at is null or c.ends_at > now())
+  order by c.created_at desc
+  limit 1;
+
+  if v_campaign.id is null then
+    return jsonb_build_object('valid', false);
+  end if;
+
+  return jsonb_build_object(
+    'valid', true,
+    'formId', v_campaign.form_id,
+    'formSlug', v_slug,
+    'code', v_campaign.code,
+    'campaignName', v_campaign.name,
+    'sponsorName', v_campaign.sponsor_name
+  );
+end;
+$function$;
+
+revoke all on function public.resolve_sponsorship_link(text) from public;
+grant execute on function public.resolve_sponsorship_link(text)
+to anon, authenticated, service_role;
