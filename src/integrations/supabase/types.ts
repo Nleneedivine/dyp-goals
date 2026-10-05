@@ -3126,6 +3126,27 @@ export type Database = {
         }
         Returns: Json
       }
+      get_sponsorship_analytics_admin: {
+        Args: { p_campaign_id: string }
+        Returns: Json
+      }
+      get_sponsorship_claims_admin: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          answers: Json
+          claim_id: string
+          covered_amount_minor: number
+          currency: string
+          participant_amount_minor: number
+          participant_email: string
+          participant_name: string
+          rejection_reason: string
+          requested_at: string
+          reviewed_at: string | null
+          status: string
+          submission_id: string
+        }[]
+      }
       get_public_sponsorship_campaign: {
         Args: {
           p_code: string
