@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette, SlidersHorizontal, MessageSquare, UserCog } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Ui2MobileBottomNav } from "@/components/Ui2MobileBottomNav";
 import { useUiMode } from "@/components/UiModeProvider";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,6 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isMentor, setIsMentor] = useState(false);
   const [isAccountabilityCoach, setIsAccountabilityCoach] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,17 +39,10 @@ const Navbar = () => {
         });
         setIsAdmin(adminData === true);
 
-        const [{ data: mentorData }, { data: coachData }] = await Promise.all([
-          supabase.rpc('has_role', {
-            _user_id: session.user.id,
-            _role: 'mentor'
-          }),
-          supabase.rpc('has_role', {
-            _user_id: session.user.id,
-            _role: 'accountability_coach'
-          }),
-        ]);
-        setIsMentor(mentorData === true);
+        const { data: coachData } = await supabase.rpc('has_role', {
+          _user_id: session.user.id,
+          _role: 'accountability_coach'
+        });
         setIsAccountabilityCoach(coachData === true);
       }
     };
@@ -69,23 +62,14 @@ const Navbar = () => {
             });
             setIsAdmin(adminData === true);
 
-            const [{ data: mentorData }, { data: coachData }] = await Promise.all([
-              supabase.rpc('has_role', {
-                _user_id: session.user.id,
-                _role: 'mentor'
-              }),
-              supabase.rpc('has_role', {
-                _user_id: session.user.id,
-                _role: 'accountability_coach'
-              }),
-            ]);
-            setIsMentor(mentorData === true);
+            const { data: coachData } = await supabase.rpc('has_role', {
+              _user_id: session.user.id,
+              _role: 'accountability_coach'
+            });
             setIsAccountabilityCoach(coachData === true);
           }, 0);
         } else {
           setIsAdmin(false);
-          setIsMentor(false);
-      setIsAccountabilityCoach(false);
           setIsAccountabilityCoach(false);
         }
       }
@@ -108,7 +92,6 @@ const Navbar = () => {
       }
       setUser(null);
       setIsAdmin(false);
-      setIsMentor(false);
       // UI 2.0 is an admin-only browser preview for now; do not leak it into the logged-out/public experience.
       clearPreview();
       toast({
@@ -259,7 +242,8 @@ const Navbar = () => {
             )}
 
             {user && (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <NotificationBell />
                 {isAccountabilityCoach && (
                   <Link
                     to="/coach-dashboard"
@@ -306,6 +290,12 @@ const Navbar = () => {
                           <Link to="/admin/people" className="cursor-pointer flex items-center gap-2">
                             <UserCog className="h-4 w-4" />
                             People & Roles
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/communications" className="cursor-pointer flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            Communications
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
@@ -420,16 +410,24 @@ const Navbar = () => {
                     to="/coach-dashboard"
                     onClick={() => setIsOpen(false)}
                     className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
-                      isActive("/mentor-dashboard") ? "text-primary" : "text-muted-foreground"
+                      isActive("/coach-dashboard") ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
                     <Users className="h-4 w-4" />
                     Coach Dashboard
                   </Link>
                 )}
-                <div className="flex min-w-0 items-center gap-2 py-2 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2 py-2 text-sm text-muted-foreground">
+                    <User className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{user.email}</span>
+                  </div>
+                  <NotificationBell />
+                </div>
+                <div className="hidden">
                   <User className="h-4 w-4 shrink-0" />
                   <span className="truncate">{user.email}</span>
+                </div>
                 </div>
                 <Link
                   to="/profile"
@@ -475,6 +473,12 @@ const Navbar = () => {
                       <Button variant="outline" className="w-full gap-2 mb-2">
                         <UserCog className="h-4 w-4" />
                         People & Roles
+                      </Button>
+                    </Link>
+                    <Link to="/admin/communications" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full gap-2 mb-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Communications
                       </Button>
                     </Link>
                     <Link
