@@ -131,13 +131,13 @@ const MentorDashboard = () => {
 
       const { data: hasMentorRole } = await supabase.rpc("has_role", {
         _user_id: user.id,
-        _role: "mentor",
+        _role: "accountability_coach",
       });
 
       if (!hasMentorRole) {
         toast({
           title: "Access Denied",
-          description: "This page is only accessible to mentors.",
+          description: "This page is only accessible to Accountability Coaches.",
           variant: "destructive",
         });
         navigate("/");
@@ -419,8 +419,8 @@ const MentorDashboard = () => {
         {isUi2 ? (
           <div className="mx-auto max-w-6xl">
             <Ui2PageHeader
-              eyebrow={activeCohortName ? `${activeCohortName} · Accountability mentor` : "Accountability mentor"}
-              title="Mentor Dashboard"
+              eyebrow={activeCohortName ? `${activeCohortName} · Accountability Coach` : "Accountability Coach"}
+              title="Accountability Coach Dashboard"
               description="Review only the goal and execution context each member explicitly chose to share, then support the next accountability conversation."
               icon={Users}
             />
@@ -428,7 +428,7 @@ const MentorDashboard = () => {
         ) : (
                   <div className="text-center mb-12 animate-fade-in">
                     <h1 className="text-5xl md:text-6xl font-bold mb-6">
-                      Mentor <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
+                      Accountability Coach <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
                       {activeCohortName ? `${activeCohortName}: ` : ""}Review only the goal and execution context each member explicitly chose to share, then support their next accountability conversation.
@@ -536,7 +536,7 @@ const MentorDashboard = () => {
               <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">No Current Cohort Group Assigned</h3>
               <p className="text-muted-foreground">
-                You have the mentor role, but you are not assigned to an accountability group in {activeCohortName ?? "the current GOALS cohort"} yet.
+                You have the Accountability Coach role, but you are not assigned to an accountability group in {activeCohortName ?? "the current GOALS cohort"} yet.
               </p>
             </CardContent>
           </Card>
