@@ -23,6 +23,33 @@ type WizardStep = {
   includesReferral?: boolean;
   review?: boolean;
 };
+type SponsorshipQuestion = {
+  id: string;
+  label: string;
+  helperText: string;
+  fieldType: "text" | "textarea" | "dropdown" | "radio" | "multi_select" | "checkbox" | "number";
+  options: unknown;
+  required: boolean;
+  displayOrder: number;
+};
+
+type SponsorshipCampaign = {
+  valid?: boolean;
+  reason?: string;
+  message?: string;
+  campaignId?: string;
+  name?: string;
+  sponsorName?: string;
+  code?: string;
+  seatValueMinor?: number;
+  participantAmountMinor?: number;
+  currency?: string;
+  approvalRequired?: boolean;
+  questionsEnabled?: boolean;
+  questions?: SponsorshipQuestion[];
+  seatsRemaining?: number | null;
+};
+
 type PaymentState = {
   available?: boolean;
   submissionId?: string;
@@ -35,6 +62,13 @@ type PaymentState = {
   accountNumber?: string;
   manualInstructions?: string;
   paymentStatus?: "unpaid" | "pending" | "paid" | "rejected";
+  fundingType?: "self_paid" | "sponsored";
+  sponsorshipStatus?: "pending" | "approved" | "rejected" | "revoked" | null;
+  sponsorName?: string | null;
+  sponsorshipCampaignName?: string | null;
+  sponsoredSeatValueMinor?: number;
+  sponsorshipRejectionReason?: string | null;
+  financiallySatisfied?: boolean;
   paymentMethod?: "manual" | "paystack" | null;
   paymentReference?: string | null;
   proofUploaded?: boolean;
@@ -151,6 +185,9 @@ export default function PublicForm() {
   const [proofChecking, setProofChecking] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [sponsorship, setSponsorship] = useState<SponsorshipCampaign | null>(null);
+  const [sponsorshipAnswers, setSponsorshipAnswers] = useState<Record<string, Answer>>({});
+  const [sponsorshipError, setSponsorshipError] = useState("");
   const [currentStep, setCurrentStep] = useState(0);
   const [files, setFiles] = useState<Record<string, File>>({});
   const [timings, setTimings] = useState<Record<string, Timing>>({});
@@ -161,6 +198,7 @@ export default function PublicForm() {
   const incomingReferralCode = useMemo(() => new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase() ?? "", []);
   const incomingReferralVisitorToken = useMemo(() => new URLSearchParams(window.location.search).get("rv")?.trim() ?? "", []);
   const paymentReference = useMemo(() => new URLSearchParams(window.location.search).get("payment_reference")?.trim() ?? "", []);
+  const incomingSponsorshipCode = useMemo(() => new URLSearchParams(window.location.search).get("sponsor")?.trim().toUpperCase() ?? "", []);
   const effectiveReferralCode = selectedReferralCode || incomingReferralCode || stickyReferralCode;
 
 
@@ -230,6 +268,15 @@ export default function PublicForm() {
       }
     });
 
+    if (sponsorship?.valid && sponsorship.questionsEnabled && (sponsorship.questions?.length ?? 0) > 0) {
+      steps.push({
+        id: "sponsorship-details",
+        title: `${sponsorship.sponsorName ?? "Sponsor"} Sponsored Participant Information`,
+        description: "These questions apply only to participants registering through this sponsorship campaign.",
+        fields: [],
+      });
+    }
+
     if (!steps.some((step) => step.includesReferral)) {
       steps.push({
         id: "registration-details",
@@ -249,7 +296,7 @@ export default function PublicForm() {
     });
 
     return steps;
-  }, [fields, sectionGroups]);
+  }, [fields, sectionGroups, sponsorship]);
 
   const activeStep = wizardSteps[Math.min(currentStep, Math.max(0, wizardSteps.length - 1))];
   const lastStepIndex = Math.max(0, wizardSteps.length - 1);
@@ -268,6 +315,24 @@ export default function PublicForm() {
 
   const validateActiveStep = () => {
     if (!activeStep || activeStep.review) return true;
+
+    if (activeStep.id === "sponsorship-details" && sponsorship?.questions) {
+      const missingSponsorQuestion = sponsorship.questions.find((question) => {
+        if (!question.required) return false;
+        const value = sponsorshipAnswers[question.id];
+        if (question.fieldType === "checkbox") return value !== true;
+        if (question.fieldType === "multi_select") return !Array.isArray(value) || value.length === 0;
+        if (typeof value === "string") return value.trim().length === 0;
+        if (typeof value === "number") return !Number.isFinite(value);
+        return value === null || value === undefined;
+      });
+      if (missingSponsorQuestion) {
+        setError(`Please complete “${missingSponsorQuestion.label}” before continuing.`);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return false;
+      }
+      return true;
+    }
 
     const missing = activeStep.fields.find((field) => !hasAnswer(field));
     if (!missing) return true;
@@ -356,6 +421,24 @@ export default function PublicForm() {
 
       setForm(formData as ProgramForm);
       setFields((fieldData ?? []) as ProgramField[]);
+
+      if (incomingSponsorshipCode) {
+        const { data: sponsorData, error: sponsorError } = await supabase.rpc(
+          "get_public_sponsorship_campaign",
+          { p_form_id: formData.id, p_code: incomingSponsorshipCode },
+        );
+        if (sponsorError) {
+          setSponsorshipError("The sponsorship could not be verified right now.");
+        } else {
+          const resolved = (sponsorData ?? null) as SponsorshipCampaign | null;
+          setSponsorship(resolved);
+          if (!resolved?.valid) {
+            setSponsorshipError(
+              resolved?.message ?? "This sponsorship code is invalid, inactive or no longer has available seats.",
+            );
+          }
+        }
+      }
 
       const storageKey = `dyp-program-session:${formData.slug}`;
       const storedToken = window.localStorage.getItem(storageKey);
@@ -449,7 +532,7 @@ export default function PublicForm() {
     };
 
     void load();
-  }, [slug, deviceType, paymentReference, incomingReferralCode, incomingReferralVisitorToken]);
+  }, [slug, deviceType, paymentReference, incomingReferralCode, incomingReferralVisitorToken, incomingSponsorshipCode]);
 
 
   const loadPaymentState = async (token: string) => {
@@ -593,6 +676,21 @@ export default function PublicForm() {
       return setError(data?.error ?? invokeError?.message ?? "Your response could not be submitted.");
     }
 
+    if (incomingSponsorshipCode && sponsorship?.valid) {
+      const { error: claimError } = await supabase.rpc(
+        "submit_program_sponsorship_claim",
+        {
+          p_session_token: sessionToken,
+          p_code: incomingSponsorshipCode,
+          p_answers: sponsorshipAnswers,
+        },
+      );
+      if (claimError) {
+        setSubmitting(false);
+        return setError(claimError.message);
+      }
+    }
+
     const referralCodeToRecord = effectiveReferralCode;
     if (referralCodeToRecord) {
       const { error: referralError } = await supabase.rpc("record_program_referral_v2", {
@@ -630,6 +728,32 @@ export default function PublicForm() {
     if (field.field_type === "rating") return <div className="flex gap-2">{[1,2,3,4,5].map((rating) => <Button key={rating} type="button" size="icon" variant={Number(value) >= rating ? "default" : "outline"} onClick={() => change(field.id, rating)} aria-label={`${rating} stars`}><Star className="h-4 w-4" /></Button>)}</div>;
     if (field.field_type === "file") return <Input {...common} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" aria-describedby={`${field.id}-help`} onChange={(event) => { const file = event.target.files?.[0]; if (file) { setFiles((current) => ({ ...current, [field.id]: file })); change(field.id, file.name); } }} />;
     return <Input {...common} type={field.field_type === "phone" ? "tel" : field.field_type} value={String(value ?? "")} onChange={(event) => change(field.id, field.field_type === "number" ? Number(event.target.value) : event.target.value)} />;
+  };
+
+  const renderSponsorshipQuestion = (question: SponsorshipQuestion) => {
+    const value = sponsorshipAnswers[question.id];
+    const rawOptions = Array.isArray(question.options) ? question.options : [];
+    const options = rawOptions.map((option) => String(option));
+    const setValue = (next: Answer) =>
+      setSponsorshipAnswers((current) => ({ ...current, [question.id]: next }));
+
+    if (question.fieldType === "textarea") {
+      return <Textarea value={String(value ?? "")} onChange={(event) => setValue(event.target.value)} />;
+    }
+    if (question.fieldType === "dropdown") {
+      return <Select value={String(value ?? "")} onValueChange={(next) => setValue(next)}><SelectTrigger><SelectValue placeholder="Select an option" /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select>;
+    }
+    if (question.fieldType === "radio") {
+      return <RadioGroup value={String(value ?? "")} onValueChange={(next) => setValue(next)} className="space-y-2">{options.map((option) => <label key={option} className="flex min-h-11 items-center gap-3 rounded-md border p-3"><RadioGroupItem value={option} />{option}</label>)}</RadioGroup>;
+    }
+    if (question.fieldType === "multi_select") {
+      const selected = Array.isArray(value) ? value : [];
+      return <div className="grid gap-2 sm:grid-cols-2">{options.map((option) => <label key={option} className="flex min-h-11 items-center gap-3 rounded-md border p-3"><Checkbox checked={selected.includes(option)} onCheckedChange={(checked) => setValue(checked ? [...selected, option] : selected.filter((item) => item !== option))} />{option}</label>)}</div>;
+    }
+    if (question.fieldType === "checkbox") {
+      return <label className="flex min-h-11 items-center gap-3 rounded-md border p-3"><Checkbox checked={Boolean(value)} onCheckedChange={(checked) => setValue(Boolean(checked))} />Yes</label>;
+    }
+    return <Input type={question.fieldType === "number" ? "number" : "text"} value={String(value ?? "")} onChange={(event) => setValue(question.fieldType === "number" ? Number(event.target.value) : event.target.value)} />;
   };
 
   const renderReferralLookup = () => (
@@ -1137,7 +1261,28 @@ export default function PublicForm() {
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {activeStep?.fields.map(renderWizardField)}
+                      {activeStep?.id === "sponsorship-details" && sponsorship?.questions ? (
+                        <>
+                          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                            <p className="font-semibold">{sponsorship.sponsorName} sponsored registration</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              Your seat is being requested under {sponsorship.name}. Admin will verify the sponsorship after registration.
+                            </p>
+                          </div>
+                          {sponsorship.questions.map((question) => (
+                            <div key={question.id} className="space-y-2">
+                              <Label className="text-base">
+                                {question.label}
+                                {question.required && <span className="ml-1 text-destructive">*</span>}
+                              </Label>
+                              {question.helperText && <p className="text-sm text-muted-foreground">{question.helperText}</p>}
+                              {renderSponsorshipQuestion(question)}
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        activeStep?.fields.map(renderWizardField)
+                      )}
                     </div>
                   )}
                 </section>
