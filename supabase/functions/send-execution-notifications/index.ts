@@ -563,7 +563,17 @@ serve(async (req) => {
 
         const local = localParts(now, pref.timezone || "Africa/Lagos");
 
-        if (pref.session_reminders_enabled && currentEvent) {
+        const { data: currentEnrollment } = currentCohort?.id
+          ? await admin
+              .from("program_enrollments")
+              .select("id")
+              .eq("user_id", pref.user_id)
+              .eq("cohort_id", currentCohort.id)
+              .in("status", ["active", "completed"])
+              .maybeSingle()
+          : { data: null };
+
+        if (pref.session_reminders_enabled && currentEvent && currentEnrollment?.id) {
           for (const session of programSessionDates(currentEvent)) {
             const dayKey = `${currentEvent.id}:day-${session.day}`;
 
@@ -610,19 +620,11 @@ serve(async (req) => {
         }
 
         if (pref.accountability_reminders_enabled && currentCohort?.id) {
-          const { data: enrollment } = await admin
-            .from("program_enrollments")
-            .select("id")
-            .eq("user_id", pref.user_id)
-            .eq("cohort_id", currentCohort.id)
-            .in("status", ["active", "completed"])
-            .maybeSingle();
-
-          if (enrollment?.id) {
+          if (currentEnrollment?.id) {
             const { data: membership } = await admin
               .from("program_accountability_memberships")
               .select("group_id")
-              .eq("enrollment_id", enrollment.id)
+              .eq("enrollment_id", currentEnrollment.id)
               .eq("status", "active")
               .maybeSingle();
 
@@ -764,6 +766,105 @@ serve(async (req) => {
       }
     }
 
+    // Chat digests are independent of whether a group check-in has been scheduled.
+    for (const pref of programPrefs ?? []) {
+      if (pref.group_digest === "off") continue;
+
+      try {
+        const local = localParts(now, pref.timezone || "Africa/Lagos");
+        if (!isDue(local.hour, local.minute, "20:00")) continue;
+
+        const weekly = pref.group_digest === "weekly";
+        if (weekly && local.weekday !== 7) continue;
+
+        const { data: enrollment } = currentCohort?.id
+          ? await admin
+              .from("program_enrollments")
+              .select("id")
+              .eq("user_id", pref.user_id)
+              .eq("cohort_id", currentCohort.id)
+              .in("status", ["active", "completed"])
+              .maybeSingle()
+          : { data: null };
+
+        if (!enrollment?.id) continue;
+
+        const { data: membership } = await admin
+          .from("program_accountability_memberships")
+          .select("group_id")
+          .eq("enrollment_id", enrollment.id)
+          .eq("status", "active")
+          .maybeSingle();
+
+        if (!membership?.group_id) continue;
+
+        const digestType: NotificationType = weekly
+          ? "group_digest_weekly"
+          : "group_digest_daily";
+        const digestKey = weekly
+          ? addDays(local.date, -(local.weekday - 1))
+          : local.date;
+
+        if (await alreadySent(pref.user_id, digestType, digestKey)) continue;
+
+        const { data: userData } = await admin.auth.admin.getUserById(pref.user_id);
+        const email = userData.user?.email;
+        if (!email) continue;
+
+        const since = new Date(
+          now.getTime() - (weekly ? 7 : 1) * 86_400_000,
+        ).toISOString();
+
+        const { data: chatGroup } = await admin
+          .from("chat_groups")
+          .select("id,name")
+          .eq("accountability_group_id", membership.group_id)
+          .maybeSingle();
+
+        if (!chatGroup?.id) continue;
+
+        const { data: messages } = await admin
+          .from("chat_messages")
+          .select("message,created_at")
+          .eq("group_id", chatGroup.id)
+          .is("deleted_at", null)
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (!(messages ?? []).length) continue;
+
+        const digestList = (messages ?? [])
+          .slice(0, 8)
+          .map((message) =>
+            `<li style="margin:8px 0;">${escapeHtml(
+              message.message.length > 180
+                ? message.message.slice(0, 180) + "…"
+                : message.message,
+            )}</li>`
+          )
+          .join("");
+
+        await sendEmail(
+          email,
+          `DYP GOALS · ${weekly ? "Weekly" : "Daily"} group chat digest`,
+          emailShell(
+            `${weekly ? "Weekly" : "Daily"} group chat digest`,
+            `<p><strong>${(messages ?? []).length}</strong> recent message${
+              (messages ?? []).length === 1 ? "" : "s"
+            } in ${escapeHtml(chatGroup.name)}.</p><ul style="padding-left:20px;">${digestList}</ul>`,
+            "Open Group Chat",
+            "/accountability/chat",
+          ),
+        );
+        await recordDelivery(pref.user_id, digestType, digestKey, "sent");
+        scheduledProgramSent += 1;
+      } catch (error) {
+        console.error("Group digest delivery failed:", pref.user_id, error);
+        scheduledProgramFailed += 1;
+      }
+    }
+
     // Drain event-driven program email notifications using the same
     // Resend/Lovable delivery configuration as execution reminders.
     const { data: queuedEmails, error: queueError } = await admin
@@ -847,6 +948,8 @@ serve(async (req) => {
       skipped,
       queued_program_emails_sent: queuedSent,
       queued_program_emails_failed: queuedFailed,
+      scheduled_program_emails_sent: scheduledProgramSent,
+      scheduled_program_emails_failed: scheduledProgramFailed,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
