@@ -8,12 +8,14 @@ import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import MentorRoute from "./components/MentorRoute";
+import AccountabilityCoachRoute from "./components/AccountabilityCoachRoute";
 import { TimePlanReminderProvider } from "./components/TimePlanReminderProvider";
 import Home from "./pages/Home";
 import Schedule from "./pages/Schedule";
 import GoalsPage from "./pages/GoalsPage";
 import Mentorship from "./pages/Mentorship";
 import MentorDashboard from "./pages/MentorDashboard";
+import AccountabilityChat from "./pages/AccountabilityChat";
 import Testimonials from "./pages/Testimonials";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
@@ -38,6 +40,7 @@ import PublicForm from "./pages/PublicForm";
 import ReferralRedirect from "./pages/ReferralRedirect";
 import AdminAppearance from "./pages/admin/AdminAppearance";
 import AdminProgramSettings from "./pages/admin/AdminProgramSettings";
+import AdminPeopleRoles from "./pages/admin/AdminPeopleRoles";
 import { UiModeProvider } from "./components/UiModeProvider";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { GuidedTourProvider } from "./components/GuidedTourProvider";
@@ -98,13 +101,16 @@ const App = () => (
                 }
               />
               <Route path="/todo" element={<ProtectedRoute><Planner initialView="today" /></ProtectedRoute>} />
-              <Route path="/mentor-dashboard" element={<MentorRoute><MentorDashboard /></MentorRoute>} />
+              <Route path="/accountability/chat" element={<ProtectedRoute><AccountabilityChat /></ProtectedRoute>} />
+              <Route path="/coach-dashboard" element={<AccountabilityCoachRoute><MentorDashboard /></AccountabilityCoachRoute>} />
+              <Route path="/mentor-dashboard" element={<Navigate to="/coach-dashboard" replace />} />
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
               <Route path="/admin/forms" element={<AdminRoute><FormManager /></AdminRoute>} />
               <Route path="/admin/forms/:formId/edit" element={<AdminRoute><FormBuilder /></AdminRoute>} />
               <Route path="/admin/forms/:formId/analytics" element={<AdminRoute><FormAnalytics /></AdminRoute>} />
               <Route path="/admin/appearance" element={<AdminRoute><AdminAppearance /></AdminRoute>} />
               <Route path="/admin/settings" element={<AdminRoute><AdminProgramSettings /></AdminRoute>} />
+              <Route path="/admin/people" element={<AdminRoute><AdminPeopleRoles /></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
           </Routes>
