@@ -427,12 +427,89 @@ serve(async (req) => {
       }
     }
 
+    // Drain event-driven program email notifications using the same
+    // Resend/Lovable delivery configuration as execution reminders.
+    const { data: queuedEmails, error: queueError } = await admin
+      .from("email_notification_queue")
+      .select("id,user_id,subject,body_html,action_label,action_path,attempt_count")
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    if (queueError && queueError.code !== "42P01" && queueError.code !== "PGRST205") {
+      throw queueError;
+    }
+
+    let queuedSent = 0;
+    let queuedFailed = 0;
+
+    for (const item of queuedEmails ?? []) {
+      await admin
+        .from("email_notification_queue")
+        .update({
+          status: "processing",
+          attempt_count: Number(item.attempt_count || 0) + 1,
+        })
+        .eq("id", item.id)
+        .eq("status", "pending");
+
+      try {
+        const { data: userData, error: userError } =
+          await admin.auth.admin.getUserById(item.user_id);
+        if (userError) throw userError;
+        const email = userData.user?.email;
+        if (!email) throw new Error("Recipient has no account email");
+
+        const actionLabel = item.action_label || "Open DYP GOALS";
+        const actionPath = item.action_path || "/journey";
+
+        await sendEmail(
+          email,
+          item.subject,
+          emailShell(
+            item.subject.replace(/^DYP GOALS ·\s*/i, ""),
+            item.body_html,
+            actionLabel,
+            actionPath,
+          ),
+        );
+
+        await admin
+          .from("email_notification_queue")
+          .update({
+            status: "sent",
+            last_error: "",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", item.id);
+
+        queuedSent += 1;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown program email error";
+        const nextAttempts = Number(item.attempt_count || 0) + 1;
+
+        await admin
+          .from("email_notification_queue")
+          .update({
+            status: nextAttempts >= 3 ? "failed" : "pending",
+            last_error: message.slice(0, 2000),
+            processed_at: nextAttempts >= 3 ? new Date().toISOString() : null,
+          })
+          .eq("id", item.id);
+
+        queuedFailed += 1;
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       users_checked: settings?.length ?? 0,
       sent,
       failed,
       skipped,
+      queued_program_emails_sent: queuedSent,
+      queued_program_emails_failed: queuedFailed,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
