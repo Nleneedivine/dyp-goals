@@ -92,6 +92,7 @@ const Navbar = () => {
       }
       setUser(null);
       setIsAdmin(false);
+      setIsAccountabilityCoach(false);
       // UI 2.0 is an admin-only browser preview for now; do not leak it into the logged-out/public experience.
       clearPreview();
       toast({
@@ -423,11 +424,6 @@ const Navbar = () => {
                     <span className="truncate">{user.email}</span>
                   </div>
                   <NotificationBell />
-                </div>
-                <div className="hidden">
-                  <User className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{user.email}</span>
-                </div>
                 </div>
                 <Link
                   to="/profile"
