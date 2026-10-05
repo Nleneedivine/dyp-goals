@@ -94,7 +94,7 @@ drop policy if exists "No direct user email queue access" on public.email_notifi
 create policy "No direct user email queue access"
 on public.email_notification_queue
 for select to authenticated
-using (false);
+using (public.has_role(auth.uid(), 'admin'::public.app_role));
 
 drop policy if exists "Group members read meeting schedule" on public.accountability_group_meetings;
 create policy "Group members read meeting schedule"
@@ -587,3 +587,50 @@ $function$;
 revoke all on function public.admin_send_program_announcement(text,text,text,text,uuid,boolean) from public;
 grant execute on function public.admin_send_program_announcement(text,text,text,text,uuid,boolean)
 to authenticated, service_role;
+
+
+create or replace function public.notify_accountability_meeting_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_member record;
+  v_group_name text;
+begin
+  if new.starts_at is null then return new; end if;
+
+  select name into v_group_name
+  from public.accountability_groups
+  where id = new.group_id;
+
+  for v_member in
+    select e.user_id
+    from public.program_accountability_memberships m
+    join public.program_enrollments e on e.id = m.enrollment_id
+    where m.group_id = new.group_id
+      and m.status = 'active'
+      and e.user_id is not null
+  loop
+    perform public.queue_user_notification(
+      v_member.user_id,
+      'accountability_meeting_scheduled',
+      'Accountability check-in scheduled',
+      coalesce(v_group_name,'Your group') || ' has a ' || new.recurrence || ' check-in schedule. Add it to your calendar from Profile.',
+      'Open Calendar',
+      '/profile',
+      jsonb_build_object('groupId', new.group_id, 'startsAt', new.starts_at),
+      true
+    );
+  end loop;
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists trg_notify_accountability_meeting_change on public.accountability_group_meetings;
+create trigger trg_notify_accountability_meeting_change
+after insert or update of starts_at,recurrence,meeting_url,duration_minutes
+on public.accountability_group_meetings
+for each row execute function public.notify_accountability_meeting_change();
