@@ -147,6 +147,7 @@ with check (
 grant select,insert,update,delete on public.notification_preferences to authenticated;
 grant select,update on public.user_notifications to authenticated;
 grant all on public.user_notifications to service_role;
+grant select on public.email_notification_queue to authenticated;
 grant all on public.email_notification_queue to service_role;
 grant select,insert,update,delete on public.accountability_group_meetings to authenticated;
 grant all on public.accountability_group_meetings to service_role;
@@ -679,3 +680,48 @@ create trigger trg_notify_accountability_meeting_change
 after insert or update of starts_at,recurrence,meeting_url,duration_minutes
 on public.accountability_group_meetings
 for each row execute function public.notify_accountability_meeting_change();
+
+
+-- Account activation/linking can happen after payment, so notify at the point
+-- an enrollment becomes attached to the permanent user account.
+create or replace function public.notify_program_account_activated()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_payment_status text := 'unpaid';
+begin
+  if new.user_id is null then return new; end if;
+  if tg_op = 'UPDATE' and old.user_id is not null then return new; end if;
+
+  if new.source_submission_id is not null then
+    select coalesce(p.status,'unpaid')
+    into v_payment_status
+    from public.program_payments p
+    where p.submission_id = new.source_submission_id;
+  end if;
+
+  perform public.queue_user_notification(
+    new.user_id,
+    'account_activated',
+    'Your GOALS account is ready',
+    case when v_payment_status = 'paid'
+      then 'Your account is active and your confirmed program access, WhatsApp link and referral dashboard are available in Profile.'
+      else 'Your GOALS account is active. Program access will update automatically as your registration progresses.'
+    end,
+    'Open Profile',
+    '/profile',
+    jsonb_build_object('enrollmentId', new.id, 'paymentStatus', v_payment_status),
+    true
+  );
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists trg_notify_program_account_activated on public.program_enrollments;
+create trigger trg_notify_program_account_activated
+after insert or update of user_id on public.program_enrollments
+for each row execute function public.notify_program_account_activated();
