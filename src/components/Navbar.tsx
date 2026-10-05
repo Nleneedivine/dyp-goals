@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette, SlidersHorizontal, MessageSquare, UserCog } from "lucide-react";
+import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette, SlidersHorizontal, MessageSquare, UserCog, Gift } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Ui2MobileBottomNav } from "@/components/Ui2MobileBottomNav";
@@ -300,6 +300,12 @@ const Navbar = () => {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
+                          <Link to="/admin/sponsorships" className="cursor-pointer flex items-center gap-2">
+                            <Gift className="h-4 w-4" />
+                            Sponsorships & Seats
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
                           <Link to="/admin/settings" className="cursor-pointer flex items-center gap-2">
                             <SlidersHorizontal className="h-4 w-4" />
                             Program settings
@@ -475,6 +481,12 @@ const Navbar = () => {
                       <Button variant="outline" className="w-full gap-2 mb-2">
                         <MessageSquare className="h-4 w-4" />
                         Communications
+                      </Button>
+                    </Link>
+                    <Link to="/admin/sponsorships" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full gap-2 mb-2">
+                        <Gift className="h-4 w-4" />
+                        Sponsorships & Seats
                       </Button>
                     </Link>
                     <Link
