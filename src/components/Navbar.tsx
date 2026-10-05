@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette, SlidersHorizontal } from "lucide-react";
+import { Menu, X, LogOut, User, History, Users, ChevronDown, Wrench, Settings, ClipboardList, ArrowRight, Target, ListTodo, Compass, BarChart3, Palette, SlidersHorizontal, MessageSquare, UserCog } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Ui2MobileBottomNav } from "@/components/Ui2MobileBottomNav";
 import { useUiMode } from "@/components/UiModeProvider";
@@ -21,6 +21,7 @@ const Navbar = () => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMentor, setIsMentor] = useState(false);
+  const [isAccountabilityCoach, setIsAccountabilityCoach] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -38,11 +39,18 @@ const Navbar = () => {
         });
         setIsAdmin(adminData === true);
 
-        const { data: mentorData } = await supabase.rpc('has_role', { 
-          _user_id: session.user.id, 
-          _role: 'mentor' 
-        });
+        const [{ data: mentorData }, { data: coachData }] = await Promise.all([
+          supabase.rpc('has_role', {
+            _user_id: session.user.id,
+            _role: 'mentor'
+          }),
+          supabase.rpc('has_role', {
+            _user_id: session.user.id,
+            _role: 'accountability_coach'
+          }),
+        ]);
         setIsMentor(mentorData === true);
+        setIsAccountabilityCoach(coachData === true);
       }
     };
 
@@ -61,15 +69,24 @@ const Navbar = () => {
             });
             setIsAdmin(adminData === true);
 
-            const { data: mentorData } = await supabase.rpc('has_role', { 
-              _user_id: session.user.id, 
-              _role: 'mentor' 
-            });
+            const [{ data: mentorData }, { data: coachData }] = await Promise.all([
+              supabase.rpc('has_role', {
+                _user_id: session.user.id,
+                _role: 'mentor'
+              }),
+              supabase.rpc('has_role', {
+                _user_id: session.user.id,
+                _role: 'accountability_coach'
+              }),
+            ]);
             setIsMentor(mentorData === true);
+            setIsAccountabilityCoach(coachData === true);
           }, 0);
         } else {
           setIsAdmin(false);
           setIsMentor(false);
+      setIsAccountabilityCoach(false);
+          setIsAccountabilityCoach(false);
         }
       }
     );
@@ -116,6 +133,7 @@ const Navbar = () => {
     { name: "My GOALS", path: "/my-goals", icon: Target },
     { name: "Plan & Today", path: "/plan", icon: ListTodo },
     { name: "Progress", path: "/progress", icon: BarChart3 },
+    { name: "Group Chat", path: "/accountability/chat", icon: MessageSquare },
     { name: "Mentorship", path: "/mentorship", icon: Users },
   ];
 
@@ -242,15 +260,15 @@ const Navbar = () => {
 
             {user && (
               <div className="flex items-center gap-4">
-                {isMentor && (
+                {isAccountabilityCoach && (
                   <Link
-                    to="/mentor-dashboard"
+                    to="/coach-dashboard"
                     className={`font-medium transition-colors hover:text-primary flex items-center gap-2 ${
-                      isActive("/mentor-dashboard") ? "text-primary" : "text-muted-foreground"
+                      isActive("/coach-dashboard") ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
                     <Users className="h-4 w-4" />
-                    My Group
+                    Coach Dashboard
                   </Link>
                 )}
                 
@@ -282,6 +300,12 @@ const Navbar = () => {
                           <Link to="/admin" className="cursor-pointer flex items-center gap-2">
                             <Settings className="h-4 w-4" />
                             Admin
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/people" className="cursor-pointer flex items-center gap-2">
+                            <UserCog className="h-4 w-4" />
+                            People & Roles
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
@@ -391,16 +415,16 @@ const Navbar = () => {
 
             {user && (
               <div className="mt-4 pt-4 border-t border-border space-y-3">
-                {isMentor && (
+                {isAccountabilityCoach && (
                   <Link
-                    to="/mentor-dashboard"
+                    to="/coach-dashboard"
                     onClick={() => setIsOpen(false)}
                     className={`flex items-center gap-2 py-2 font-medium transition-colors hover:text-primary ${
                       isActive("/mentor-dashboard") ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
                     <Users className="h-4 w-4" />
-                    My Group
+                    Coach Dashboard
                   </Link>
                 )}
                 <div className="flex min-w-0 items-center gap-2 py-2 text-sm text-muted-foreground">
@@ -442,6 +466,15 @@ const Navbar = () => {
                       <Button variant="outline" className="w-full gap-2 mb-2">
                         <Settings className="h-4 w-4" />
                         Admin
+                      </Button>
+                    </Link>
+                    <Link
+                      to="/admin/people"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Button variant="outline" className="w-full gap-2 mb-2">
+                        <UserCog className="h-4 w-4" />
+                        People & Roles
                       </Button>
                     </Link>
                     <Link
