@@ -894,3 +894,72 @@ $function$;
 
 grant execute on function public.get_sponsorship_analytics_admin(uuid)
 to authenticated, service_role;
+
+
+create or replace function public.admin_create_sponsorship_campaign(
+  p_form_id uuid,
+  p_name text,
+  p_sponsor_name text default 'DIT',
+  p_seat_limit integer default null
+)
+returns public.program_sponsorship_campaigns
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_code text;
+  v_suffix text;
+  v_settings public.program_payment_settings;
+  v_result public.program_sponsorship_campaigns;
+begin
+  if auth.uid() is null
+     or not public.has_role(auth.uid(),'admin'::public.app_role) then
+    raise exception 'Admin access required';
+  end if;
+
+  if char_length(trim(coalesce(p_name,''))) < 3 then
+    raise exception 'Campaign name is required';
+  end if;
+
+  select * into v_settings
+  from public.program_payment_settings
+  where form_id=p_form_id;
+
+  loop
+    v_suffix := upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+    v_code := 'DIT-' || v_suffix;
+    exit when not exists (
+      select 1 from public.program_sponsorship_campaigns
+      where form_id=p_form_id and code=v_code
+    );
+  end loop;
+
+  insert into public.program_sponsorship_campaigns (
+    form_id,sponsor_name,name,code,active,questions_enabled,approval_required,
+    seat_limit,seat_value_minor,participant_amount_minor,currency,
+    referral_commission_mode,count_for_referral_leaderboard,created_by
+  )
+  values (
+    p_form_id,
+    coalesce(nullif(trim(p_sponsor_name),''),'DIT'),
+    trim(p_name),
+    v_code,
+    true,true,true,
+    p_seat_limit,
+    coalesce(v_settings.amount_minor,0),
+    0,
+    coalesce(v_settings.currency,'NGN'),
+    'none',
+    false,
+    auth.uid()
+  )
+  returning * into v_result;
+
+  return v_result;
+end;
+$function$;
+
+revoke all on function public.admin_create_sponsorship_campaign(uuid,text,text,integer) from public;
+grant execute on function public.admin_create_sponsorship_campaign(uuid,text,text,integer)
+to authenticated, service_role;
