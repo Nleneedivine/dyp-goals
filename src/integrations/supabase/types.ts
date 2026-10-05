@@ -3118,6 +3118,35 @@ export type Database = {
           visits: number
         }[]
       }
+      admin_create_sponsorship_campaign: {
+        Args: {
+          p_form_id: string
+          p_name: string
+          p_seat_limit?: number
+          p_sponsor_name?: string
+        }
+        Returns: {
+          active: boolean
+          approval_required: boolean
+          code: string
+          count_for_referral_leaderboard: boolean
+          created_at: string
+          created_by: string | null
+          currency: string
+          ends_at: string | null
+          form_id: string
+          id: string
+          name: string
+          participant_amount_minor: number
+          questions_enabled: boolean
+          referral_commission_mode: string
+          seat_limit: number | null
+          seat_value_minor: number
+          sponsor_name: string
+          starts_at: string | null
+          updated_at: string
+        }
+      }
       admin_review_sponsorship_claim: {
         Args: {
           p_approve: boolean
