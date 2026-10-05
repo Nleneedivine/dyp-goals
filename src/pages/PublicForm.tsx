@@ -478,6 +478,7 @@ export default function PublicForm() {
       }
 
       const referralJourney = Boolean(referralCodeForSession);
+      const sponsorshipJourney = Boolean(incomingSponsorshipCode);
 
       if (paymentReference && storedToken) {
         setPaymentLoading(true);
@@ -491,7 +492,24 @@ export default function PublicForm() {
         }
       }
 
-      if (storedToken && (!referralJourney || Boolean(paymentReference))) {
+      if (storedToken && sponsorshipJourney) {
+        const sponsoredState = await loadPaymentState(storedToken);
+        if (
+          sponsoredState?.available &&
+          sponsoredState.fundingType === "sponsored"
+        ) {
+          setSessionToken(storedToken);
+          setSuccess(formData.confirmation_message);
+          const { data: referralCode } = await supabase.rpc("get_program_referral_code", {
+            p_session_token: storedToken,
+          });
+          if (referralCode) setOwnReferralCode(referralCode);
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (storedToken && ((!referralJourney && !sponsorshipJourney) || Boolean(paymentReference))) {
         const state = await loadPaymentState(storedToken);
         if (state?.available) {
           setSessionToken(storedToken);
