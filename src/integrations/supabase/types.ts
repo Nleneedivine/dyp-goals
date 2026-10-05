@@ -2596,6 +2596,14 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      admin_set_user_role: {
+        Args: {
+          p_enabled: boolean
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_user_id: string
+        }
+        Returns: Json
+      }
       admin_sync_accountability_chats: { Args: never; Returns: Json }
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
@@ -2674,6 +2682,10 @@ export type Database = {
           remaining: number
           retry_after_seconds: number
         }[]
+      }
+      current_user_accountability_chat: {
+        Args: never
+        Returns: Json
       }
       current_user_has_app_access: { Args: never; Returns: boolean }
       ensure_accountability_chat: {
@@ -2889,7 +2901,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user" | "mentor"
+      app_role: "admin" | "user" | "mentor" | "accountability_coach"
     }
     CompositeTypes: {
       [_ in never]: never
