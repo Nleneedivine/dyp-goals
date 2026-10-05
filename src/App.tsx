@@ -37,6 +37,7 @@ import FormBuilder from "./pages/admin/FormBuilder";
 import FormAnalytics from "./pages/admin/FormAnalytics";
 import PublicForm from "./pages/PublicForm";
 import ReferralRedirect from "./pages/ReferralRedirect";
+import SponsorshipRedirect from "./pages/SponsorshipRedirect";
 import AdminAppearance from "./pages/admin/AdminAppearance";
 import AdminProgramSettings from "./pages/admin/AdminProgramSettings";
 import AdminPeopleRoles from "./pages/admin/AdminPeopleRoles";
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/apply/:slug" element={<PublicForm />} />
               <Route path="/r/:code" element={<ReferralRedirect />} />
+              <Route path="/s/:code" element={<SponsorshipRedirect />} />
               <Route path="/" element={<Home />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
