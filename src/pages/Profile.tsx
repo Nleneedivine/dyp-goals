@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, User, Mail, Key, Save, Archive, History, Sparkles } from "lucide-react";
 import { ExecutionNotificationSettings } from "@/components/ExecutionNotificationSettings";
+import { ProgramAccessHub } from "@/components/ProgramAccessHub";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 
@@ -206,6 +207,10 @@ const Profile = () => {
         )}
 
         <div className="space-y-6">
+          <section data-tour="program-access">
+            <ProgramAccessHub />
+          </section>
+
           {/* Personal Information */}
           <Card className="bg-card border-border animate-fade-in">
             <CardHeader>
