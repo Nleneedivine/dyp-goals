@@ -42,6 +42,7 @@ import AdminAppearance from "./pages/admin/AdminAppearance";
 import AdminProgramSettings from "./pages/admin/AdminProgramSettings";
 import AdminPeopleRoles from "./pages/admin/AdminPeopleRoles";
 import AdminCommunications from "./pages/admin/AdminCommunications";
+import AdminSponsorships from "./pages/admin/AdminSponsorships";
 import { UiModeProvider } from "./components/UiModeProvider";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { GuidedTourProvider } from "./components/GuidedTourProvider";
@@ -114,6 +115,7 @@ const App = () => (
               <Route path="/admin/settings" element={<AdminRoute><AdminProgramSettings /></AdminRoute>} />
               <Route path="/admin/people" element={<AdminRoute><AdminPeopleRoles /></AdminRoute>} />
               <Route path="/admin/communications" element={<AdminRoute><AdminCommunications /></AdminRoute>} />
+              <Route path="/admin/sponsorships" element={<AdminRoute><AdminSponsorships /></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
           </Routes>
