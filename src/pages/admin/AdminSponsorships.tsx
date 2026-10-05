@@ -67,6 +67,8 @@ type Claim = {
   answers: Record<string, unknown>;
 };
 
+type FormOption = { id: string; title: string; slug: string; status: string };
+
 type Analytics = {
   seatLimit?: number | null;
   pending?: number;
@@ -93,7 +95,12 @@ const money = (minor = 0, currency = "NGN") =>
 export default function AdminSponsorships() {
   const { toast } = useToast();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [forms, setForms] = useState<FormOption[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [createFormId, setCreateFormId] = useState("");
+  const [createName, setCreateName] = useState("");
+  const [createSeatLimit, setCreateSeatLimit] = useState("");
+  const [creatingCampaign, setCreatingCampaign] = useState(false);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -109,10 +116,18 @@ export default function AdminSponsorships() {
   const [newRequired, setNewRequired] = useState(true);
 
   const loadCampaigns = async () => {
-    const { data, error } = await supabase
-      .from("program_sponsorship_campaigns")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const [{ data, error }, { data: formRows }] = await Promise.all([
+      supabase
+        .from("program_sponsorship_campaigns")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("program_forms")
+        .select("id,title,slug,status")
+        .order("created_at", { ascending: false }),
+    ]);
+    setForms((formRows ?? []) as FormOption[]);
+    if (!createFormId && formRows?.[0]?.id) setCreateFormId(formRows[0].id);
 
     if (error) {
       toast({ title: "Sponsorship campaigns could not load", description: error.message, variant: "destructive" });
@@ -166,6 +181,40 @@ export default function AdminSponsorships() {
     () => campaign ? `${window.location.origin}/s/${campaign.code}` : "",
     [campaign],
   );
+
+  const createCampaign = async () => {
+    if (!createFormId || createName.trim().length < 3) {
+      toast({ title: "Choose a program and enter a campaign name", variant: "destructive" });
+      return;
+    }
+
+    setCreatingCampaign(true);
+    const { data, error } = await supabase.rpc("admin_create_sponsorship_campaign", {
+      p_form_id: createFormId,
+      p_name: createName.trim(),
+      p_sponsor_name: "DIT",
+      p_seat_limit: createSeatLimit.trim() ? Number(createSeatLimit) : undefined,
+    });
+    setCreatingCampaign(false);
+
+    if (error || !data) {
+      toast({
+        title: "Sponsorship campaign could not be created",
+        description: error?.message ?? "No campaign was returned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreateName("");
+    setCreateSeatLimit("");
+    setSelectedId(data.id);
+    toast({
+      title: "DIT sponsorship campaign created",
+      description: `Generated code: ${data.code}`,
+    });
+    await loadCampaigns();
+  };
 
   const saveCampaign = async () => {
     if (!campaign) return;
@@ -287,6 +336,31 @@ export default function AdminSponsorships() {
           </div>
           <Button asChild variant="outline"><Link to="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Back to Admin</Link></Button>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Create sponsorship campaign</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Generate a new DIT sponsorship code for this or a future program. You can configure questions and seats after creation.
+            </p>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-[1fr_1.3fr_160px_auto]">
+            <Select value={createFormId} onValueChange={setCreateFormId}>
+              <SelectTrigger><SelectValue placeholder="Program form" /></SelectTrigger>
+              <SelectContent>
+                {forms.map((form) => (
+                  <SelectItem key={form.id} value={form.id}>{form.title} · {form.status}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input value={createName} onChange={(event) => setCreateName(event.target.value)} placeholder="e.g. DIT Leaders Sponsorship" />
+            <Input type="number" min="0" value={createSeatLimit} onChange={(event) => setCreateSeatLimit(event.target.value)} placeholder="Seat limit" />
+            <Button onClick={() => void createCampaign()} disabled={creatingCampaign}>
+              {creatingCampaign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+              Generate code
+            </Button>
+          </CardContent>
+        </Card>
 
         {campaigns.length > 1 && (
           <Card><CardContent className="pt-6">
