@@ -919,6 +919,18 @@ const Admin = () => {
             actions={
               <>
                 <Button asChild variant="outline">
+                  <Link to="/admin/people">
+                    <UserCog className="mr-2 h-4 w-4" />
+                    People & Roles
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/admin/communications">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Communications
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
                   <Link to="/admin/forms">
                     <FileText className="mr-2 h-4 w-4" />
                     Forms & Applications
