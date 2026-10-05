@@ -7,7 +7,6 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
-import MentorRoute from "./components/MentorRoute";
 import AccountabilityCoachRoute from "./components/AccountabilityCoachRoute";
 import { TimePlanReminderProvider } from "./components/TimePlanReminderProvider";
 import Home from "./pages/Home";
@@ -41,6 +40,7 @@ import ReferralRedirect from "./pages/ReferralRedirect";
 import AdminAppearance from "./pages/admin/AdminAppearance";
 import AdminProgramSettings from "./pages/admin/AdminProgramSettings";
 import AdminPeopleRoles from "./pages/admin/AdminPeopleRoles";
+import AdminCommunications from "./pages/admin/AdminCommunications";
 import { UiModeProvider } from "./components/UiModeProvider";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { GuidedTourProvider } from "./components/GuidedTourProvider";
@@ -111,6 +111,7 @@ const App = () => (
               <Route path="/admin/appearance" element={<AdminRoute><AdminAppearance /></AdminRoute>} />
               <Route path="/admin/settings" element={<AdminRoute><AdminProgramSettings /></AdminRoute>} />
               <Route path="/admin/people" element={<AdminRoute><AdminPeopleRoles /></AdminRoute>} />
+              <Route path="/admin/communications" element={<AdminRoute><AdminCommunications /></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
           </Routes>
