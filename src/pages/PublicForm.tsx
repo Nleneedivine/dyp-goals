@@ -905,6 +905,29 @@ export default function PublicForm() {
           />
         </div>
 
+        {incomingSponsorshipCode && (
+          <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            {sponsorship?.valid ? (
+              <>
+                <p className="font-semibold">{sponsorship.sponsorName} sponsored registration</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Campaign: {sponsorship.name}. Participant contribution after approval:{" "}
+                  <strong>
+                    {((sponsorship.participantAmountMinor ?? 0) / 100).toLocaleString("en-NG", {
+                      style: "currency",
+                      currency: sponsorship.currency ?? "NGN",
+                    })}
+                  </strong>.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-destructive">
+                {sponsorshipError || "Checking sponsorship eligibility…"}
+              </p>
+            )}
+          </div>
+        )}
+
         {success ? (
           <Card>
             <CardContent className="p-8 sm:p-10">
@@ -918,7 +941,9 @@ export default function PublicForm() {
                 <div className="mx-auto mt-7 max-w-xl rounded-2xl border p-5">
                   <div className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    <p className="font-semibold">Complete your payment</p>
+                    <p className="font-semibold">
+                      {paymentState.fundingType === "sponsored" ? "Sponsorship status" : "Complete your payment"}
+                    </p>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Amount:{" "}
@@ -930,7 +955,51 @@ export default function PublicForm() {
                     </strong>
                   </p>
 
-                  {paymentState.paymentStatus === "paid" ? (
+                  {paymentState.fundingType === "sponsored" && paymentState.sponsorshipStatus === "pending" ? (
+                    <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-amber-950">
+                      <p className="font-semibold">DIT sponsorship pending verification</p>
+                      <p className="mt-2 text-sm">
+                        You do not need to pay now. An Admin will verify your DIT sponsorship request. Once approved, WhatsApp and dashboard access will open automatically.
+                      </p>
+                    </div>
+                  ) : paymentState.fundingType === "sponsored" && paymentState.sponsorshipStatus === "approved" ? (
+                    <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+                      <div className="text-center">
+                        <CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
+                        <p className="mt-2 text-lg font-semibold">DIT-sponsored seat approved — you’re in</p>
+                        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                          Participant contribution: ₦0. Your seat is sponsored by {paymentState.sponsorName ?? "DIT"}.
+                        </p>
+                      </div>
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {paymentState.whatsappGroupUrl ? (
+                          <Button asChild size="lg" className="min-h-14 w-full whitespace-normal text-center leading-snug">
+                            <a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">
+                              Join WhatsApp Group
+                              <ExternalLink className="ml-2 h-4 w-4 shrink-0" />
+                            </a>
+                          </Button>
+                        ) : (
+                          <div className="flex min-h-14 items-center justify-center rounded-xl border bg-background px-4 py-3 text-center text-sm text-muted-foreground">
+                            WhatsApp link will appear once configured.
+                          </div>
+                        )}
+                        <Button asChild size="lg" variant="outline" className="min-h-14 w-full whitespace-normal text-center leading-snug">
+                          <a href="/auth?mode=activate&next=%2Fprofile">
+                            <UserRound className="mr-2 h-4 w-4 shrink-0" />
+                            Open My GOALS Profile
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : paymentState.fundingType === "sponsored" && paymentState.sponsorshipStatus === "rejected" ? (
+                    <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                      <p className="font-semibold text-destructive">DIT sponsorship was not approved</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {paymentState.sponsorshipRejectionReason || "You can continue with the regular registration payment below."}
+                      </p>
+                    </div>
+                  ) : paymentState.paymentStatus === "paid" ? (
                     <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
                       <div className="text-center">
                         <CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
