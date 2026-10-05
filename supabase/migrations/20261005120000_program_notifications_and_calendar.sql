@@ -151,6 +151,51 @@ grant all on public.email_notification_queue to service_role;
 grant select,insert,update,delete on public.accountability_group_meetings to authenticated;
 grant all on public.accountability_group_meetings to service_role;
 
+
+
+-- Existing and future accounts get sensible program-notification defaults.
+insert into public.notification_preferences (user_id, timezone)
+select id, 'Africa/Lagos'
+from public.profiles
+on conflict (user_id) do nothing;
+
+create or replace function public.ensure_default_notification_preferences()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $function$
+begin
+  insert into public.notification_preferences (user_id, timezone)
+  values (new.id, 'Africa/Lagos')
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$function$;
+
+drop trigger if exists trg_default_notification_preferences on public.profiles;
+create trigger trg_default_notification_preferences
+after insert on public.profiles
+for each row execute function public.ensure_default_notification_preferences();
+
+-- Reuse the existing delivery ledger for deduplicating scheduled program reminders.
+alter table public.execution_notification_deliveries
+  drop constraint if exists execution_notification_deliveries_notification_type_check;
+
+alter table public.execution_notification_deliveries
+  add constraint execution_notification_deliveries_notification_type_check
+  check (notification_type in (
+    'morning_brief',
+    'evening_debrief',
+    'weekly_review',
+    'deadline_alert',
+    'program_session_24h',
+    'program_session_1h',
+    'accountability_meeting_24h',
+    'group_digest_daily',
+    'group_digest_weekly'
+  ));
+
 create or replace function public.queue_user_notification(
   p_user_id uuid,
   p_type text,
