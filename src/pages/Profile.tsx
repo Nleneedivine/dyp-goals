@@ -8,6 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, User, Mail, Key, Save, Archive, History, Sparkles } from "lucide-react";
 import { ExecutionNotificationSettings } from "@/components/ExecutionNotificationSettings";
+import { ProgramAccessHub } from "@/components/ProgramAccessHub";
+import { ProgramNotificationSettings } from "@/components/ProgramNotificationSettings";
+import { ProgramCalendarSync } from "@/components/ProgramCalendarSync";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 
@@ -189,7 +192,7 @@ const Profile = () => {
           <Ui2PageHeader
             eyebrow="Account settings"
             title="Your Profile"
-            description="Manage your identity, execution notifications and account settings in one place."
+            description="Manage your identity, program access, notifications, calendar and account settings in one place."
             icon={User}
           />
         ) : (
@@ -206,6 +209,10 @@ const Profile = () => {
         )}
 
         <div className="space-y-6">
+          <section data-tour="program-access">
+            <ProgramAccessHub />
+          </section>
+
           {/* Personal Information */}
           <Card className="bg-card border-border animate-fade-in">
             <CardHeader>
@@ -296,6 +303,10 @@ const Profile = () => {
               </Button>
             </CardContent>
           </Card>
+
+          <ProgramNotificationSettings />
+
+          <ProgramCalendarSync />
 
           <ExecutionNotificationSettings />
 

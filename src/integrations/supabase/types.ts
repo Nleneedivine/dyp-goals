@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      accountability_group_meetings: {
+        Row: {
+          duration_minutes: number
+          group_id: string
+          meeting_url: string | null
+          notes: string
+          recurrence: string
+          starts_at: string | null
+          timezone: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          duration_minutes?: number
+          group_id: string
+          meeting_url?: string | null
+          notes?: string
+          recurrence?: string
+          starts_at?: string | null
+          timezone?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          duration_minutes?: number
+          group_id?: string
+          meeting_url?: string | null
+          notes?: string
+          recurrence?: string
+          starts_at?: string | null
+          timezone?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accountability_group_meetings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "accountability_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accountability_groups: {
         Row: {
           cohort_id: string
@@ -275,6 +322,59 @@ export type Database = {
           window_started_at?: string
         }
         Relationships: []
+      }
+      email_notification_queue: {
+        Row: {
+          action_label: string | null
+          action_path: string | null
+          attempt_count: number
+          body_html: string
+          created_at: string
+          id: string
+          last_error: string
+          notification_type: string
+          processed_at: string | null
+          status: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          action_label?: string | null
+          action_path?: string | null
+          attempt_count?: number
+          body_html: string
+          created_at?: string
+          id?: string
+          last_error?: string
+          notification_type: string
+          processed_at?: string | null
+          status?: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          action_label?: string | null
+          action_path?: string | null
+          attempt_count?: number
+          body_html?: string
+          created_at?: string
+          id?: string
+          last_error?: string
+          notification_type?: string
+          processed_at?: string | null
+          status?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_notification_queue_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       execution_notification_deliveries: {
         Row: {
@@ -994,6 +1094,47 @@ export type Database = {
             columns: ["enrollment_id"]
             isOneToOne: false
             referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          accountability_reminders_enabled: boolean
+          group_digest: string
+          program_emails_enabled: boolean
+          referral_updates_enabled: boolean
+          session_reminders_enabled: boolean
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accountability_reminders_enabled?: boolean
+          group_digest?: string
+          program_emails_enabled?: boolean
+          referral_updates_enabled?: boolean
+          session_reminders_enabled?: boolean
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accountability_reminders_enabled?: boolean
+          group_digest?: string
+          program_emails_enabled?: boolean
+          referral_updates_enabled?: boolean
+          session_reminders_enabled?: boolean
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2346,6 +2487,53 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notifications: {
+        Row: {
+          action_label: string | null
+          action_path: string | null
+          body: string
+          created_at: string
+          id: string
+          metadata: Json
+          notification_type: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          action_label?: string | null
+          action_path?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          notification_type: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          action_label?: string | null
+          action_path?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          notification_type?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_planning_vision: {
         Row: {
           created_at: string
@@ -2596,6 +2784,25 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      admin_send_program_announcement: {
+        Args: {
+          p_action_label?: string
+          p_action_path?: string
+          p_body: string
+          p_cohort_id?: string
+          p_email?: boolean
+          p_title: string
+        }
+        Returns: number
+      }
+      admin_set_user_role: {
+        Args: {
+          p_enabled: boolean
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_user_id: string
+        }
+        Returns: Json
+      }
       admin_sync_accountability_chats: { Args: never; Returns: Json }
       apply_generated_week_plan: {
         Args: { p_actions: Json; p_week_start: string }
@@ -2674,6 +2881,10 @@ export type Database = {
           remaining: number
           retry_after_seconds: number
         }[]
+      }
+      current_user_accountability_chat: {
+        Args: never
+        Returns: Json
       }
       current_user_has_app_access: { Args: never; Returns: boolean }
       ensure_accountability_chat: {
@@ -2859,6 +3070,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      mark_all_notifications_read: {
+        Args: never
+        Returns: number
+      }
       search_program_referrers: {
         Args: { p_form_id: string; p_query: string }
         Returns: {
@@ -2889,7 +3104,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user" | "mentor"
+      app_role: "admin" | "user" | "mentor" | "accountability_coach"
     }
     CompositeTypes: {
       [_ in never]: never

@@ -37,16 +37,6 @@ interface MemberGoals {
   created_at: string;
 }
 
-interface MentorshipRequest {
-  id: string;
-  user_id: string;
-  enrollment_id: string | null;
-  goals: string;
-  areas: string;
-  experience: string;
-  status: string;
-  created_at: string;
-}
 interface SharedPortfolioGoal {
   id: string;
   user_id: string;
@@ -107,7 +97,6 @@ const MentorDashboard = () => {
   const [activeCohortName, setActiveCohortName] = useState<string | null>(null);
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [memberGoals, setMemberGoals] = useState<MemberGoals[]>([]);
-  const [mentorshipRequests, setMentorshipRequests] = useState<MentorshipRequest[]>([]);
   const [sharedPortfolioGoals, setSharedPortfolioGoals] = useState<SharedPortfolioGoal[]>([]);
   const [sharedGoalTasks, setSharedGoalTasks] = useState<SharedGoalTask[]>([]);
   const [sharedMilestones, setSharedMilestones] = useState<SharedMilestone[]>([]);
@@ -131,13 +120,13 @@ const MentorDashboard = () => {
 
       const { data: hasMentorRole } = await supabase.rpc("has_role", {
         _user_id: user.id,
-        _role: "mentor",
+        _role: "accountability_coach",
       });
 
       if (!hasMentorRole) {
         toast({
           title: "Access Denied",
-          description: "This page is only accessible to mentors.",
+          description: "This page is only accessible to Accountability Coaches.",
           variant: "destructive",
         });
         navigate("/");
@@ -184,7 +173,6 @@ const MentorDashboard = () => {
         setGroupInfo(null);
         setGroupMembers([]);
         setMemberGoals([]);
-        setMentorshipRequests([]);
         setSharedPortfolioGoals([]);
         setSharedGoalTasks([]);
         setSharedMilestones([]);
@@ -212,7 +200,6 @@ const MentorDashboard = () => {
       if (!enrollmentIds.length) {
         setGroupMembers([]);
         setMemberGoals([]);
-        setMentorshipRequests([]);
         setSharedPortfolioGoals([]);
         setSharedGoalTasks([]);
         setSharedMilestones([]);
@@ -236,7 +223,6 @@ const MentorDashboard = () => {
       if (!memberIds.length) {
         setGroupMembers([]);
         setMemberGoals([]);
-        setMentorshipRequests([]);
         setSharedPortfolioGoals([]);
         setSharedGoalTasks([]);
         setSharedMilestones([]);
@@ -250,7 +236,6 @@ const MentorDashboard = () => {
         legacyGoalsResult,
         portfolioGoalsResult,
         sharingResult,
-        requestsResult,
       ] = await Promise.all([
         supabase
           .from("profiles")
@@ -271,26 +256,19 @@ const MentorDashboard = () => {
           .from("accountability_sharing_preferences")
           .select("user_id,share_goals,share_tasks,share_weekly_reviews")
           .in("user_id", memberIds),
-        supabase
-          .from("mentorship_requests")
-          .select("id,user_id,enrollment_id,goals,areas,experience,status,created_at")
-          .in("enrollment_id", enrollmentIds)
-          .order("created_at", { ascending: false }),
       ]);
 
       const loadError =
         profilesResult.error ||
         legacyGoalsResult.error ||
         portfolioGoalsResult.error ||
-        sharingResult.error ||
-        requestsResult.error;
+        sharingResult.error;
 
       if (loadError) throw loadError;
 
       setGroupMembers((profilesResult.data ?? []) as GroupMember[]);
       setMemberGoals((legacyGoalsResult.data ?? []) as MemberGoals[]);
       setSharingPreferences((sharingResult.data ?? []) as SharingPreference[]);
-      setMentorshipRequests((requestsResult.data ?? []) as MentorshipRequest[]);
 
       const portfolioGoals = (portfolioGoalsResult.data ?? []) as SharedPortfolioGoal[];
       setSharedPortfolioGoals(portfolioGoals);
@@ -347,7 +325,6 @@ const MentorDashboard = () => {
     setGroupInfo(nextGroup);
     setGroupMembers([]);
     setMemberGoals([]);
-    setMentorshipRequests([]);
     setSharedPortfolioGoals([]);
     setSharedGoalTasks([]);
     setSharedMilestones([]);
@@ -359,9 +336,6 @@ const MentorDashboard = () => {
     return memberGoals.filter(g => g.user_id === userId);
   };
 
-  const getMemberRequest = (userId: string) => {
-    return mentorshipRequests.find(r => r.user_id === userId);
-  };
   const getSharingPreference = (userId: string) =>
     sharingPreferences.find((preference) => preference.user_id === userId) ?? null;
 
@@ -419,8 +393,8 @@ const MentorDashboard = () => {
         {isUi2 ? (
           <div className="mx-auto max-w-6xl">
             <Ui2PageHeader
-              eyebrow={activeCohortName ? `${activeCohortName} · Accountability mentor` : "Accountability mentor"}
-              title="Mentor Dashboard"
+              eyebrow={activeCohortName ? `${activeCohortName} · Accountability Coach` : "Accountability Coach"}
+              title="Accountability Coach Dashboard"
               description="Review only the goal and execution context each member explicitly chose to share, then support the next accountability conversation."
               icon={Users}
             />
@@ -428,7 +402,7 @@ const MentorDashboard = () => {
         ) : (
                   <div className="text-center mb-12 animate-fade-in">
                     <h1 className="text-5xl md:text-6xl font-bold mb-6">
-                      Mentor <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
+                      Accountability Coach <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Dashboard</span>
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
                       {activeCohortName ? `${activeCohortName}: ` : ""}Review only the goal and execution context each member explicitly chose to share, then support their next accountability conversation.
@@ -536,7 +510,7 @@ const MentorDashboard = () => {
               <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">No Current Cohort Group Assigned</h3>
               <p className="text-muted-foreground">
-                You have the mentor role, but you are not assigned to an accountability group in {activeCohortName ?? "the current GOALS cohort"} yet.
+                You have the Accountability Coach role, but you are not assigned to an accountability group in {activeCohortName ?? "the current GOALS cohort"} yet.
               </p>
             </CardContent>
           </Card>
@@ -544,9 +518,8 @@ const MentorDashboard = () => {
         <>
         {/* Main Content */}
         <Tabs defaultValue="members" className="max-w-6xl mx-auto">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-1 mb-8">
             <TabsTrigger value="members">Group Members</TabsTrigger>
-            <TabsTrigger value="requests">Mentorship Requests</TabsTrigger>
           </TabsList>
 
           <TabsContent value="members">
@@ -564,7 +537,6 @@ const MentorDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {groupMembers.map((member) => {
                   const goals = getMemberGoals(member.id);
-                  const request = getMemberRequest(member.id);
                   const sharing = getSharingPreference(member.id);
                   const portfolioGoals = getSharedPortfolioGoals(member.id);
                   const sharedTasks = getSharedTasks(member.id);
@@ -613,12 +585,6 @@ const MentorDashboard = () => {
                         <p className="text-sm text-muted-foreground">{member.email}</p>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {request && (
-                          <div className="bg-muted/30 rounded-lg p-4">
-                            <h4 className="font-semibold text-sm text-primary mb-2">Mentorship Areas</h4>
-                            <p className="text-sm text-muted-foreground">{request.areas}</p>
-                          </div>
-                        )}
 
                         {goals.length > 0 ? (
                           <div>
@@ -755,60 +721,6 @@ const MentorDashboard = () => {
                     </Card>
                   );
                 })}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="requests">
-            {mentorshipRequests.length === 0 ? (
-              <Card className="bg-card border-border">
-                <CardContent className="p-12 text-center">
-                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold mb-2">No Requests Yet</h3>
-                  <p className="text-muted-foreground">
-                    Mentorship requests will appear here.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {mentorshipRequests.map((request) => (
-                  <Card key={request.id} className="bg-card border-border">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <Badge variant={request.status === 'pending' ? "secondary" : "default"}>
-                            {request.status}
-                          </Badge>
-                          <p className="text-sm text-muted-foreground mt-2">
-                            Submitted {new Date(request.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-sm text-primary mb-2">Goals</h4>
-                          <p className="text-sm text-muted-foreground whitespace-pre-line line-clamp-3">
-                            {request.goals}
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-secondary mb-2">Mentorship Areas</h4>
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {request.areas}
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-accent mb-2">Experience</h4>
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {request.experience}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
               </div>
             )}
           </TabsContent>

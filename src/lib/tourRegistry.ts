@@ -46,7 +46,7 @@ export const TOUR_TARGETS: Record<
     label: "Journey progress",
   },
   "program-access": {
-    route: "/journey",
+    route: "/profile",
     selector: '[data-tour="program-access"]',
     label: "Program access",
   },
@@ -99,8 +99,8 @@ export const MAIN_TOUR: TourDefinition = {
     {
       id: "access",
       target: "program-access",
-      route: "/journey",
-      title: "Your program access stays in one place",
+      route: "/profile",
+      title: "Your program access stays in your profile",
       description: (context) =>
         context.paymentStatus === "paid"
           ? "Your WhatsApp access, referral link, earnings and program information stay here after registration."
@@ -217,9 +217,9 @@ export function fallbackGuideAnswer(
 
   if (q.includes("referr") || q.includes("earning") || q.includes("whatsapp") || q.includes("payment")) {
     return {
-      answer: "Your program access, WhatsApp link, referral link and referral earnings are together in Program Access on Journey.",
+      answer: "Your program access, WhatsApp link, referral link and referral earnings are together in Program Access inside your Profile.",
       target: "program-access",
-      route: "/journey",
+      route: "/profile",
       ctaLabel: "Show me",
     };
   }

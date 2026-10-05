@@ -92,7 +92,7 @@ interface ProgramEnrollment {
 interface UserRole {
   id: string;
   user_id: string;
-  role: 'admin' | 'user' | 'mentor';
+  role: 'admin' | 'user' | 'mentor' | 'accountability_coach';
 }
 
 interface AccountabilityGroup {
@@ -334,7 +334,7 @@ const Admin = () => {
     setSelectedGoal({ ...goal, ai_analysis: data.ai_analysis });
   };
 
-  const getUserRole = (userId: string): 'admin' | 'user' | 'mentor' | null =>
+  const getUserRole = (userId: string): 'admin' | 'user' | 'mentor' | 'accountability_coach' | null =>
     roleByUserId.get(userId) ?? null;
 
   const assignMentorRole = async (userId: string) => {
@@ -407,6 +407,15 @@ const Admin = () => {
       
       const oldMentorId = group.mentor_id;
 
+      if (mentorId) {
+        const { error: roleError } = await supabase.rpc("admin_set_user_role", {
+          p_user_id: mentorId,
+          p_role: "accountability_coach",
+          p_enabled: true,
+        });
+        if (roleError) throw roleError;
+      }
+
       // Update accountability group
       const { error } = await supabase
         .from("accountability_groups")
@@ -464,7 +473,7 @@ const Admin = () => {
 
       toast({
         title: "Group updated",
-        description: mentorId ? "Mentor assigned to group and chat." : "Mentor removed from group and chat.",
+        description: mentorId ? "Accountability Coach assigned to group and chat." : "Accountability Coach removed from group and chat.",
       });
 
       loadAdminData();
@@ -522,6 +531,14 @@ const Admin = () => {
 
   const getMentors = () => {
     return users.filter((u) => getUserRole(u.id) === 'mentor');
+  };
+
+  const getAccountabilityCoaches = () => {
+    return users.filter((u) =>
+      userRoles.some(
+        (role) => role.user_id === u.id && role.role === 'accountability_coach',
+      ),
+    );
   };
 
   const getMentorName = (mentorId: string | null) => {
@@ -901,6 +918,18 @@ const Admin = () => {
             icon={Shield}
             actions={
               <>
+                <Button asChild variant="outline">
+                  <Link to="/admin/people">
+                    <UserCog className="mr-2 h-4 w-4" />
+                    People & Roles
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/admin/communications">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Communications
+                  </Link>
+                </Button>
                 <Button asChild variant="outline">
                   <Link to="/admin/forms">
                     <FileText className="mr-2 h-4 w-4" />
@@ -1556,7 +1585,7 @@ const Admin = () => {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex items-center gap-4">
-                          <span className="text-sm font-medium">Assigned Mentor:</span>
+                          <span className="text-sm font-medium">Accountability Coach:</span>
                           <Select
                             value={group.mentor_id || "unassigned"}
                             onValueChange={(value) => 
@@ -1564,11 +1593,11 @@ const Admin = () => {
                             }
                           >
                             <SelectTrigger className="w-[250px]">
-                              <SelectValue placeholder="Select a mentor" />
+                              <SelectValue placeholder="Select a coach" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">Unassigned</SelectItem>
-                              {getMentors().map((mentor) => (
+                              {getAccountabilityCoaches().map((mentor) => (
                                 <SelectItem key={mentor.id} value={mentor.id}>
                                   {mentor.first_name} {mentor.last_name}
                                 </SelectItem>

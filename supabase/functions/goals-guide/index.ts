@@ -11,7 +11,7 @@ const corsHeaders = {
 
 const ALLOWED_TARGETS = {
   "journey-progress": { route: "/journey", label: "Journey progress" },
-  "program-access": { route: "/journey", label: "Program Access" },
+  "program-access": { route: "/profile", label: "Program Access" },
   vision: { route: "/vision", label: "Vision" },
   "my-goals": { route: "/my-goals", label: "My GOALS" },
   planner: { route: "/plan", label: "Plan" },

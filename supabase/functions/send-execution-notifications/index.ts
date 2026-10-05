@@ -17,7 +17,12 @@ type NotificationType =
   | "morning_brief"
   | "evening_debrief"
   | "weekly_review"
-  | "deadline_alert";
+  | "deadline_alert"
+  | "program_session_24h"
+  | "program_session_1h"
+  | "accountability_meeting_24h"
+  | "group_digest_daily"
+  | "group_digest_weekly";
 
 function decodeJwtPayload(token: string) {
   const payload = token.split(".")[1];
@@ -95,6 +100,83 @@ function addDays(date: string, days: number) {
   return value.toISOString().slice(0, 10);
 }
 
+function parseClockMinutes(value: string) {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem === "PM" && hour !== 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return hour * 60 + minute;
+}
+
+function programSessionDates(event: {
+  starts_at: string;
+  ends_at: string;
+  session_start_time: string;
+  session_end_time: string;
+}) {
+  const first = new Date(event.starts_at);
+  const last = new Date(event.ends_at);
+  const startMinutes = parseClockMinutes(event.session_start_time);
+  const endMinutes = parseClockMinutes(event.session_end_time);
+  let durationMinutes =
+    startMinutes !== null && endMinutes !== null ? endMinutes - startMinutes : 90;
+  if (durationMinutes <= 0) durationMinutes += 24 * 60;
+  if (durationMinutes <= 0 || durationMinutes > 12 * 60) durationMinutes = 90;
+
+  const count =
+    Math.max(
+      1,
+      Math.round(
+        (Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate()) -
+          Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), first.getUTCDate())) /
+          86400000,
+      ) + 1,
+    );
+
+  return Array.from({ length: count }, (_, index) => {
+    const start = new Date(first.getTime() + index * 86400000);
+    return {
+      start,
+      end: new Date(start.getTime() + durationMinutes * 60_000),
+      day: index + 1,
+    };
+  });
+}
+
+function reminderDue(now: Date, eventStart: Date, targetMinutesBefore: number) {
+  const minutesUntil = (eventStart.getTime() - now.getTime()) / 60_000;
+  return minutesUntil <= targetMinutesBefore && minutesUntil > targetMinutesBefore - 25;
+}
+
+function nextRecurringOccurrence(
+  firstStart: Date,
+  recurrence: string,
+  now: Date,
+) {
+  if (firstStart.getTime() >= now.getTime()) return firstStart;
+
+  const next = new Date(firstStart);
+  if (recurrence === "weekly" || recurrence === "biweekly") {
+    const intervalDays = recurrence === "biweekly" ? 14 : 7;
+    const elapsedDays = Math.floor((now.getTime() - firstStart.getTime()) / 86_400_000);
+    const jumps = Math.floor(elapsedDays / intervalDays) + 1;
+    next.setUTCDate(next.getUTCDate() + jumps * intervalDays);
+    return next;
+  }
+
+  if (recurrence === "monthly") {
+    while (next.getTime() < now.getTime()) {
+      next.setUTCMonth(next.getUTCMonth() + 1);
+    }
+    return next;
+  }
+
+  return null;
+}
+
 async function sendEmail(to: string, subject: string, html: string) {
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
   if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
@@ -130,7 +212,7 @@ function emailShell(title: string, body: string, ctaLabel: string, ctaPath: stri
         ${body}
         <a href="${APP_URL}${ctaPath}" style="display:inline-block;margin-top:20px;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">${escapeHtml(ctaLabel)}</a>
       </div>
-      <p style="margin:14px 4px 0;color:#64748b;font-size:12px;">You are receiving this because you enabled this execution email in your DYP GOALS profile.</p>
+      <p style="margin:14px 4px 0;color:#64748b;font-size:12px;">You are receiving this based on your DYP GOALS notification preferences.</p>
     </div>
   </body>
 </html>`;
@@ -427,12 +509,447 @@ serve(async (req) => {
       }
     }
 
+    // Scheduled program/session/accountability reminders and optional chat digests.
+    const { data: programPrefs, error: programPrefsError } = await admin
+      .from("notification_preferences")
+      .select("*")
+      .eq("program_emails_enabled", true)
+      .limit(1000);
+
+    if (programPrefsError && programPrefsError.code !== "42P01" && programPrefsError.code !== "PGRST205") {
+      throw programPrefsError;
+    }
+
+    let scheduledProgramSent = 0;
+    let scheduledProgramFailed = 0;
+
+    const { data: currentCohort } = await admin
+      .from("program_cohorts")
+      .select("id,program_event_id")
+      .eq("program_key", "goals")
+      .eq("is_current", true)
+      .maybeSingle();
+
+    let currentEvent: {
+      id: string;
+      title: string;
+      starts_at: string;
+      ends_at: string;
+      session_start_time: string;
+      session_end_time: string;
+      timezone: string;
+      platform: string;
+    } | null = null;
+
+    if (currentCohort?.program_event_id) {
+      const { data: event } = await admin
+        .from("program_events")
+        .select("id,title,starts_at,ends_at,session_start_time,session_end_time,timezone,platform")
+        .eq("id", currentCohort.program_event_id)
+        .maybeSingle();
+      currentEvent = event ?? null;
+    }
+
+    for (const pref of programPrefs ?? []) {
+      try {
+        const { data: userData, error: userError } =
+          await admin.auth.admin.getUserById(pref.user_id);
+        if (userError) throw userError;
+        const email = userData.user?.email;
+        if (!email) {
+          skipped += 1;
+          continue;
+        }
+
+        const local = localParts(now, pref.timezone || "Africa/Lagos");
+
+        const { data: currentEnrollment } = currentCohort?.id
+          ? await admin
+              .from("program_enrollments")
+              .select("id")
+              .eq("user_id", pref.user_id)
+              .eq("cohort_id", currentCohort.id)
+              .in("status", ["active", "completed"])
+              .maybeSingle()
+          : { data: null };
+
+        if (pref.session_reminders_enabled && currentEvent && currentEnrollment?.id) {
+          for (const session of programSessionDates(currentEvent)) {
+            const dayKey = `${currentEvent.id}:day-${session.day}`;
+
+            for (const reminder of [
+              { type: "program_session_24h" as NotificationType, minutes: 1440, label: "24 hours" },
+              { type: "program_session_1h" as NotificationType, minutes: 60, label: "1 hour" },
+            ]) {
+              if (!reminderDue(now, session.start, reminder.minutes)) continue;
+              const referenceKey = `${dayKey}:${reminder.type}`;
+              if (await alreadySent(pref.user_id, reminder.type, referenceKey)) continue;
+
+              try {
+                await sendEmail(
+                  email,
+                  `DYP GOALS Day ${session.day} starts in ${reminder.label}`,
+                  emailShell(
+                    `GOALS Day ${session.day} reminder`,
+                    `<p><strong>${escapeHtml(currentEvent.title)}</strong> starts in ${reminder.label}.</p><p>Platform: <strong>${escapeHtml(currentEvent.platform)}</strong></p>`,
+                    "Open Schedule",
+                    "/schedule",
+                  ),
+                );
+
+                await admin.rpc("queue_user_notification", {
+                  p_user_id: pref.user_id,
+                  p_type: reminder.type,
+                  p_title: `GOALS Day ${session.day} starts in ${reminder.label}`,
+                  p_body: `${currentEvent.title} · ${currentEvent.platform}`,
+                  p_action_label: "Open Schedule",
+                  p_action_path: "/schedule",
+                  p_metadata: { eventId: currentEvent.id, day: session.day },
+                  p_email: false,
+                });
+
+                await recordDelivery(pref.user_id, reminder.type, referenceKey, "sent");
+                scheduledProgramSent += 1;
+              } catch (error) {
+                const message = error instanceof Error ? error.message : "Program session reminder failed";
+                await recordDelivery(pref.user_id, reminder.type, referenceKey, "failed", message);
+                scheduledProgramFailed += 1;
+              }
+            }
+          }
+        }
+
+        if (pref.accountability_reminders_enabled && currentCohort?.id) {
+          if (currentEnrollment?.id) {
+            const { data: membership } = await admin
+              .from("program_accountability_memberships")
+              .select("group_id")
+              .eq("enrollment_id", currentEnrollment.id)
+              .eq("status", "active")
+              .maybeSingle();
+
+            if (membership?.group_id) {
+              const { data: meeting } = await admin
+                .from("accountability_group_meetings")
+                .select("group_id,title,meeting_url,starts_at,duration_minutes,recurrence,timezone")
+                .eq("group_id", membership.group_id)
+                .maybeSingle();
+
+              if (meeting?.starts_at) {
+                const occurrence = nextRecurringOccurrence(
+                  new Date(meeting.starts_at),
+                  meeting.recurrence,
+                  now,
+                );
+
+                if (occurrence && reminderDue(now, occurrence, 1440)) {
+                  const occurrenceKey = occurrence.toISOString().slice(0, 16);
+                  const type: NotificationType = "accountability_meeting_24h";
+                  const referenceKey = `${meeting.group_id}:${occurrenceKey}`;
+
+                  if (!(await alreadySent(pref.user_id, type, referenceKey))) {
+                    try {
+                      await sendEmail(
+                        email,
+                        "Your Accountability Lab check-in is tomorrow",
+                        emailShell(
+                          "Accountability check-in reminder",
+                          `<p>Your group check-in starts in about 24 hours.</p>${
+                            meeting.meeting_url
+                              ? `<p>Meeting link: <a href="${escapeHtml(meeting.meeting_url)}">${escapeHtml(meeting.meeting_url)}</a></p>`
+                              : ""
+                          }`,
+                          "Open Group Chat",
+                          "/accountability/chat",
+                        ),
+                      );
+
+                      await admin.rpc("queue_user_notification", {
+                        p_user_id: pref.user_id,
+                        p_type: type,
+                        p_title: "Accountability check-in is tomorrow",
+                        p_body: "Open your group chat or Profile calendar for the meeting details.",
+                        p_action_label: "Open Group Chat",
+                        p_action_path: "/accountability/chat",
+                        p_metadata: { groupId: meeting.group_id, startsAt: occurrence.toISOString() },
+                        p_email: false,
+                      });
+
+                      await recordDelivery(pref.user_id, type, referenceKey, "sent");
+                      scheduledProgramSent += 1;
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : "Accountability reminder failed";
+                      await recordDelivery(pref.user_id, type, referenceKey, "failed", message);
+                      scheduledProgramFailed += 1;
+                    }
+                  }
+                }
+
+                if (
+                  pref.group_digest !== "off" &&
+                  isDue(local.hour, local.minute, "20:00")
+                ) {
+                  const weekly = pref.group_digest === "weekly";
+                  if (!weekly || local.weekday === 7) {
+                    const digestType: NotificationType = weekly
+                      ? "group_digest_weekly"
+                      : "group_digest_daily";
+                    const digestKey = weekly
+                      ? addDays(local.date, -(local.weekday - 1))
+                      : local.date;
+
+                    if (!(await alreadySent(pref.user_id, digestType, digestKey))) {
+                      const since = new Date(
+                        now.getTime() - (weekly ? 7 : 1) * 86_400_000,
+                      ).toISOString();
+
+                      const { data: chatGroup } = await admin
+                        .from("chat_groups")
+                        .select("id,name")
+                        .eq("accountability_group_id", membership.group_id)
+                        .maybeSingle();
+
+                      if (chatGroup?.id) {
+                        const { data: messages } = await admin
+                          .from("chat_messages")
+                          .select("message,created_at")
+                          .eq("group_id", chatGroup.id)
+                          .is("deleted_at", null)
+                          .gte("created_at", since)
+                          .order("created_at", { ascending: false })
+                          .limit(20);
+
+                        if ((messages ?? []).length > 0) {
+                          const digestList = (messages ?? [])
+                            .slice(0, 8)
+                            .map((message) =>
+                              `<li style="margin:8px 0;">${escapeHtml(
+                                message.message.length > 180
+                                  ? message.message.slice(0, 180) + "…"
+                                  : message.message,
+                              )}</li>`
+                            )
+                            .join("");
+
+                          try {
+                            await sendEmail(
+                              email,
+                              `DYP GOALS · ${weekly ? "Weekly" : "Daily"} group chat digest`,
+                              emailShell(
+                                `${weekly ? "Weekly" : "Daily"} group chat digest`,
+                                `<p><strong>${(messages ?? []).length}</strong> recent message${
+                                  (messages ?? []).length === 1 ? "" : "s"
+                                } in ${escapeHtml(chatGroup.name)}.</p><ul style="padding-left:20px;">${digestList}</ul>`,
+                                "Open Group Chat",
+                                "/accountability/chat",
+                              ),
+                            );
+                            await recordDelivery(pref.user_id, digestType, digestKey, "sent");
+                            scheduledProgramSent += 1;
+                          } catch (error) {
+                            const message = error instanceof Error ? error.message : "Group digest failed";
+                            await recordDelivery(pref.user_id, digestType, digestKey, "failed", message);
+                            scheduledProgramFailed += 1;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Program notification user failed:", pref.user_id, error);
+        scheduledProgramFailed += 1;
+      }
+    }
+
+    // Chat digests are independent of whether a group check-in has been scheduled.
+    for (const pref of programPrefs ?? []) {
+      if (pref.group_digest === "off") continue;
+
+      try {
+        const local = localParts(now, pref.timezone || "Africa/Lagos");
+        if (!isDue(local.hour, local.minute, "20:00")) continue;
+
+        const weekly = pref.group_digest === "weekly";
+        if (weekly && local.weekday !== 7) continue;
+
+        const { data: enrollment } = currentCohort?.id
+          ? await admin
+              .from("program_enrollments")
+              .select("id")
+              .eq("user_id", pref.user_id)
+              .eq("cohort_id", currentCohort.id)
+              .in("status", ["active", "completed"])
+              .maybeSingle()
+          : { data: null };
+
+        if (!enrollment?.id) continue;
+
+        const { data: membership } = await admin
+          .from("program_accountability_memberships")
+          .select("group_id")
+          .eq("enrollment_id", enrollment.id)
+          .eq("status", "active")
+          .maybeSingle();
+
+        if (!membership?.group_id) continue;
+
+        const digestType: NotificationType = weekly
+          ? "group_digest_weekly"
+          : "group_digest_daily";
+        const digestKey = weekly
+          ? addDays(local.date, -(local.weekday - 1))
+          : local.date;
+
+        if (await alreadySent(pref.user_id, digestType, digestKey)) continue;
+
+        const { data: userData } = await admin.auth.admin.getUserById(pref.user_id);
+        const email = userData.user?.email;
+        if (!email) continue;
+
+        const since = new Date(
+          now.getTime() - (weekly ? 7 : 1) * 86_400_000,
+        ).toISOString();
+
+        const { data: chatGroup } = await admin
+          .from("chat_groups")
+          .select("id,name")
+          .eq("accountability_group_id", membership.group_id)
+          .maybeSingle();
+
+        if (!chatGroup?.id) continue;
+
+        const { data: messages } = await admin
+          .from("chat_messages")
+          .select("message,created_at")
+          .eq("group_id", chatGroup.id)
+          .is("deleted_at", null)
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (!(messages ?? []).length) continue;
+
+        const digestList = (messages ?? [])
+          .slice(0, 8)
+          .map((message) =>
+            `<li style="margin:8px 0;">${escapeHtml(
+              message.message.length > 180
+                ? message.message.slice(0, 180) + "…"
+                : message.message,
+            )}</li>`
+          )
+          .join("");
+
+        await sendEmail(
+          email,
+          `DYP GOALS · ${weekly ? "Weekly" : "Daily"} group chat digest`,
+          emailShell(
+            `${weekly ? "Weekly" : "Daily"} group chat digest`,
+            `<p><strong>${(messages ?? []).length}</strong> recent message${
+              (messages ?? []).length === 1 ? "" : "s"
+            } in ${escapeHtml(chatGroup.name)}.</p><ul style="padding-left:20px;">${digestList}</ul>`,
+            "Open Group Chat",
+            "/accountability/chat",
+          ),
+        );
+        await recordDelivery(pref.user_id, digestType, digestKey, "sent");
+        scheduledProgramSent += 1;
+      } catch (error) {
+        console.error("Group digest delivery failed:", pref.user_id, error);
+        scheduledProgramFailed += 1;
+      }
+    }
+
+    // Drain event-driven program email notifications using the same
+    // Resend/Lovable delivery configuration as execution reminders.
+    const { data: queuedEmails, error: queueError } = await admin
+      .from("email_notification_queue")
+      .select("id,user_id,subject,body_html,action_label,action_path,attempt_count")
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    if (queueError && queueError.code !== "42P01" && queueError.code !== "PGRST205") {
+      throw queueError;
+    }
+
+    let queuedSent = 0;
+    let queuedFailed = 0;
+
+    for (const item of queuedEmails ?? []) {
+      await admin
+        .from("email_notification_queue")
+        .update({
+          status: "processing",
+          attempt_count: Number(item.attempt_count || 0) + 1,
+        })
+        .eq("id", item.id)
+        .eq("status", "pending");
+
+      try {
+        const { data: userData, error: userError } =
+          await admin.auth.admin.getUserById(item.user_id);
+        if (userError) throw userError;
+        const email = userData.user?.email;
+        if (!email) throw new Error("Recipient has no account email");
+
+        const actionLabel = item.action_label || "Open DYP GOALS";
+        const actionPath = item.action_path || "/journey";
+
+        await sendEmail(
+          email,
+          item.subject,
+          emailShell(
+            item.subject.replace(/^DYP GOALS ·\s*/i, ""),
+            item.body_html,
+            actionLabel,
+            actionPath,
+          ),
+        );
+
+        await admin
+          .from("email_notification_queue")
+          .update({
+            status: "sent",
+            last_error: "",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", item.id);
+
+        queuedSent += 1;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown program email error";
+        const nextAttempts = Number(item.attempt_count || 0) + 1;
+
+        await admin
+          .from("email_notification_queue")
+          .update({
+            status: nextAttempts >= 3 ? "failed" : "pending",
+            last_error: message.slice(0, 2000),
+            processed_at: nextAttempts >= 3 ? new Date().toISOString() : null,
+          })
+          .eq("id", item.id);
+
+        queuedFailed += 1;
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       users_checked: settings?.length ?? 0,
       sent,
       failed,
       skipped,
+      queued_program_emails_sent: queuedSent,
+      queued_program_emails_failed: queuedFailed,
+      scheduled_program_emails_sent: scheduledProgramSent,
+      scheduled_program_emails_failed: scheduledProgramFailed,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
