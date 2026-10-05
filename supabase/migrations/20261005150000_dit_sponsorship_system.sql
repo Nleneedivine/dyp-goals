@@ -723,8 +723,8 @@ declare
   v_campaign public.program_sponsorship_campaigns;
   v_slug text;
 begin
-  select c, f.slug
-  into v_campaign, v_slug
+  select c.*
+  into v_campaign
   from public.program_sponsorship_campaigns c
   join public.program_forms f on f.id = c.form_id
   where c.code = public.normalize_sponsorship_code(p_code)
@@ -738,6 +738,11 @@ begin
   if v_campaign.id is null then
     return jsonb_build_object('valid', false);
   end if;
+
+  select f.slug
+  into v_slug
+  from public.program_forms f
+  where f.id = v_campaign.form_id;
 
   return jsonb_build_object(
     'valid', true,
