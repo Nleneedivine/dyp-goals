@@ -1098,6 +1098,38 @@ export type Database = {
           },
         ]
       }
+      message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           accountability_reminders_enabled: boolean
@@ -1135,38 +1167,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      message_reactions: {
-        Row: {
-          created_at: string
-          emoji: string
-          id: string
-          message_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          emoji: string
-          id?: string
-          message_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          emoji?: string
-          id?: string
-          message_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "message_reactions_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "chat_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -2700,6 +2700,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_send_program_announcement: {
+        Args: {
+          p_action_label?: string
+          p_action_path?: string
+          p_body: string
+          p_cohort_id?: string
+          p_email?: boolean
+          p_title: string
+        }
+        Returns: number
+      }
       admin_set_program_participant_status: {
         Args: {
           p_completion_status: string
@@ -2784,17 +2795,6 @@ export type Database = {
               isSetofReturn: false
             }
           }
-      admin_send_program_announcement: {
-        Args: {
-          p_action_label?: string
-          p_action_path?: string
-          p_body: string
-          p_cohort_id?: string
-          p_email?: boolean
-          p_title: string
-        }
-        Returns: number
-      }
       admin_set_user_role: {
         Args: {
           p_enabled: boolean
@@ -2882,10 +2882,7 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
-      current_user_accountability_chat: {
-        Args: never
-        Returns: Json
-      }
+      current_user_accountability_chat: { Args: never; Returns: Json }
       current_user_has_app_access: { Args: never; Returns: boolean }
       ensure_accountability_chat: {
         Args: { p_group_id: string }
@@ -3012,8 +3009,22 @@ export type Database = {
         Returns: Json
       }
       link_current_user_enrollments: { Args: never; Returns: Json }
+      mark_all_notifications_read: { Args: never; Returns: number }
       normalize_program_referral_code: {
         Args: { p_code: string }
+        Returns: string
+      }
+      queue_user_notification: {
+        Args: {
+          p_action_label?: string
+          p_action_path?: string
+          p_body: string
+          p_email?: boolean
+          p_metadata?: Json
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
         Returns: string
       }
       record_program_referral: {
@@ -3069,10 +3080,6 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
-      }
-      mark_all_notifications_read: {
-        Args: never
-        Returns: number
       }
       search_program_referrers: {
         Args: { p_form_id: string; p_query: string }
@@ -3232,7 +3239,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "mentor"],
+      app_role: ["admin", "user", "mentor", "accountability_coach"],
     },
   },
 } as const
