@@ -14,6 +14,16 @@ function ReviewStory({ record }: { record: PrivateTestimonial }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const client = useQueryClient();
+  const noteHelpId = `verification-note-help-${record.id}`;
+  const publishHelpId = `publish-help-${record.id}`;
+  const missingRequirements = [
+    !verified && 'confirm participant verification',
+    !notes.trim() && 'add a private verification note',
+    !placements.length && 'select at least one page',
+  ].filter(Boolean);
+  const publishHelp = missingRequirements.length
+    ? `To publish: ${missingRequirements.join('; ')}.`
+    : 'Ready to publish. Your verification note stays private.';
   async function save(status: PrivateTestimonial['status']) {
     setBusy(true); setMessage('');
     try {
@@ -37,10 +47,14 @@ function ReviewStory({ record }: { record: PrivateTestimonial }) {
     <fieldset disabled={disabled} className="mt-6 space-y-5 disabled:opacity-60"><legend className="font-semibold">Review and publication</legend>
       <p className="text-sm leading-6 text-muted-foreground">Confirm this person's participation and check the story against available evidence. Keep their words and privacy settings intact.</p>
       <label className="flex items-start gap-3 text-sm"><input className="mt-1 h-4 w-4" type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} />I have verified this participant and reviewed their account of the experience.</label>
-      <label className="block text-sm font-medium">Private verification note<Textarea className="mt-2" value={notes} maxLength={1000} onChange={e => setNotes(e.target.value)} placeholder="Record how participation was checked, e.g. attendance or certificate record." /></label>
+      <div>
+        <label className="block text-sm font-medium">Private verification note <span className="text-xs text-primary">(required to publish)</span><Textarea className="mt-2" value={notes} maxLength={1000} aria-required="true" aria-describedby={noteHelpId} onChange={e => setNotes(e.target.value)} placeholder="For example: Participation confirmed from the GOALS 2025 attendance record." /></label>
+        <p id={noteHelpId} className="mt-2 text-xs leading-6 text-muted-foreground">Write how you confirmed participation. This note is only visible to reviewers and the participant; it does not appear on public cards.</p>
+      </div>
       <label className="flex items-center gap-3 text-sm"><input className="h-4 w-4" type="checkbox" checked={featured} onChange={e => setFeatured(e.target.checked)} />Feature this story</label>
       <div><p className="mb-3 text-sm font-semibold">Show on these pages</p><div className="grid gap-3 sm:grid-cols-2">{testimonialPlacements.map(p => <label key={p} className="flex items-center gap-3 text-sm capitalize"><input className="h-4 w-4" type="checkbox" checked={placements.includes(p)} onChange={e => setPlacements(current => e.target.checked ? [...current, p] : current.filter(item => item !== p))} />{p === 'campaign' ? 'Campaign landing sections' : p}</label>)}</div></div>
-      <div className="flex flex-wrap gap-3"><Button disabled={!verified || !notes.trim() || !placements.length} onClick={() => void save('approved')}>{busy ? 'Saving…' : 'Approve & publish'}</Button><Button variant="outline" onClick={() => void save('pending')}>Save as pending</Button><Button variant="outline" onClick={() => void save('rejected')}>Reject / unpublish</Button></div>
+      <p id={publishHelpId} role="status" className="rounded-xl bg-muted/50 px-4 py-3 text-sm leading-6">{publishHelp}</p>
+      <div className="flex flex-wrap gap-3"><Button aria-describedby={publishHelpId} disabled={missingRequirements.length > 0} onClick={() => void save('approved')}>{busy ? 'Saving…' : 'Approve & publish'}</Button><Button variant="outline" onClick={() => void save('pending')}>Save as pending</Button><Button variant="outline" onClick={() => void save('rejected')}>Reject / unpublish</Button></div>
     </fieldset></div>
     {message && <p role="status" className="mt-5 text-sm">{message}</p>}
   </article>;
