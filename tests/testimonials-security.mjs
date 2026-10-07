@@ -1,0 +1,78 @@
+// Isolated PostgreSQL test. Never points at a remote database.
+const { PGlite } = await import(process.env.PGLITE_MODULE_PATH || '@electric-sql/pglite');
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const db = new PGlite();
+const author='11111111-1111-1111-1111-111111111111';
+const other='22222222-2222-2222-2222-222222222222';
+const admin='33333333-3333-3333-3333-333333333333';
+await db.exec(`
+create role anon; create role authenticated; create role service_role;
+create schema auth; create schema storage;
+create table auth.users(id uuid primary key);
+insert into auth.users values('${author}'),('${other}'),('${admin}');
+create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+create type public.app_role as enum('admin','user');
+create function public.has_role(uid uuid, role public.app_role) returns boolean language sql stable as $$ select uid = '${admin}'::uuid and role = 'admin' $$;
+create table storage.buckets(id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+create table storage.objects(id uuid default gen_random_uuid(), bucket_id text, name text);
+alter table storage.objects enable row level security;
+create function storage.foldername(text) returns text[] language sql immutable as $$ select string_to_array($1,'/') $$;
+grant usage on schema public, auth, storage to anon, authenticated;
+grant select,insert,delete on storage.objects to anon, authenticated;
+-- Supabase default grants are deliberately modeled to test explicit revocation.
+alter default privileges in schema public grant all on tables to anon, authenticated;
+`);
+await db.exec(readFileSync(new URL('../supabase/migrations/20261007180000_participant_testimonials.sql', import.meta.url),'utf8'));
+async function role(name,id='') { await db.exec(`reset role; set role ${name}; set request.jwt.claim.sub = '${id}';`); }
+async function fails(sql,label) { await assert.rejects(()=>db.query(sql),undefined,label); }
+await role('anon');
+await fails('select * from public.participant_testimonials','anonymous cannot read identities');
+assert.equal((await db.query("select * from public.get_public_testimonials('testimonials')")).rows.length,0);
+await role('authenticated',author);
+await fails("insert into public.participant_testimonials(user_id,full_name,participant_year,quote) values(auth.uid(),'Fake',2025,'Fake quote here')",'direct insert denied');
+await fails("select public.submit_participant_testimonial('Divine Example','full',2025,'A real change in planning.','',null,false,false)",'consent required');
+await db.query(`insert into storage.objects(bucket_id,name) values('testimonial-portraits','${author}/portrait.jpg')`);
+await fails(`insert into storage.objects(bucket_id,name) values('testimonial-portraits','${other}/portrait.jpg')`,'cross-account uploads denied');
+const result=await db.query(`select public.submit_participant_testimonial('Divine Example','initial',2025,'A real change in planning.','My longer experience.','${author}/portrait.jpg',true,true) as id`);
+const id=result.rows[0].id;
+assert.equal((await db.query('select * from participant_testimonials')).rows.length,1);
+assert.equal((await db.query(`update participant_testimonials set status='approved',verified=true where id='${id}' returning id`)).rows.length,0,'participant cannot self-verify');
+await role('authenticated',other);
+assert.equal((await db.query('select * from participant_testimonials')).rows.length,0);
+assert.equal((await db.query('select * from storage.objects')).rows.length,0);
+await fails(`select withdraw_participant_testimonial('${id}')`,'cannot withdraw another person');
+await role('authenticated',admin);
+await fails(`update participant_testimonials set status='approved',verified=true where id='${id}'`,'verification note mandatory');
+await fails(`update participant_testimonials set full_name='Different Name' where id='${id}'`,'admin cannot override authors identity');
+await db.query(`update participant_testimonials set status='approved',verified=true,verification_notes='Checked attendance',featured=true,placements=array['home','registration','testimonials'] where id='${id}'`);
+assert.equal((await db.query(`select reviewed_by from participant_testimonials where id='${id}'`)).rows[0].reviewed_by,admin);
+await role('anon');
+const stories=(await db.query("select * from get_public_testimonials('home')")).rows;
+assert.equal(stories.length,1); assert.equal(stories[0].display_name,'Divine E.');
+assert.ok(!('full_name' in stories[0])); assert.ok(!('verification_notes' in stories[0])); assert.ok(!('user_id' in stories[0]));
+assert.equal((await db.query("select * from get_public_testimonials('campaign')")).rows.length,0);
+assert.equal((await db.query('select * from storage.objects')).rows.length,1);
+await role('authenticated',author);
+await db.query(`select withdraw_participant_testimonial('${id}')`);
+await role('anon');
+assert.equal((await db.query("select * from get_public_testimonials('home')")).rows.length,0);
+assert.equal((await db.query('select * from storage.objects')).rows.length,0);
+await role('authenticated',admin);
+await fails(`update participant_testimonials set status='approved',verified=true where id='${id}'`,'withdrawn story cannot be republished');
+await role('authenticated',author);
+await db.query(`delete from storage.objects where name='${author}/portrait.jpg'`);
+const second = (await db.query(`select submit_participant_testimonial('Private Person','first',2025,'Another genuine planning experience.','','${author}/hidden.jpg',false,true) as id`).catch(() => ({rows:[]})));
+// Unuploaded paths must be rejected even when the photo is hidden.
+assert.equal(second.rows.length,0);
+const hiddenId = (await db.query(`select submit_participant_testimonial('Private Person','first',2025,'Another genuine planning experience.','',null,false,true) as id`)).rows[0].id;
+await role('authenticated',admin);
+await db.query(`update participant_testimonials set status='approved',verified=true,verification_notes='Checked participant record' where id='${hiddenId}'`);
+await role('anon');
+const hiddenStory = (await db.query("select * from get_public_testimonials('testimonials')")).rows[0];
+assert.equal(hiddenStory.display_name,'Private'); assert.equal(hiddenStory.photo_path,null);
+await role('authenticated',author);
+await db.query("select submit_participant_testimonial('Third Person','full',2025,'A third authentic planning story.','',null,false,true)");
+await fails("select submit_participant_testimonial('Fourth Person','full',2025,'Too many stories in an hour.','',null,false,true)",'per-account rate limit');
+console.log('PASS: private identities, consent, upload ownership, moderation, verification, placements, audit stamp and withdrawal.');
+await db.close();

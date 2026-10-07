@@ -1,3 +1,4 @@
+import { FeaturedTestimonials } from "@/components/testimonials/FeaturedTestimonials";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, ChevronLeft, ChevronRight, Copy, CreditCard, ExternalLink, Landmark, Loader2, RefreshCw, Search, Share2, Star, UserRound, X } from "lucide-react";
@@ -1416,6 +1417,7 @@ export default function PublicForm() {
             </Card>
           </form>
         )}
+        {form.slug === "goals-masterclass-2026" && <div className="mt-10"><FeaturedTestimonials placement="registration" limit={2} /></div>}
       </div>
     </main>
   );

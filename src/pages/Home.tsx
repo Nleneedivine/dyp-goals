@@ -11,6 +11,8 @@ import type { ProgramForm } from "@/lib/formTypes";
 import { eventBenefits, formatEventDate, formatEventTime, formatNaira, type ProgramEvent } from "@/lib/event";
 import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
 
+import { FeaturedTestimonials } from "@/components/testimonials/FeaturedTestimonials";
+
 const Home = () => {
   const [featuredForms, setFeaturedForms] = useState<ProgramForm[]>([]);
   const [event, setEvent] = useState<ProgramEvent | null>(null);
@@ -82,6 +84,8 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      <div className="container mx-auto px-4 py-6"><FeaturedTestimonials placement="home" /></div>
 
       {featuredForms.length > 0 && <section className="bg-secondary/45 py-16 sm:py-20"><div className="container mx-auto px-4"><div className="mb-10 max-w-2xl"><p className="mb-2 text-sm font-semibold uppercase text-primary">Open opportunities</p><h2 className="text-3xl font-bold sm:text-4xl">Apply to a DYP program</h2><p className="mt-3 text-muted-foreground">Choose a program and submit your application from any device.</p></div><div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{featuredForms.map((form) => <Card key={form.id} className="border-primary/10"><CardContent className="p-6"><p className="text-xs font-semibold uppercase text-primary">{form.brand}</p><h3 className="mt-2 text-xl font-semibold">{form.title}</h3><p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{form.description}</p><Button asChild variant="outline" className="mt-5"><Link to={`/apply/${form.slug}`}>Open application<ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardContent></Card>)}</div></div></section>}
 

@@ -3,6 +3,8 @@ import { ArrowRight, Quote, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
+import { FeaturedTestimonials } from "@/components/testimonials/FeaturedTestimonials";
+
 const Testimonials = () => {
   return (
     <main className="min-h-screen px-4 pb-16 pt-28">
@@ -24,13 +26,16 @@ const Testimonials = () => {
           </p>
         </div>
 
+        <div className="mt-8 text-center"><Button asChild><Link to="/testimonials/submit">Share your GOALS story</Link></Button></div>
+        <div className="mt-10"><FeaturedTestimonials placement="testimonials" limit={120} showEmpty /></div>
+
         <Card className="mx-auto mt-12 max-w-3xl border-primary/15">
           <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-start">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Why this page is intentionally simple</h2>
+              <h2 className="text-xl font-semibold">Real voices. Clear permission.</h2>
               <p className="mt-2 leading-7 text-muted-foreground">
                 We do not use invented names, ratings, participant counts, achievement rates,
                 or transformation claims as social proof. When a story is shown here, it should
