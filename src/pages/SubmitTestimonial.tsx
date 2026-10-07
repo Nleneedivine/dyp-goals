@@ -27,6 +27,12 @@ export default function SubmitTestimonial() {
     setPreviewPortrait(url);
     return () => URL.revokeObjectURL(url);
   }, [photo, showPhoto]);
+  const [mediaKind, setMediaKind] = useState<'none' | 'image' | 'video'>('none');
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [captionFile, setCaptionFile] = useState<File | null>(null);
+  const [transcript, setTranscript] = useState('');
+  const [mediaDescription, setMediaDescription] = useState('');
+  const [mediaConsent, setMediaConsent] = useState(false);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [withdrawing, setWithdrawing] = useState<string | null>(null);
@@ -52,6 +58,7 @@ export default function SubmitTestimonial() {
     if (!user || busy) return;
     setError(''); setBusy(true);
     let path: string | null = null;
+    const uploadedMedia: string[] = [];
     try {
       if (photo && showPhoto) {
         const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -60,15 +67,40 @@ export default function SubmitTestimonial() {
         const upload = await supabase.storage.from('testimonial-portraits').upload(path, photo, { contentType: photo.type });
         if (upload.error) throw upload.error;
       }
-      const result = await testimonialDb.rpc('submit_participant_testimonial', {
+      let mediaPath: string | null = null;
+      let captionPath: string | null = null;
+      if (mediaKind !== 'none') {
+        if (!mediaFile || !mediaConsent) throw new Error('Select your story media and give permission to publish it.');
+        const extensions: Record<string,string> = { 'image/jpeg':'jpg','image/png':'png','image/webp':'webp','video/mp4':'mp4','video/webm':'webm' };
+        const allowed = mediaKind === 'image' ? ['image/jpeg','image/png','image/webp'] : ['video/mp4','video/webm'];
+        if (!allowed.includes(mediaFile.type) || mediaFile.size > (mediaKind === 'image' ? 8 : 50) * 1024 * 1024) throw new Error(mediaKind === 'image' ? 'Choose a JPG, PNG or WebP image under 8 MB.' : 'Choose an MP4 or WebM video under 50 MB.');
+        if (mediaKind === 'video' && (!captionFile || !transcript.trim())) throw new Error('Add video captions and a transcript before submitting.');
+        if (mediaKind === 'image' && !mediaDescription.trim()) throw new Error('Describe your story image for people using screen readers.');
+        if (mediaKind === 'video' && captionFile) {
+          if (captionFile.size > 1024 * 1024 || !/^WEBVTT(?:\s|$)/.test((await captionFile.text()).trimStart())) throw new Error('Choose a valid WebVTT (.vtt) captions file under 1 MB.');
+          captionPath = `${user.id}/${crypto.randomUUID()}.vtt`;
+          const captions = await supabase.storage.from('testimonial-media').upload(captionPath, captionFile, { contentType: 'text/vtt' });
+          if (captions.error) throw captions.error;
+          uploadedMedia.push(captionPath);
+        }
+        mediaPath = `${user.id}/${crypto.randomUUID()}.${extensions[mediaFile.type]}`;
+        const upload = await supabase.storage.from('testimonial-media').upload(mediaPath, mediaFile, { contentType: mediaFile.type });
+        if (upload.error) throw upload.error;
+        uploadedMedia.push(mediaPath);
+      }
+      const result = await testimonialDb.rpc('submit_participant_story', {
         p_full_name: name.trim(), p_name_visibility: visibility, p_year: year, p_quote: quote.trim(),
         p_story: story.trim(), p_photo_path: path, p_show_photo: Boolean(path && showPhoto), p_consent: consent,
+        p_media_path: mediaPath, p_media_type: mediaKind === 'none' ? null : mediaKind,
+        p_media_consent: Boolean(mediaPath && mediaConsent), p_media_description: mediaDescription.trim(),
+        p_caption_path: captionPath, p_video_transcript: transcript.trim(),
       });
       if (result.error) throw result.error;
-      setSubmitted(true); setPhoto(null);
+      setSubmitted(true); setPhoto(null); setMediaFile(null); setCaptionFile(null); setMediaKind('none'); setMediaConsent(false); setTranscript(''); setMediaDescription('');
       await client.invalidateQueries({ queryKey: ['my-testimonials'] });
     } catch (cause) {
       if (path) await supabase.storage.from('testimonial-portraits').remove([path]);
+      if (uploadedMedia.length) await supabase.storage.from('testimonial-media').remove(uploadedMedia);
       setError(cause instanceof Error ? cause.message : (cause as { message?: string })?.message || 'Your story could not be submitted. Please try again.');
     } finally { setBusy(false); }
   }
@@ -98,13 +130,27 @@ export default function SubmitTestimonial() {
           <label className="block text-sm font-medium">The story behind it (optional)<Textarea className="mt-2 min-h-32" value={story} onChange={e => setStory(e.target.value)} maxLength={2000} placeholder="Where were you before GOALS? What did you try, and what happened?" /></label>
           <label className="block text-sm font-medium">Your portrait (optional)<Input className="mt-2" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPhoto(e.target.files?.[0] ?? null)} /><span className="mt-1 block text-xs text-muted-foreground">JPG, PNG or WebP, up to 2 MB. Use a photo of yourself.</span></label>
           <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={showPhoto} onChange={e => setShowPhoto(e.target.checked)} />Show my portrait publicly after approval</label>
+          <div className="space-y-4 rounded-2xl border p-4">
+            <label className="block text-sm font-medium">Add a story image or video (optional)<select className="mt-2 h-11 w-full rounded-md border bg-background px-3" value={mediaKind} onChange={e => { setMediaKind(e.target.value as 'none' | 'image' | 'video'); setMediaFile(null); setCaptionFile(null); setMediaConsent(false); }}><option value="none">Written story only</option><option value="image">Large photo story</option><option value="video">Video story</option></select></label>
+            {mediaKind !== 'none' && <>
+              <label className="block text-sm font-medium">{mediaKind === 'image' ? 'Story image' : 'Story video'}<Input key={mediaKind} type="file" className="mt-2" required accept={mediaKind === 'image' ? 'image/jpeg,image/png,image/webp' : 'video/mp4,video/webm'} onChange={e => setMediaFile(e.target.files?.[0] ?? null)} /></label>
+              <p className="text-xs leading-6 text-muted-foreground">{mediaKind === 'image' ? 'A real photo illustrating your experience. JPG, PNG or WebP, up to 8 MB.' : 'Upload your own MP4 or WebM video, up to 50 MB. Keep it short and clear. It will play only when a visitor chooses to watch.'}</p>
+              {mediaKind === 'image' ? <label className="block text-sm font-medium">Describe the image<Input className="mt-2" value={mediaDescription} maxLength={240} required onChange={e => setMediaDescription(e.target.value)} placeholder="Describe what is shown in the photo." /></label> : <>
+                <label className="block text-sm font-medium">Video captions (.vtt)<Input type="file" className="mt-2" accept=".vtt,text/vtt" required onChange={e => setCaptionFile(e.target.files?.[0] ?? null)} /></label>
+                <p className="text-xs leading-6 text-muted-foreground">Export English captions in WebVTT format from your video editor. Captions make the video understandable without sound.</p>
+                <label className="block text-sm font-medium">Video transcript<Textarea className="mt-2 min-h-32" value={transcript} required maxLength={10000} onChange={e => setTranscript(e.target.value)} placeholder="Write the words spoken in your video." /></label>
+              </>}
+              <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={mediaConsent} required onChange={e => setMediaConsent(e.target.checked)} />I give DYP permission to publish this image or video, including its captions and transcript, with my story. I have permission from anyone identifiable in it.</label>
+              <p className="text-xs text-muted-foreground">Admin reviews the media and chooses the final display format.</p>
+            </>}
+          </div>
           <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-primary" checked={consent} onChange={e => setConsent(e.target.checked)} required />This is my genuine experience. I give DYP permission to publish this quote and story on its GOALS website using my chosen name and photo settings.</label>
           <Button type="submit" disabled={busy} className="w-full">{busy ? 'Submitting…' : 'Send for review'}</Button>
         </form>
         <aside><h2 className="text-sm font-semibold">Your public name and story preview</h2><TestimonialCard preview featured previewPortrait={previewPortrait} story={{ id: 'preview', display_name: displayName(name, visibility), participant_year: year, quote: quote || 'Your own words will appear here.', story, photo_path: null, verified: false, featured: true }} /><p className="mt-4 text-xs leading-6 text-muted-foreground">The verified badge is added only after DYP confirms participation. Portraits are reviewed before publication.</p></aside>
       </div>}
       {error && <p role="alert" className="mt-5 rounded-xl border border-destructive/30 p-4 text-destructive">{error}</p>}
-      {user && <section className="mt-12"><h2 className="text-2xl font-semibold">Your submitted stories</h2>{ownStories.isPending && <p role="status" className="mt-4">Loading your stories…</p>}{ownStories.isError && <p role="alert" className="mt-4">Your stories could not load. <button className="underline" onClick={() => void ownStories.refetch()}>Try again</button></p>}{ownStories.data?.length === 0 && <p className="mt-4 text-muted-foreground">You have not submitted a story yet.</p>}<div className="mt-4 space-y-3">{ownStories.data?.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5"><div className="min-w-0 flex-1"><p className="break-words font-medium">“{s.quote}”</p><p className="mt-2 text-sm capitalize text-muted-foreground">{s.participant_year} · {s.status === 'approved' ? 'Published' : s.status}</p></div>{s.publish_consent && <Button variant="outline" disabled={withdrawing !== null} onClick={() => void withdraw(s.id)}>{withdrawing === s.id ? 'Withdrawing…' : 'Withdraw permission'}</Button>}</div>)}</div><p className="mt-4 text-xs text-muted-foreground">Withdrawal removes the story from public feeds. An already loaded portrait may remain accessible for up to one minute.</p></section>}
+      {user && <section className="mt-12"><h2 className="text-2xl font-semibold">Your submitted stories</h2>{ownStories.isPending && <p role="status" className="mt-4">Loading your stories…</p>}{ownStories.isError && <p role="alert" className="mt-4">Your stories could not load. <button className="underline" onClick={() => void ownStories.refetch()}>Try again</button></p>}{ownStories.data?.length === 0 && <p className="mt-4 text-muted-foreground">You have not submitted a story yet.</p>}<div className="mt-4 space-y-3">{ownStories.data?.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5"><div className="min-w-0 flex-1"><p className="break-words font-medium">“{s.quote}”</p><p className="mt-2 text-sm capitalize text-muted-foreground">{s.participant_year} · {s.status === 'approved' ? 'Published' : s.status}</p></div>{s.publish_consent && <Button variant="outline" disabled={withdrawing !== null} onClick={() => void withdraw(s.id)}>{withdrawing === s.id ? 'Withdrawing…' : 'Withdraw permission'}</Button>}</div>)}</div><p className="mt-4 text-xs text-muted-foreground">Withdrawal removes the story from public feeds. Existing portrait links expire within one minute; story media links expire within 15 minutes.</p></section>}
     </main>
   );
 }

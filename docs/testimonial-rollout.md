@@ -46,3 +46,29 @@ PGLITE_MODULE_PATH=/tmp/dyp-testimonial-tests/node_modules/@electric-sql/pglite/
 
 These local checks do not replace a smoke test against the deployed Lovable Cloud
 schema and storage APIs.
+
+## Rich story formats and engagement
+
+Apply `20261008003000_rich_participant_stories.sql` after the original migration.
+The submission page accepts an optional story image (8 MB) or MP4/WebM video
+(50 MB). Videos require an English WebVTT captions file and a written transcript.
+Separate media permission is required; existing portraits can become a large photo
+story only when the participant already allowed that portrait to be shown.
+Admins choose quote/photo/video presentation after reviewing the material.
+
+Stories have shareable `/testimonials/:id` pages with native sharing, WhatsApp and
+copy-link controls. Unpublished or withdrawn stories return no public story.
+Media is private before approval. Media/caption signed URLs expire after 15 minutes;
+withdrawal blocks new access immediately, while previously issued URLs can remain
+usable until expiry. Portrait URLs retain the original one-minute expiration.
+
+Admin sees session views, video plays and share actions. A view is recorded when at
+least 10% of the story remains visible for one second. Counts are deduplicated by
+story, event and a random browser-tab session UUID. They are activity estimates,
+not unique people or confirmed shares. There are no public counters or likes.
+Raw events/session UUIDs are not exposed to participants or public visitors.
+Analytics failures do not block reading or sharing.
+
+Run `tests/rich-stories-security.mjs` with the same PGLite setup as the original
+security test to verify media ownership/consent, captions, format constraints,
+private analytics, deduplication, shareable stories and withdrawal.

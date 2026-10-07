@@ -16,6 +16,7 @@ import Mentorship from "./pages/Mentorship";
 import MentorDashboard from "./pages/MentorDashboard";
 import AccountabilityChat from "./pages/AccountabilityChat";
 import Testimonials from "./pages/Testimonials";
+import TestimonialStory from "./pages/TestimonialStory";
 import SubmitTestimonial from "./pages/SubmitTestimonial";
 import AdminTestimonials from "./pages/admin/AdminTestimonials";
 import Contact from "./pages/Contact";
@@ -80,6 +81,7 @@ const App = () => (
               <Route path="/plan" element={<ProtectedRoute><Planner /></ProtectedRoute>} />
               <Route path="/mentorship" element={<ProtectedRoute><Mentorship /></ProtectedRoute>} />
               <Route path="/testimonials" element={<Testimonials />} />
+              <Route path="/testimonials/:id" element={<TestimonialStory />} />
               <Route path="/testimonials/submit" element={<SubmitTestimonial />} />
               <Route path="/admin/testimonials" element={<AdminRoute><AdminTestimonials /></AdminRoute>} />
               <Route path="/contact" element={<Contact />} />
