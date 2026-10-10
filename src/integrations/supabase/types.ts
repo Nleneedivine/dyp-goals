@@ -1171,6 +1171,90 @@ export type Database = {
           },
         ]
       }
+      participant_testimonials: {
+        Row: {
+          caption_path: string | null
+          created_at: string
+          featured: boolean
+          full_name: string
+          id: string
+          media_consent: boolean
+          media_description: string
+          media_path: string | null
+          media_type: string | null
+          name_visibility: string
+          participant_year: number
+          photo_path: string | null
+          placements: string[]
+          presentation: string
+          publish_consent: boolean
+          quote: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          show_photo: boolean
+          status: string
+          story: string
+          user_id: string
+          verification_notes: string
+          verified: boolean
+          video_transcript: string
+        }
+        Insert: {
+          caption_path?: string | null
+          created_at?: string
+          featured?: boolean
+          full_name: string
+          id?: string
+          media_consent?: boolean
+          media_description?: string
+          media_path?: string | null
+          media_type?: string | null
+          name_visibility?: string
+          participant_year: number
+          photo_path?: string | null
+          placements?: string[]
+          presentation?: string
+          publish_consent?: boolean
+          quote: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          show_photo?: boolean
+          status?: string
+          story?: string
+          user_id: string
+          verification_notes?: string
+          verified?: boolean
+          video_transcript?: string
+        }
+        Update: {
+          caption_path?: string | null
+          created_at?: string
+          featured?: boolean
+          full_name?: string
+          id?: string
+          media_consent?: boolean
+          media_description?: string
+          media_path?: string | null
+          media_type?: string | null
+          name_visibility?: string
+          participant_year?: number
+          photo_path?: string | null
+          placements?: string[]
+          presentation?: string
+          publish_consent?: boolean
+          quote?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          show_photo?: boolean
+          status?: string
+          story?: string
+          user_id?: string
+          verification_notes?: string
+          verified?: boolean
+          video_transcript?: string
+        }
+        Relationships: []
+      }
       planner_fixed_blocks: {
         Row: {
           active_end_date: string | null
@@ -2645,6 +2729,35 @@ export type Database = {
           },
         ]
       }
+      testimonial_engagement_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          session_key: string
+          testimonial_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          session_key: string
+          testimonial_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          session_key?: string
+          testimonial_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testimonial_engagement_events_testimonial_id_fkey"
+            columns: ["testimonial_id"]
+            isOneToOne: false
+            referencedRelation: "participant_testimonials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_plans: {
         Row: {
           created_at: string
@@ -3116,6 +3229,7 @@ export type Database = {
         Args: { p_email: string }
         Returns: boolean
       }
+      can_read_testimonial_media: { Args: { p_path: string }; Returns: boolean }
       consume_edge_rate_limit: {
         Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
         Returns: {
@@ -3218,9 +3332,41 @@ export type Database = {
           submitted_at: string
         }[]
       }
+      get_public_participant_stories: {
+        Args: { p_id?: string; p_placement?: string }
+        Returns: {
+          caption_path: string
+          display_name: string
+          featured: boolean
+          id: string
+          media_description: string
+          media_path: string
+          media_type: string
+          participant_year: number
+          photo_path: string
+          presentation: string
+          quote: string
+          story: string
+          verified: boolean
+          video_transcript: string
+        }[]
+      }
       get_public_sponsorship_campaign: {
         Args: { p_code: string; p_form_id: string }
         Returns: Json
+      }
+      get_public_testimonials: {
+        Args: { p_placement?: string }
+        Returns: {
+          display_name: string
+          featured: boolean
+          id: string
+          participant_year: number
+          photo_path: string
+          quote: string
+          story: string
+          verified: boolean
+        }[]
       }
       get_sponsorship_analytics_admin: {
         Args: { p_campaign_id: string }
@@ -3241,6 +3387,15 @@ export type Database = {
           reviewed_at: string
           status: string
           submission_id: string
+        }[]
+      }
+      get_testimonial_engagement_summary: {
+        Args: never
+        Returns: {
+          session_views: number
+          share_actions: number
+          testimonial_id: string
+          video_plays: number
         }[]
       }
       get_user_chat_group_ids: { Args: { _user_id: string }; Returns: string[] }
@@ -3311,6 +3466,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_testimonial_engagement: {
+        Args: { p_event: string; p_id: string; p_session: string }
+        Returns: undefined
+      }
       referral_stage_qualifies: {
         Args: {
           p_certificate_issued_at: string
@@ -3370,6 +3529,38 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_participant_story: {
+        Args: {
+          p_caption_path: string
+          p_consent: boolean
+          p_full_name: string
+          p_media_consent: boolean
+          p_media_description: string
+          p_media_path: string
+          p_media_type: string
+          p_name_visibility: string
+          p_photo_path: string
+          p_quote: string
+          p_show_photo: boolean
+          p_story: string
+          p_video_transcript: string
+          p_year: number
+        }
+        Returns: string
+      }
+      submit_participant_testimonial: {
+        Args: {
+          p_consent: boolean
+          p_full_name: string
+          p_name_visibility: string
+          p_photo_path: string
+          p_quote: string
+          p_show_photo: boolean
+          p_story: string
+          p_year: number
+        }
+        Returns: string
+      }
       submit_program_sponsorship_claim: {
         Args: { p_answers?: Json; p_code: string; p_session_token: string }
         Returns: Json
@@ -3381,6 +3572,10 @@ export type Database = {
       users_share_group: {
         Args: { _profile_id: string; _viewer_id: string }
         Returns: boolean
+      }
+      withdraw_participant_testimonial: {
+        Args: { p_id: string }
+        Returns: undefined
       }
     }
     Enums: {
