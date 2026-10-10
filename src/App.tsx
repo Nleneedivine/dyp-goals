@@ -18,6 +18,7 @@ import AccountabilityChat from "./pages/AccountabilityChat";
 import Testimonials from "./pages/Testimonials";
 import TestimonialStory from "./pages/TestimonialStory";
 import SubmitTestimonial from "./pages/SubmitTestimonial";
+import AdminEmail from "./pages/admin/AdminEmail";
 import AdminTestimonials from "./pages/admin/AdminTestimonials";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="/testimonials" element={<Testimonials />} />
               <Route path="/testimonials/:id" element={<TestimonialStory />} />
               <Route path="/testimonials/submit" element={<SubmitTestimonial />} />
+              <Route path="/admin/email" element={<AdminRoute><AdminEmail /></AdminRoute>} />
               <Route path="/admin/testimonials" element={<AdminRoute><AdminTestimonials /></AdminRoute>} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

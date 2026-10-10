@@ -1,14 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { isTrustedWorkerRequest, resolveSender, sendViaResend } from "../_shared/emailCore.ts";
+import { isTrustedWorkerRequest, resolveSender, sendViaResend, renderEmail, emailAllowedByPrefs, nextRetryState, ProviderError, isPermanentProviderError } from "../_shared/emailCore.ts";
 const SENDER = resolveSender(Deno.env.get("EMAIL_FROM"));
 
+const DIRECT_API_KEY = Deno.env.get("RESEND_DIRECT_API_KEY");
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY_1") ?? Deno.env.get("RESEND_API_KEY");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const APP_URL = Deno.env.get("APP_URL") ?? "https://dyp-goals.lovable.app";
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,18 +25,6 @@ type NotificationType =
   | "accountability_meeting_24h"
   | "group_digest_daily"
   | "group_digest_weekly";
-
-function decodeJwtPayload(token: string) {
-  const payload = token.split(".")[1];
-  if (!payload) return null;
-  try {
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    return JSON.parse(atob(padded));
-  } catch {
-    return null;
-  }
-}
 
 function escapeHtml(value: string) {
   return value
@@ -179,26 +167,23 @@ function nextRecurringOccurrence(
   return null;
 }
 
-async function sendEmail(to: string, subject: string, html: string, key = crypto.randomUUID()) {
+async function sendEmail(to: string, subject: string, html: string, key: string) {
+  const [category, userId, type] = key.split(":");
+  if (category !== "queue") {
+  const preferenceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  const table = category === "execution" ? "execution_notification_settings" : "notification_preferences";
+  const { data: preferences, error: preferencesError } = await preferenceClient.from(table).select("*").eq("user_id", userId).maybeSingle();
+  if (preferencesError) throw preferencesError;
+  if (category === "execution" ? !preferences?.email_enabled || preferences[type === "deadline_alert" ? "deadline_alerts_enabled" : `${type}_enabled`] === false : !emailAllowedByPrefs(type, preferences)) {
+    throw new ProviderError(422, "Cancelled because email preferences changed");
+  }
+  }
   if (!SENDER) throw new Error("Verified sender (EMAIL_FROM) is not configured");
-  await sendViaResend({ lovableApiKey: LOVABLE_API_KEY, resendApiKey: RESEND_API_KEY, from: SENDER.from, to, subject, html, idempotencyKey: key });
+  return await sendViaResend({ directApiKey: DIRECT_API_KEY, lovableApiKey: LOVABLE_API_KEY, resendApiKey: RESEND_API_KEY, from: SENDER.from, to, subject, html, idempotencyKey: key });
 }
 
 function emailShell(title: string, body: string, ctaLabel: string, ctaPath: string) {
-  return `<!doctype html>
-<html>
-  <body style="margin:0;background:#f6faf8;color:#173b2b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-    <div style="max-width:640px;margin:0 auto;padding:32px 18px;">
-      <div style="background:#fff;border:1px solid #d7e4dd;border-radius:16px;padding:28px;">
-        <p style="margin:0 0 8px;color:#0f766e;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">DYP GOALS</p>
-        <h1 style="margin:0 0 18px;font-size:24px;">${escapeHtml(title)}</h1>
-        ${body}
-        <a href="${APP_URL}${ctaPath}" style="display:inline-block;margin-top:20px;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">${escapeHtml(ctaLabel)}</a>
-      </div>
-      <p style="margin:14px 4px 0;color:#64748b;font-size:12px;">You are receiving this based on your DYP GOALS notification preferences.</p>
-    </div>
-  </body>
-</html>`;
+  return renderEmail({ appUrl: APP_URL, title, bodyHtml: body, ctaLabel, ctaPath });
 }
 
 serve(async (req) => {
@@ -212,9 +197,20 @@ serve(async (req) => {
       });
     }
 
+    if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+    const requestBody = await req.json().catch(() => ({}));
+    if (requestBody.dry_run === true) {
+      return new Response(JSON.stringify({ success: true, dry_run: true, worker_version: "email-system-v2", sender_configured: !!SENDER, provider_configured: !!DIRECT_API_KEY || (!!LOVABLE_API_KEY && !!RESEND_API_KEY), sent: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error("Supabase service configuration is missing");
+    const runtimeClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { error: runtimeError } = await runtimeClient.from("email_runtime_status").upsert({ id: true, worker_version: "email-system-v2", last_checked_at: new Date().toISOString(), blocked_reason: !SENDER || (!DIRECT_API_KEY && (!LOVABLE_API_KEY || !RESEND_API_KEY)) ? "sender_or_provider_not_configured" : null });
+    if (runtimeError) throw runtimeError;
     // Do not attempt (and burn retries on) sends until a verified-domain sender exists.
-    if (!SENDER) {
-      return new Response(JSON.stringify({ success: true, blocked: "sender_not_configured", sent: 0 }), {
+    if (!SENDER || (!DIRECT_API_KEY && (!LOVABLE_API_KEY || !RESEND_API_KEY))) {
+      return new Response(JSON.stringify({ success: true, worker_version: "email-system-v2", blocked: "sender_or_provider_not_configured", sent: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -386,6 +382,7 @@ serve(async (req) => {
                   "Open Today",
                   "/todo",
                 ),
+                `execution:${setting.user_id}:${type}:${referenceKey}`,
               );
             }
 
@@ -402,6 +399,7 @@ serve(async (req) => {
                 email,
                 "DYP GOALS evening debrief",
                 emailShell("Evening debrief", body, "Review Today", "/todo"),
+                `execution:${setting.user_id}:${type}:${referenceKey}`,
               );
             }
 
@@ -448,6 +446,7 @@ serve(async (req) => {
                   "Open Weekly Review",
                   "/plan",
                 ),
+                `execution:${setting.user_id}:${type}:${referenceKey}`,
               );
             }
 
@@ -477,6 +476,7 @@ serve(async (req) => {
                   "Review Plan",
                   "/plan",
                 ),
+                `execution:${setting.user_id}:${type}:${referenceKey}`,
               );
             }
 
@@ -581,6 +581,7 @@ serve(async (req) => {
                     "Open Schedule",
                     "/schedule",
                   ),
+                  `scheduled:${pref.user_id}:${reminder.type}:${referenceKey}`,
                 );
 
                 await admin.rpc("queue_user_notification", {
@@ -648,6 +649,7 @@ serve(async (req) => {
                           "Open Group Chat",
                           "/accountability/chat",
                         ),
+                        `scheduled:${pref.user_id}:${type}:${referenceKey}`,
                       );
 
                       await admin.rpc("queue_user_notification", {
@@ -729,6 +731,7 @@ serve(async (req) => {
                                 "Open Group Chat",
                                 "/accountability/chat",
                               ),
+                              `digest:${pref.user_id}:${digestType}:${digestKey}`,
                             );
                             await recordDelivery(pref.user_id, digestType, digestKey, "sent");
                             scheduledProgramSent += 1;
@@ -842,6 +845,7 @@ serve(async (req) => {
             "Open Group Chat",
             "/accountability/chat",
           ),
+          `digest:${pref.user_id}:${digestType}:${digestKey}`,
         );
         await recordDelivery(pref.user_id, digestType, digestKey, "sent");
         scheduledProgramSent += 1;
@@ -851,83 +855,46 @@ serve(async (req) => {
       }
     }
 
-    // Drain event-driven program email notifications using the same
-    // Resend/Lovable delivery configuration as execution reminders.
-    const { data: queuedEmails, error: queueError } = await admin
-      .from("email_notification_queue")
-      .select("id,user_id,subject,body_html,action_label,action_path,attempt_count")
-      .eq("status", "pending")
-      .order("created_at", { ascending: true })
-      .limit(100);
-
-    if (queueError && queueError.code !== "42P01" && queueError.code !== "PGRST205") {
-      throw queueError;
-    }
-
+    // Claims are atomic; only the worker holding locked_at may finalize a row.
+    const { data: queuedEmails, error: queueError } = await admin.rpc("claim_email_batch", { p_limit: 50, p_stale_minutes: 15 });
+    if (queueError) throw queueError;
     let queuedSent = 0;
     let queuedFailed = 0;
-
     for (const item of queuedEmails ?? []) {
-      await admin
-        .from("email_notification_queue")
-        .update({
-          status: "processing",
-          attempt_count: Number(item.attempt_count || 0) + 1,
-        })
-        .eq("id", item.id)
-        .eq("status", "pending");
-
+      const finish = async (patch: Record<string, unknown>) => {
+        const { error } = await admin.from("email_notification_queue").update({ ...patch, locked_at: null })
+          .eq("id", item.id).eq("status", "processing").eq("locked_at", item.locked_at);
+        if (error) throw error;
+      };
       try {
-        const { data: userData, error: userError } =
-          await admin.auth.admin.getUserById(item.user_id);
+        const { data: pref, error: prefError } = await admin.from("notification_preferences").select("*").eq("user_id", item.user_id).maybeSingle();
+        if (prefError) throw prefError;
+        if (!emailAllowedByPrefs(item.notification_type, pref)) {
+          await finish({ status: "cancelled", last_error: "Cancelled because email preferences changed", processed_at: new Date().toISOString() });
+          continue;
+        }
+        const { data: userData, error: userError } = await admin.auth.admin.getUserById(item.user_id);
         if (userError) throw userError;
-        const email = userData.user?.email;
-        if (!email) throw new Error("Recipient has no account email");
-
-        const actionLabel = item.action_label || "Open DYP GOALS";
-        const actionPath = item.action_path || "/journey";
-
-        await sendEmail(
-          email,
-          item.subject,
-          emailShell(
-            item.subject.replace(/^DYP GOALS ·\s*/i, ""),
-            item.body_html,
-            actionLabel,
-            actionPath,
-          ),
-        );
-
-        await admin
-          .from("email_notification_queue")
-          .update({
-            status: "sent",
-            last_error: "",
-            processed_at: new Date().toISOString(),
-          })
-          .eq("id", item.id);
-
+        if (!userData.user?.email || !userData.user.email_confirmed_at) throw new ProviderError(422, "Recipient has no confirmed account email");
+        const receipt = await sendEmail(userData.user.email, item.subject,
+          emailShell(item.subject.replace(/^DYP GOALS ·\s*/i, ""), item.body_html, item.action_label || "Open DYP GOALS", item.action_path || "/journey"),
+          `queue:${item.id}`);
+        await finish({ status: "sent", last_error: "", accepted_at: new Date().toISOString(), processed_at: new Date().toISOString(), provider_message_id: receipt.providerMessageId });
         queuedSent += 1;
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown program email error";
-        const nextAttempts = Number(item.attempt_count || 0) + 1;
-
-        await admin
-          .from("email_notification_queue")
-          .update({
-            status: nextAttempts >= 3 ? "failed" : "pending",
-            last_error: message.slice(0, 2000),
-            processed_at: nextAttempts >= 3 ? new Date().toISOString() : null,
-          })
-          .eq("id", item.id);
-
+        const retry = nextRetryState(Number(item.attempt_count));
+        const permanent = error instanceof ProviderError && isPermanentProviderError(error.status);
+        await finish({ status: permanent ? "failed" : retry.status,
+          ...(retry.nextAttemptAt ? { next_attempt_at: retry.nextAttemptAt } : {}),
+          last_error: (error instanceof Error ? error.message : "Email job failed").slice(0, 2000),
+          processed_at: permanent || retry.status === "failed" ? new Date().toISOString() : null });
         queuedFailed += 1;
       }
     }
 
     return new Response(JSON.stringify({
       success: true,
+      worker_version: "email-system-v2",
       users_checked: settings?.length ?? 0,
       sent,
       failed,

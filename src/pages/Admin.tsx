@@ -910,7 +910,7 @@ const Admin = () => {
   return (
     <div className={`min-h-screen ${isUi2 ? "pt-28 pb-16" : "pt-20 pb-12"} font-poppins`}>
       <div className="container mx-auto px-4 max-w-7xl">
-        <div className="mb-5 flex justify-end"><Button asChild variant="outline"><Link to="/admin/testimonials">Participant stories</Link></Button></div>
+        <div className="mb-5 flex flex-wrap justify-end gap-2"><Button asChild variant="outline"><Link to="/admin/email">Email system</Link></Button><Button asChild variant="outline"><Link to="/admin/testimonials">Participant stories</Link></Button></div>
         {isUi2 ? (
           <Ui2PageHeader
             eyebrow="Operations console"

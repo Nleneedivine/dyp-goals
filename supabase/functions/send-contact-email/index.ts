@@ -1,10 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { resolveSender, sendViaResend } from "../_shared/emailCore.ts";
 import { z } from "npm:zod@3";
 
+const DIRECT_API_KEY = Deno.env.get("RESEND_DIRECT_API_KEY");
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY_1") ?? Deno.env.get("RESEND_API_KEY");
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 const TO_ADDRESS = "discoverpurpose1@gmail.com";
 
 const corsHeaders = {
@@ -38,8 +39,8 @@ const handler = async (req: Request): Promise<Response> => {
     const limit = await rateLimit(req, "send-contact-email", 5, 3600);
     if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds, corsHeaders);
 
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
+    if (!DIRECT_API_KEY && !LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!DIRECT_API_KEY && !RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
     const parsed = ContactSchema.safeParse(await req.json());
     if (!parsed.success) {
@@ -59,35 +60,18 @@ const handler = async (req: Request): Promise<Response> => {
         <p style="white-space:pre-wrap;line-height:1.6;">${escapeHtml(message)}</p>
       </div>`;
 
-    const res = await fetch(`${GATEWAY_URL}/emails`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": RESEND_API_KEY,
-      },
-      body: JSON.stringify({
-        from: "DYP Contact <onboarding@resend.dev>",
-        to: [TO_ADDRESS],
-        reply_to: email,
-        subject: `[Contact] ${subject}`,
-        html,
-      }),
-    });
+    const sender = resolveSender(Deno.env.get("EMAIL_FROM"));
+    if (!sender) return new Response(JSON.stringify({ error: "Contact email is temporarily unavailable. Please email discoverpurpose1@gmail.com directly." }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    await sendViaResend({ directApiKey: DIRECT_API_KEY, lovableApiKey: LOVABLE_API_KEY, resendApiKey: RESEND_API_KEY, from: sender.from,
+      to: TO_ADDRESS, replyTo: email, subject: `[Contact] ${subject}`, html, idempotencyKey: `contact:${crypto.randomUUID()}` });
 
-    const data = await res.json();
-    if (!res.ok) {
-      console.error("Resend error:", data);
-      throw new Error(`Resend API error [${res.status}]: ${JSON.stringify(data)}`);
-    }
-
-    return new Response(JSON.stringify({ success: true, data }), {
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error sending contact email:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Unable to send your message. Please email discoverpurpose1@gmail.com directly." }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

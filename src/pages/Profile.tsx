@@ -304,7 +304,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          <ProgramNotificationSettings />
+          <div id="notifications" className="scroll-mt-28"><ProgramNotificationSettings /></div>
 
           <ProgramCalendarSync />
 
