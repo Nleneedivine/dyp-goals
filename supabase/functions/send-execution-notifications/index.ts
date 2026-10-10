@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isTrustedWorkerRequest, resolveSender, sendViaResend } from "../_shared/emailCore.ts";
+const SENDER = resolveSender(Deno.env.get("EMAIL_FROM"));
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY_1") ?? Deno.env.get("RESEND_API_KEY");
@@ -177,28 +179,9 @@ function nextRecurringOccurrence(
   return null;
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-  if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
-
-  const response = await fetch(`${GATEWAY_URL}/emails`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": RESEND_API_KEY,
-    },
-    body: JSON.stringify({
-      from: "DYP GOALS <onboarding@resend.dev>",
-      to: [to],
-      subject,
-      html,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Resend API error [${response.status}]: ${await response.text()}`);
-  }
+async function sendEmail(to: string, subject: string, html: string, key = crypto.randomUUID()) {
+  if (!SENDER) throw new Error("Verified sender (EMAIL_FROM) is not configured");
+  await sendViaResend({ lovableApiKey: LOVABLE_API_KEY, resendApiKey: RESEND_API_KEY, from: SENDER.from, to, subject, html, idempotencyKey: key });
 }
 
 function emailShell(title: string, body: string, ctaLabel: string, ctaPath: string) {
@@ -222,17 +205,16 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    const payload = decodeJwtPayload(token);
-
-    const cronSecret = Deno.env.get("EXECUTION_NOTIFICATIONS_CRON_SECRET");
-    const isTrustedCron =
-      !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
-
-    if (payload?.role !== "service_role" && !isTrustedCron) {
-      return new Response(JSON.stringify({ error: "Service role required" }), {
+    if (!isTrustedWorkerRequest(req, SERVICE_ROLE_KEY, Deno.env.get("EXECUTION_NOTIFICATIONS_CRON_SECRET"))) {
+      return new Response(JSON.stringify({ error: "Trusted service credential required" }), {
         status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Do not attempt (and burn retries on) sends until a verified-domain sender exists.
+    if (!SENDER) {
+      return new Response(JSON.stringify({ success: true, blocked: "sender_not_configured", sent: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
