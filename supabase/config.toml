@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.goals-guide]
 verify_jwt = true
+
+[functions.email-admin]
+verify_jwt = true

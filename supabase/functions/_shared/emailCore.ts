@@ -53,15 +53,17 @@ export type EmailPrefs = {
   session_reminders_enabled: boolean;
   accountability_reminders_enabled: boolean;
   referral_updates_enabled: boolean;
+  group_digest?: string;
 } | null;
 
 /** Mirrors queue_user_notification preference rules; rechecked right before send. */
 export function emailAllowedByPrefs(type: string, prefs: EmailPrefs) {
   if (!prefs) return true;
   if (!prefs.program_emails_enabled) return false;
+  if (type.startsWith("group_digest_")) return prefs.group_digest === type.replace("group_digest_", "");
   if (type.startsWith("referral_")) return prefs.referral_updates_enabled;
   if (type.startsWith("accountability_") || type.startsWith("coach_")) return prefs.accountability_reminders_enabled;
-  if (type.startsWith("session_")) return prefs.session_reminders_enabled;
+  if (type.startsWith("session_") || type.startsWith("program_session_")) return prefs.session_reminders_enabled;
   return true;
 }
 
@@ -72,7 +74,7 @@ export function resolveSender(emailFrom: string | undefined) {
   const match = value.match(/<([^>]+)>/);
   const address = (match ? match[1] : value).trim().toLowerCase();
   const domain = address.split("@")[1] ?? "";
-  if (!domain || domain === "resend.dev") return null; // sandbox sender only reaches the account owner
+  if (!/^[^\s@<>]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(address) || domain === "resend.dev" || ["gmail.com", "outlook.com", "yahoo.com", "hotmail.com"].includes(domain)) return null; // sandbox sender only reaches the account owner
   return { from: value, address, domain };
 }
 
@@ -94,7 +96,7 @@ export function renderEmail(opts: {
   ctaPath: string;
   preheader?: string;
 }) {
-  const href = new URL(opts.ctaPath.startsWith("/") ? opts.ctaPath : "/journey", opts.appUrl).toString();
+  const href = new URL(opts.ctaPath.startsWith("/") && !opts.ctaPath.startsWith("//") ? opts.ctaPath : "/journey", opts.appUrl).toString();
   const prefs = new URL("/profile#notifications", opts.appUrl).toString();
   const title = escapeHtml(opts.title);
   return `<!doctype html>
@@ -117,13 +119,13 @@ export function renderEmail(opts: {
             <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#1B3F3E;">${title}</h1>
             <div style="font-size:16px;line-height:1.6;color:#1A2422;">${opts.bodyHtml}</div>
             <p style="margin:24px 0 0;">
-              <a href="${href}" style="display:inline-block;background:#2C5F5D;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:8px;font-weight:700;font-size:16px;">${escapeHtml(opts.ctaLabel)}</a>
+              <a href="${escapeHtml(href)}" style="display:inline-block;background:#2C5F5D;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:8px;font-weight:700;font-size:16px;">${escapeHtml(opts.ctaLabel)}</a>
             </p>
-            <p style="margin:16px 0 0;font-size:13px;color:#5C6E6C;">Or open: <a href="${href}" style="color:#2C5F5D;">${escapeHtml(href)}</a></p>
+            <p style="margin:16px 0 0;font-size:13px;color:#5C6E6C;">Or open: <a href="${escapeHtml(href)}" style="color:#2C5F5D;">${escapeHtml(href)}</a></p>
           </td></tr>
           <tr><td style="padding:16px 24px;border-top:1px solid #E4EEEC;font-size:12px;line-height:1.5;color:#5C6E6C;">
             You receive this because of activity on your DYP GOALS account.
-            <a href="${prefs}" style="color:#2C5F5D;">Manage email preferences</a>.
+            <a href="${escapeHtml(prefs)}" style="color:#2C5F5D;">Manage email preferences</a>.
           </td></tr>
         </table>
       </td></tr>
@@ -141,6 +143,7 @@ export class ProviderError extends Error {
 /** Send through the Resend connector gateway with a provider idempotency key. */
 export async function sendViaResend(
   args: {
+    directApiKey?: string;
     lovableApiKey?: string;
     resendApiKey?: string;
     from: string;
@@ -152,14 +155,14 @@ export async function sendViaResend(
   },
   fetchImpl: typeof fetch = fetch,
 ) {
-  if (!args.lovableApiKey) throw new ProviderError(0, "LOVABLE_API_KEY is not configured");
-  if (!args.resendApiKey) throw new ProviderError(0, "Resend connection key is not configured");
-  const response = await fetchImpl(`${RESEND_GATEWAY_URL}/emails`, {
+  if (!args.directApiKey && !args.lovableApiKey) throw new ProviderError(0, "LOVABLE_API_KEY is not configured");
+  if (!args.directApiKey && !args.resendApiKey) throw new ProviderError(0, "Resend connection key is not configured");
+  const response = await fetchImpl(`${args.directApiKey ? "https://api.resend.com" : RESEND_GATEWAY_URL}/emails`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${args.lovableApiKey}`,
-      "X-Connection-Api-Key": args.resendApiKey,
+      Authorization: `Bearer ${args.directApiKey ?? args.lovableApiKey}`,
+      ...(!args.directApiKey ? { "X-Connection-Api-Key": args.resendApiKey! } : {}),
       "Idempotency-Key": args.idempotencyKey.slice(0, 256),
     },
     body: JSON.stringify({
@@ -178,5 +181,6 @@ export async function sendViaResend(
   try {
     id = JSON.parse(text)?.id ?? null;
   } catch { /* ignore */ }
+  if (!id) throw new ProviderError(502, "Email provider did not return an acceptance receipt");
   return { providerMessageId: id };
 }
