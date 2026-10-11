@@ -325,43 +325,58 @@ export type Database = {
       }
       email_notification_queue: {
         Row: {
+          accepted_at: string | null
           action_label: string | null
           action_path: string | null
           attempt_count: number
           body_html: string
           created_at: string
+          dedupe_key: string | null
           id: string
           last_error: string
+          locked_at: string | null
+          next_attempt_at: string
           notification_type: string
           processed_at: string | null
+          provider_message_id: string | null
           status: string
           subject: string
           user_id: string
         }
         Insert: {
+          accepted_at?: string | null
           action_label?: string | null
           action_path?: string | null
           attempt_count?: number
           body_html: string
           created_at?: string
+          dedupe_key?: string | null
           id?: string
           last_error?: string
+          locked_at?: string | null
+          next_attempt_at?: string
           notification_type: string
           processed_at?: string | null
+          provider_message_id?: string | null
           status?: string
           subject: string
           user_id: string
         }
         Update: {
+          accepted_at?: string | null
           action_label?: string | null
           action_path?: string | null
           attempt_count?: number
           body_html?: string
           created_at?: string
+          dedupe_key?: string | null
           id?: string
           last_error?: string
+          locked_at?: string | null
+          next_attempt_at?: string
           notification_type?: string
           processed_at?: string | null
+          provider_message_id?: string | null
           status?: string
           subject?: string
           user_id?: string
@@ -375,6 +390,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_runtime_status: {
+        Row: {
+          blocked_reason: string | null
+          id: boolean
+          last_checked_at: string
+          worker_version: string
+        }
+        Insert: {
+          blocked_reason?: string | null
+          id?: boolean
+          last_checked_at: string
+          worker_version: string
+        }
+        Update: {
+          blocked_reason?: string | null
+          id?: boolean
+          last_checked_at?: string
+          worker_version?: string
+        }
+        Relationships: []
       }
       execution_notification_deliveries: {
         Row: {
@@ -3011,6 +3047,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_email_system_overview: { Args: never; Returns: Json }
       admin_finalize_program_referral_rank_bonuses: {
         Args: { p_form_id: string }
         Returns: Json
@@ -3051,6 +3088,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_retry_email: { Args: { p_id: string }; Returns: undefined }
       admin_review_sponsorship_claim: {
         Args: { p_approve: boolean; p_claim_id: string; p_reason?: string }
         Returns: Json
@@ -3230,6 +3268,34 @@ export type Database = {
         Returns: boolean
       }
       can_read_testimonial_media: { Args: { p_path: string }; Returns: boolean }
+      claim_email_batch: {
+        Args: { p_limit?: number; p_stale_minutes?: number }
+        Returns: {
+          accepted_at: string | null
+          action_label: string | null
+          action_path: string | null
+          attempt_count: number
+          body_html: string
+          created_at: string
+          dedupe_key: string | null
+          id: string
+          last_error: string
+          locked_at: string | null
+          next_attempt_at: string
+          notification_type: string
+          processed_at: string | null
+          provider_message_id: string | null
+          status: string
+          subject: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_notification_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       consume_edge_rate_limit: {
         Args: { p_limit: number; p_rate_key: string; p_window_seconds: number }
         Returns: {
@@ -3437,6 +3503,18 @@ export type Database = {
         Returns: string
       }
       normalize_sponsorship_code: { Args: { p_code: string }; Returns: string }
+      queue_transactional_email: {
+        Args: {
+          p_action_label: string
+          p_action_path: string
+          p_body: string
+          p_dedupe_key: string
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       queue_user_notification: {
         Args: {
           p_action_label?: string
