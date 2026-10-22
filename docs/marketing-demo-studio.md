@@ -10,7 +10,7 @@ This PR adds an **illustrative synthetic demo**, not a production feature. Route
 - App.tsx only mounts the route if `VITE_ENABLE_MARKETING_DEMO=true`; default is off.
 
 ## IMPORTANT deployment boundary
-The flag **is not an authorization boundary**. Do NOT enable it on the public production host; otherwise any visitor who knows the URL could view the synthetic demo. Use a separate restricted preview deployment protected by access controls enforced at hosting/proxy layer. Never substitute query parameters, front-end passwords or hidden links for access control. When enabling on a restricted preview, verify that shared parent layout/components do not issue any production network calls. The demo is now mounted at the root before the normal application providers (including UiModeProvider and GuidedTourProvider). Runtime network inspection is still required to confirm no other startup code or third-party scripts contact production.
+The flag **is not an authorization boundary**. Do NOT enable it on the public production host; otherwise any visitor who knows the URL could view the synthetic demo. Use a separate restricted preview deployment protected by access controls enforced at hosting/proxy layer. Never substitute query parameters, front-end passwords or hidden links for access control. When enabling on a restricted preview, verify that shared parent layout/components do not issue any production network calls. The demo now loads through a dedicated dynamic import in src/main.tsx, without importing the production App module or shared providers into the demo runtime path. Runtime network inspection is still required to confirm third-party startup scripts make no unintended requests.
 
 ## How to review
 1. Deploy this branch to a restricted preview environment (not production) with `VITE_ENABLE_MARKETING_DEMO=true`.
@@ -25,3 +25,9 @@ The flag **is not an authorization boundary**. Do NOT enable it on the public pr
 - Scripted demo sequences demonstrate workflows, *not a live AI generation*.
 - The sample schedule is an in-app illustration, not synced to Google Calendar.
 - No production release or real account interaction authorized.
+
+## Verification limitations (2026-10-22)
+- GitHub PR CI uses `npm run build`, but no successful check has been confirmed yet.
+- The local execution container cannot resolve github.com for git checkout. Browser testing and install/build on the full repo have not been performed.
+- Manual code inspection supports route-module isolation only; confirm with a network HAR in a restricted preview.
+- VITE_ENABLE_MARKETING_DEMO must remain false on the public production host.
