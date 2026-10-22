@@ -10,7 +10,6 @@ import AdminRoute from "./components/AdminRoute";
 import AccountabilityCoachRoute from "./components/AccountabilityCoachRoute";
 import { TimePlanReminderProvider } from "./components/TimePlanReminderProvider";
 import Home from "./pages/Home";
-import MarketingDemoStudio from "./pages/MarketingDemoStudio";
 import Schedule from "./pages/Schedule";
 import GoalsPage from "./pages/GoalsPage";
 import Mentorship from "./pages/Mentorship";
@@ -54,7 +53,7 @@ import { GuidedTourProvider } from "./components/GuidedTourProvider";
 
 const queryClient = new QueryClient();
 
-const MainApp = () => (
+const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -136,13 +135,5 @@ const MainApp = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
-
-// Isolate marketing demo from ALL app providers, auth, routing and production configuration.
-// Enable only in an independently access-controlled preview deployment.
-const App = () =>
-  import.meta.env.VITE_ENABLE_MARKETING_DEMO === "true" &&
-  window.location.pathname === "/marketing-demo"
-    ? <MarketingDemoStudio />
-    : <MainApp />;
 
 export default App;
