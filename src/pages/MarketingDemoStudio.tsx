@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Clock3, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles, Target, Users } from "lucide-react";
-import { Link } from "react-router-dom";
 
 // Self-contained fictional preview. No Supabase client, network calls, or live member records.
 const scenes = ["Goal", "Monthly plan", "This week", "Schedule", "Accountability"] as const;
@@ -44,7 +43,7 @@ export default function MarketingDemoStudio() {
   return (
     <div className="min-h-screen bg-[#071d18] text-[#f8f8ef]" data-testid="marketing-demo-studio">
       {!clean && <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm">
-        <Link to="/" className="inline-flex items-center gap-2 text-[#d7e7d4]"><ArrowLeft size={16}/> Back to GOALS</Link>
+        <a href="/" className="inline-flex items-center gap-2 text-[#d7e7d4]"><ArrowLeft size={16}/> Back to GOALS</a>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setClean(true)} className="rounded-full border border-white/30 px-3 py-2">Clean recording view</button>
           <button onClick={reset} className="inline-flex items-center gap-2 rounded-full border border-white/30 px-3 py-2"><RotateCcw size={14}/> Reset</button>
