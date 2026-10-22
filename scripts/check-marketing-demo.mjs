@@ -5,6 +5,7 @@ const main = readFileSync("src/main.tsx", "utf8");
 const demo = readFileSync("src/pages/MarketingDemoStudio.tsx", "utf8");
 const app = readFileSync("src/App.tsx", "utf8");
 
+assert.match(main, /import\.meta\.env\.MODE\s*===\s*"marketing-demo"/, "Demo must require a dedicated Vite build mode");
 assert.match(main, /VITE_ENABLE_MARKETING_DEMO\s*===\s*"true"/, "Demo flag must require explicit true");
 assert.match(main, /import\("\.\/pages\/MarketingDemoStudio\.tsx"\)/, "Demo must be dynamically imported");
 assert.match(main, /import\("\.\/App\.tsx"\)/, "Production app must have independent import");
