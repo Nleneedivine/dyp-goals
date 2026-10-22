@@ -31,3 +31,9 @@ The flag **is not an authorization boundary**. Do NOT enable it on the public pr
 - The local execution container cannot resolve github.com for git checkout. Browser testing and install/build on the full repo have not been performed.
 - Manual code inspection supports route-module isolation only; confirm with a network HAR in a restricted preview.
 - VITE_ENABLE_MARKETING_DEMO must remain false on the public production host.
+
+## Explicit build modes
+- Production: `npm run build` — the demo route is NOT activated.
+- Demo: `VITE_ENABLE_MARKETING_DEMO=true npm run build:marketing-demo` — for a restricted hosting environment only, protected by server-side access controls.
+- CI compiles both variants but does not deploy either. Never point a demo deployment at production credentials. Never publish a demo artifact to the public GOALS domain.
+- The static checks are guardrails, not proof of zero network requests. Before preview approval, test a browser HAR for third-party requests and ensure production data and credentials are absent.
