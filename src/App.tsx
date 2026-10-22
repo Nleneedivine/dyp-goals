@@ -54,7 +54,7 @@ import { GuidedTourProvider } from "./components/GuidedTourProvider";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const MainApp = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -64,7 +64,7 @@ const App = () => (
         <GuidedTourProvider>
         <div className="min-h-screen bg-background text-foreground">
           <ScrollToTop />
-          {window.location.pathname !== "/marketing-demo" && <Navbar />}
+          <Navbar />
           <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
@@ -74,7 +74,6 @@ const App = () => (
               <Route path="/r/:code" element={<ReferralRedirect />} />
               <Route path="/s/:code" element={<SponsorshipRedirect />} />
               <Route path="/" element={<Home />} />
-              <Route path="/marketing-demo" element={import.meta.env.VITE_ENABLE_MARKETING_DEMO === "true" ? <MarketingDemoStudio /> : <NotFound />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
               <Route path="/my-goals" element={<ProtectedRoute><MyGoals /></ProtectedRoute>} />
@@ -129,7 +128,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
           </Routes>
-          {window.location.pathname !== "/marketing-demo" && <Footer />}
+          <Footer />
         </div>
         </GuidedTourProvider>
       </BrowserRouter>
@@ -137,5 +136,13 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+
+// Isolate marketing demo from ALL app providers, auth, routing and production configuration.
+// Enable only in an independently access-controlled preview deployment.
+const App = () =>
+  import.meta.env.VITE_ENABLE_MARKETING_DEMO === "true" &&
+  window.location.pathname === "/marketing-demo"
+    ? <MarketingDemoStudio />
+    : <MainApp />;
 
 export default App;
