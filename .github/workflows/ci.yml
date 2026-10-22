@@ -25,5 +25,10 @@ jobs:
       - name: Verify marketing demo isolation
         run: node scripts/check-marketing-demo.mjs
 
-      - name: Build
+      - name: Build production (demo disabled)
         run: npm run build
+
+      - name: Build marketing demo artifact (never deploy)
+        run: npm run build:marketing-demo
+        env:
+          VITE_ENABLE_MARKETING_DEMO: "true"
