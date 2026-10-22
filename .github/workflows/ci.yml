@@ -22,5 +22,8 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Verify marketing demo isolation
+        run: node scripts/check-marketing-demo.mjs
+
       - name: Build
         run: npm run build
