@@ -11,7 +11,8 @@ const root = createRoot(rootElement);
 
 // Load the standalone demo without importing the production app bundle or providers.
 // IMPORTANT: access control must still be enforced by restricted hosting.
-const loadApp = import.meta.env.VITE_ENABLE_MARKETING_DEMO === "true" &&
+const loadApp = import.meta.env.MODE === "marketing-demo" &&
+  import.meta.env.VITE_ENABLE_MARKETING_DEMO === "true" &&
   window.location.pathname === "/marketing-demo"
   ? import("./pages/MarketingDemoStudio.tsx")
   : import("./App.tsx");
