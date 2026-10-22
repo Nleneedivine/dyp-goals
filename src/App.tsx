@@ -10,6 +10,7 @@ import AdminRoute from "./components/AdminRoute";
 import AccountabilityCoachRoute from "./components/AccountabilityCoachRoute";
 import { TimePlanReminderProvider } from "./components/TimePlanReminderProvider";
 import Home from "./pages/Home";
+import MarketingDemoStudio from "./pages/MarketingDemoStudio";
 import Schedule from "./pages/Schedule";
 import GoalsPage from "./pages/GoalsPage";
 import Mentorship from "./pages/Mentorship";
@@ -63,7 +64,7 @@ const App = () => (
         <GuidedTourProvider>
         <div className="min-h-screen bg-background text-foreground">
           <ScrollToTop />
-          <Navbar />
+          {window.location.pathname !== "/marketing-demo" && <Navbar />}
           <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
@@ -73,6 +74,7 @@ const App = () => (
               <Route path="/r/:code" element={<ReferralRedirect />} />
               <Route path="/s/:code" element={<SponsorshipRedirect />} />
               <Route path="/" element={<Home />} />
+              <Route path="/marketing-demo" element={import.meta.env.VITE_ENABLE_MARKETING_DEMO === "true" ? <MarketingDemoStudio /> : <NotFound />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/ai-goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
               <Route path="/my-goals" element={<ProtectedRoute><MyGoals /></ProtectedRoute>} />
@@ -127,7 +129,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
           </Routes>
-          <Footer />
+          {window.location.pathname !== "/marketing-demo" && <Footer />}
         </div>
         </GuidedTourProvider>
       </BrowserRouter>
