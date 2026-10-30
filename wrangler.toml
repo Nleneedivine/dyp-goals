@@ -1,0 +1,5 @@
+# Cloudflare Pages configuration for the DYP GOALS Vite application.
+# This deploys the existing static frontend; Supabase remains the backend.
+name = "dyp-goals"
+compatibility_date = "2026-10-30"
+pages_build_output_dir = "./dist"
