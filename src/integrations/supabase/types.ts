@@ -2982,7 +2982,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_platform_configuration: {
+        Row: {
+          accountability_lab_start_date: string | null
+          ui2_default: boolean | null
+        }
+        Insert: {
+          accountability_lab_start_date?: string | null
+          ui2_default?: boolean | null
+        }
+        Update: {
+          accountability_lab_start_date?: string | null
+          ui2_default?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_bulk_assign_enrollments_to_group: {

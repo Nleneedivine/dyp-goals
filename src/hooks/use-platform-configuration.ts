@@ -17,9 +17,8 @@ export function usePlatformConfiguration() {
 
   const refresh = async () => {
     const { data, error } = await supabase
-      .from("platform_configuration")
+      .from("public_platform_configuration")
       .select("accountability_lab_start_date,ui2_default")
-      .eq("id", "global")
       .maybeSingle();
 
     if (!error && data) {

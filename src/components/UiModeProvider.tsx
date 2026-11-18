@@ -29,9 +29,8 @@ export function UiModeProvider({ children }: { children: ReactNode }) {
 
   const refreshGlobalMode = useCallback(async () => {
     const { data } = await supabase
-      .from("platform_configuration")
+      .from("public_platform_configuration")
       .select("ui2_default")
-      .eq("id", "global")
       .maybeSingle();
 
     const nextMode: UiMode = data?.ui2_default === true ? "ui2" : "classic";
