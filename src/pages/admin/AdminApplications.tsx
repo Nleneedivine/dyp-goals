@@ -86,7 +86,7 @@ export default function AdminApplications() {
       const recoveryIds = new Set(pendingEnrollments
         .filter((enrollment) => enrollment.source_submission_id)
         .map((enrollment) => enrollment.source_submission_id as string)
-        .filter((id) => paymentById.get(id)?.status !== "paid" && claimById.get(id)?.status !== "approved"));
+        .filter((id) => !admissionById.has(id) && paymentById.get(id)?.status !== "paid" && claimById.get(id)?.status !== "approved"));
       const visibleIds = new Set([...admissionById.keys(), ...recoveryIds]);
       const visibleSubmissions = submissions.filter((item) => visibleIds.has(item.id));
       setRows(visibleSubmissions.map((submission) => ({
