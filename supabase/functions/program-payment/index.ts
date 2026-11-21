@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
       if (!tokenLimit.allowed) return rateLimitResponse(tokenLimit.retryAfterSeconds, corsHeaders);
     }
 
-    if (body.action !== "verify" && !sessionToken) {
+    if (!sessionToken) {
       return respond({ error: "A valid applicant portal token is required." }, 400);
     }
 
@@ -367,14 +367,34 @@ Deno.serve(async (req) => {
       return respond({ error: "Missing Paystack reference." }, 400);
     }
 
-    const { data: payment } = await admin
+    const { data: verifiedSession, error: sessionError } = await admin
+      .from("program_form_sessions")
+      .select("id")
+      .eq("session_token", sessionToken)
+      .maybeSingle();
+
+    if (sessionError) throw sessionError;
+    if (!verifiedSession) return respond({ error: "Applicant registration could not be verified." }, 404);
+
+    const { data: verifiedSubmission, error: submissionError } = await admin
+      .from("program_form_submissions")
+      .select("id")
+      .eq("session_id", verifiedSession.id)
+      .maybeSingle();
+
+    if (submissionError) throw submissionError;
+    if (!verifiedSubmission) return respond({ error: "Applicant submission could not be verified." }, 404);
+
+    const { data: payment, error: paymentLookupError } = await admin
       .from("program_payments")
       .select("submission_id,form_id,amount_minor,currency,status")
       .eq("provider_reference", body.reference)
+      .eq("submission_id", verifiedSubmission.id)
       .maybeSingle();
 
+    if (paymentLookupError) throw paymentLookupError;
     if (!payment) {
-      return respond({ error: "Payment reference not found." }, 404);
+      return respond({ error: "Payment reference not found for this applicant." }, 404);
     }
 
     const verifyResponse = await fetch(
