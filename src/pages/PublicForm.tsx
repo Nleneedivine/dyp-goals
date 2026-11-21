@@ -593,8 +593,8 @@ export default function PublicForm() {
   };
 
   const submitManualPayment = async () => {
-    if (!sessionToken || manualReference.trim().length < 3) {
-      setPaymentError("Enter your bank transfer reference or payment note.");
+    if (!sessionToken || !applicantPortalToken || manualReference.trim().length < 3) {
+      setPaymentError("Your secure applicant portal is not ready. Refresh the page or contact the programme team.");
       return;
     }
     if (!manualProof || !proofQuality?.ok) {
@@ -651,7 +651,7 @@ export default function PublicForm() {
       return;
     }
 
-    setPaymentState((data ?? null) as PaymentState | null);
+    setPaymentState((data?.payment ?? null) as PaymentState | null);
     setManualProof(null);
     setProofQuality(null);
   };
@@ -741,10 +741,10 @@ export default function PublicForm() {
     }
 
     window.localStorage.setItem(`dyp-program-session:${form.slug}`, sessionToken);
-    await loadPaymentState(sessionToken);
+    if (data.applicantPortalToken) setApplicantPortalToken(data.applicantPortalToken);
+    await loadPaymentState(data.applicantPortalToken ?? sessionToken);
     setSubmitting(false);
     if (data.applicantPortalToken) {
-      setApplicantPortalToken(data.applicantPortalToken);
       const portalUrl = new URL("/applicant-portal", window.location.origin);
       portalUrl.searchParams.set("token", data.applicantPortalToken);
       setApplicantPortalUrl(portalUrl.toString());
