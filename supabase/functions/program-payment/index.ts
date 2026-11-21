@@ -17,7 +17,7 @@ const RequestSchema = z.object({
 const respond = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
 const hex = (buffer: ArrayBuffer) =>
@@ -132,6 +132,8 @@ Deno.serve(async (req) => {
       if (portalError) throw portalError;
       if (!portal?.valid || !portal?.sessionToken) return respond({ error: "Applicant portal link is invalid, expired or revoked." }, 401);
       sessionToken = portal.sessionToken;
+      const tokenLimit = await rateLimit(req, "program-payment-portal-token", 20, 60, tokenHash);
+      if (!tokenLimit.allowed) return rateLimitResponse(tokenLimit.retryAfterSeconds, corsHeaders);
     }
 
     if (body.action !== "verify" && !sessionToken) {
