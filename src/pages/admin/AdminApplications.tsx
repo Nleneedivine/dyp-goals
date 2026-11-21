@@ -14,6 +14,11 @@ type Field = { id: string; form_id: string; label: string; field_type: string; d
 type Answer = { submission_id: string; field_id: string; answer: unknown };
 type Funding = { submission_id: string; status: string } | null;
 type Admission = { submission_id: string; status: string; decision_reason: string; decided_at: string | null } | null;
+type AdmissionRecord = NonNullable<Admission>;
+type AdmissionRpcResult = { data: { expiresAt?: string } | null; error: { message: string } | null };
+
+const callAdmissionRpc = (name: string, args: Record<string, unknown>) =>
+  (supabase.rpc as unknown as (functionName: string, parameters: Record<string, unknown>) => Promise<AdmissionRpcResult>)(name, args);
 type Enrollment = { id: string; source_submission_id: string | null; status: string; first_name: string; last_name: string; email: string };
 
 type ApplicationRow = {
@@ -68,13 +73,13 @@ export default function AdminApplications() {
         supabase.from("program_form_fields").select("id,form_id,label,field_type,display_order").order("display_order"),
         supabase.from("program_payments").select("submission_id,status"),
         supabase.from("program_sponsorship_claims").select("submission_id,status"),
-        (supabase as any).from("program_application_admissions").select("submission_id,status,decision_reason,decided_at"),
+        (supabase.from("program_application_admissions" as never).select("submission_id,status,decision_reason,decided_at") as unknown as Promise<{ data: AdmissionRecord[] | null; error: { message: string } | null }>),
         supabase.from("program_form_answers").select("submission_id,field_id,answer"),
         supabase.from("program_enrollments").select("id,source_submission_id,status,first_name,last_name,email,cohort:program_cohorts!inner(program_key)").eq("cohort.program_key", "goals").eq("status", "payment_pending").not("source_submission_id", "is", null),
       ]);
       const error = formsResult.error || submissionsResult.error || fieldsResult.error || paymentsResult.error || sponsorshipsResult.error || admissionsResult.error || answersResult.error || enrollmentsResult.error;
       if (error) throw error;
-      const goalsFormIds = new Set((formsResult.data ?? []).map((form: any) => form.id));
+      const goalsFormIds = new Set((formsResult.data ?? []).map((form) => form.id));
       const submissions = (submissionsResult.data ?? []).filter((submission) => goalsFormIds.has(submission.form_id));
       const fields = fieldsResult.data ?? [];
       const answers = answersResult.data ?? [];
@@ -84,7 +89,7 @@ export default function AdminApplications() {
       const pendingEnrollments = (enrollmentsResult.data ?? []) as Enrollment[];
       const paymentById = new Map(payments.map((item) => [item.submission_id, item]));
       const claimById = new Map(claims.map((item) => [item.submission_id, item]));
-      const admissionById = new Map(admissions.map((item: any) => [item.submission_id, item]));
+      const admissionById = new Map(admissions.map((item) => [item.submission_id, item]));
       const recoveryIds = new Set(pendingEnrollments
         .filter((enrollment) => enrollment.source_submission_id)
         .map((enrollment) => enrollment.source_submission_id as string)
@@ -130,7 +135,7 @@ export default function AdminApplications() {
       const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
       const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
       const tokenHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-      const { data: tokenResult, error } = await (supabase as any).rpc("admin_create_applicant_portal_token", {
+      const { data: tokenResult, error } = await callAdmissionRpc("admin_create_applicant_portal_token", {
         p_submission_id: submissionId,
         p_token_hash: tokenHash,
       });
@@ -151,7 +156,7 @@ export default function AdminApplications() {
   const decide = async (submissionId: string, decision: "admitted" | "rejected") => {
     setBusyId(submissionId);
     try {
-      const { error } = await (supabase as any).rpc("admin_set_program_application_admission", {
+      const { error } = await callAdmissionRpc("admin_set_program_application_admission", {
         p_submission_id: submissionId,
         p_decision: decision,
         p_reason: reasons[submissionId] ?? "",
