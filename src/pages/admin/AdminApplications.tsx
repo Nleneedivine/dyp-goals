@@ -62,7 +62,8 @@ export default function AdminApplications() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [submissionsResult, fieldsResult, paymentsResult, sponsorshipsResult, admissionsResult, answersResult, enrollmentsResult] = await Promise.all([
+      const [formsResult, submissionsResult, fieldsResult, paymentsResult, sponsorshipsResult, admissionsResult, answersResult, enrollmentsResult] = await Promise.all([
+        supabase.from("program_forms").select("id,cohort:program_cohorts!inner(program_key)").eq("cohort.program_key", "goals"),
         supabase.from("program_form_submissions").select("id,form_id,session_id,submitted_at").order("submitted_at", { ascending: false }).limit(500),
         supabase.from("program_form_fields").select("id,form_id,label,field_type,display_order").order("display_order"),
         supabase.from("program_payments").select("submission_id,status"),
@@ -71,9 +72,10 @@ export default function AdminApplications() {
         supabase.from("program_form_answers").select("submission_id,field_id,answer"),
         supabase.from("program_enrollments").select("id,source_submission_id,status,first_name,last_name,email,cohort:program_cohorts!inner(program_key)").eq("cohort.program_key", "goals").eq("status", "payment_pending").not("source_submission_id", "is", null),
       ]);
-      const error = submissionsResult.error || fieldsResult.error || paymentsResult.error || sponsorshipsResult.error || admissionsResult.error || answersResult.error || enrollmentsResult.error;
+      const error = formsResult.error || submissionsResult.error || fieldsResult.error || paymentsResult.error || sponsorshipsResult.error || admissionsResult.error || answersResult.error || enrollmentsResult.error;
       if (error) throw error;
-      const submissions = submissionsResult.data ?? [];
+      const goalsFormIds = new Set((formsResult.data ?? []).map((form: any) => form.id));
+      const submissions = (submissionsResult.data ?? []).filter((submission) => goalsFormIds.has(submission.form_id));
       const fields = fieldsResult.data ?? [];
       const answers = answersResult.data ?? [];
       const payments = paymentsResult.data ?? [];
