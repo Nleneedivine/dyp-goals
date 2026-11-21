@@ -10,6 +10,7 @@ const RequestSchema = z.object({
   returnUrl: z.string().url().optional(),
   fileName: z.string().min(1).max(180).optional(),
   contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
+  fileSize: z.number().int().positive().max(8 * 1024 * 1024).optional(),
   proofPath: z.string().min(1).max(300).optional(),
   manualReference: z.string().min(3).max(180).optional(),
 });
@@ -141,8 +142,11 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === "prepare-proof-upload") {
-      if (!sessionToken || !body.fileName || !body.contentType) {
+      if (!sessionToken || !body.fileName || !body.contentType || !body.fileSize) {
         return respond({ error: "Missing payment proof upload details." }, 400);
+      }
+      if (body.fileSize < 20 * 1024) {
+        return respond({ error: "Payment proof image must be at least 20 KB." }, 400);
       }
 
       const { data: session } = await admin
@@ -215,6 +219,37 @@ Deno.serve(async (req) => {
       if (!body.proofPath || !body.manualReference || !body.contentType) {
         return respond({ error: "Missing payment proof details." }, 400);
       }
+
+      const extensionByType: Record<string, string> = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+      };
+      const expectedPath = new RegExp(
+        "^" + submissionIdPattern(sessionToken) + "/[0-9a-f-]{36}\\.(jpg|png|webp)$",
+        "i",
+      );
+      if (!expectedPath.test(body.proofPath)) {
+        return respond({ error: "Invalid payment proof path." }, 400);
+      }
+
+      const { data: proofObject, error: proofDownloadError } = await admin.storage
+        .from("payment-proofs")
+        .download(body.proofPath);
+      if (proofDownloadError || !proofObject) {
+        return respond({ error: "Payment proof upload was not found. Please upload it again." }, 400);
+      }
+      const expectedExtension = extensionByType[body.contentType];
+      const actualExtension = body.proofPath.split(".").pop()?.toLowerCase();
+      if (
+        proofObject.size < 20 * 1024 ||
+        proofObject.size > 8 * 1024 * 1024 ||
+        proofObject.type !== body.contentType ||
+        actualExtension !== expectedExtension
+      ) {
+        return respond({ error: "Uploaded proof does not match the allowed file type or size." }, 400);
+      }
+
       const { data: result, error: submitError } = await admin.rpc("submit_manual_program_payment_with_proof", {
         p_session_token: sessionToken,
         p_manual_reference: body.manualReference,
