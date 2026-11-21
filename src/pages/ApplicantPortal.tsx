@@ -46,6 +46,7 @@ export default function ApplicantPortal() {
   const token = searchParams.get("token") ?? "";
   const [portal, setPortal] = useState<PortalState | null>(null);
   const [payment, setPayment] = useState<PaymentState | null>(null);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   const [reference, setReference] = useState("");
   const [proof, setProof] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,6 +71,15 @@ export default function ApplicantPortal() {
         return;
       }
       setPortal(resolved);
+      setReferralCode(null);
+      if (resolved.admissionStatus === "admitted") {
+        const { data: issuedCode, error: referralError } = await supabase.rpc("get_program_referral_code", {
+          p_session_token: resolved.sessionToken,
+        });
+        if (!referralError && typeof issuedCode === "string" && issuedCode.length > 0) {
+          setReferralCode(issuedCode);
+        }
+      }
       const { data: paymentData, error: paymentError } = await supabase.rpc("get_program_payment_state", {
         p_session_token: resolved.sessionToken,
       });
@@ -149,6 +159,7 @@ export default function ApplicantPortal() {
       <div><p className="text-sm text-muted-foreground">Funding</p><p className="font-medium capitalize">{payment?.paymentStatus ?? portal.paymentStatus ?? "Pending"}</p>{portal.sponsorshipStatus && <p className="text-xs text-muted-foreground">Sponsorship: {portal.sponsorshipStatus}</p>}</div>
       <div><p className="text-sm text-muted-foreground">Admission</p><p className="font-medium">{admissionLabel}</p></div>
     </CardContent></Card>
+    {portal.admissionStatus === "admitted" && referralCode && <Card><CardHeader><CardTitle>Your referral code</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-2xl font-bold tracking-wide">{referralCode}</p><p className="text-sm text-muted-foreground">You can now share this code with people registering for DYP GOALS.</p><Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(referralCode)}>Copy referral code</Button></CardContent></Card>}
     {portal.admissionReason && <Card><CardContent className="p-5"><p className="font-medium">Admission update</p><p className="mt-1 text-sm text-muted-foreground">{portal.admissionReason}</p></CardContent></Card>}
     {payment?.available && payment.paymentStatus !== "paid" && payment.sponsorshipStatus !== "approved" && <Card><CardHeader><CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" />Complete your funding step</CardTitle></CardHeader><CardContent className="space-y-4">
       {money && <p className="text-2xl font-bold">{money}</p>}
