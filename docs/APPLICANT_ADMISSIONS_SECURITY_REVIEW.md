@@ -138,3 +138,10 @@ The user confirmed a **180-day** applicant portal lifetime. The database token c
 - The Applications & Admissions admin query now restricts submissions to forms whose cohort has `program_key = 'goals'`, so legacy admission rows created by the earlier broad trigger cannot appear in this workspace.
 - Added `20261121230000_enforce_goals_scope_for_admission_admin_rpcs.sql` to enforce the same GOALS cohort check inside both `admin_set_program_application_admission` and `admin_create_applicant_portal_token`. This protects against direct RPC calls and does not modify other programme records.
 - This migration is branch-only and has not been applied. Verify the `program_forms.cohort_id` / `program_cohorts.program_key` relationship against the live schema before applying.
+
+### Paystack verification binding and public-form payment path (2026-11-21)
+- `program-payment` now requires a valid applicant portal token for the `verify` action and resolves the token to its underlying application session server-side.
+- Payment verification now queries the provider reference together with the submission ID resolved from that portal token. A valid reference belonging to a different applicant is rejected before any payment status update or WhatsApp URL response.
+- The public form now passes the applicant portal token to Paystack initialization and verification, includes it in the Paystack return URL, and uses the applicant-portal/payment Edge Function for new portal-based payment-state and manual-proof actions. The old session-token payment-state lookup remains only as a compatibility fallback for existing pre-portal sessions; payment mutations require the portal token.
+- No portal token is returned by the payment function. The token remains a bearer credential and must not be logged or exposed to third parties.
+- These code changes are branch-only. Live Edge Function deployment, database grants, and full Paystack callback testing remain outstanding.
