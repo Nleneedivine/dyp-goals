@@ -41,11 +41,6 @@ type PaymentState = {
   sponsorshipRejectionReason?: string | null;
 };
 
-const hashToken = async (token: string) => {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-};
-
 export default function ApplicantPortal() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -66,8 +61,7 @@ export default function ApplicantPortal() {
       return;
     }
     try {
-      const tokenHash = await hashToken(token);
-      const { data, error: portalError } = await (supabase as any).rpc("get_applicant_portal_state", { p_token_hash: tokenHash });
+      const { data, error: portalError } = await supabase.functions.invoke("applicant-portal", { body: { token } });
       if (portalError) throw portalError;
       const resolved = data as PortalState | null;
       if (!resolved?.valid || !resolved.sessionToken) {
