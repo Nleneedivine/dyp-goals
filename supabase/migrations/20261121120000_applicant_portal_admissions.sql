@@ -225,7 +225,7 @@ begin
     return jsonb_build_object('valid', false);
   end if;
 
-  select s.*, fs.session_token
+  select s, fs.session_token
   into v_submission, v_session_token
   from public.program_form_submissions s
   join public.program_form_sessions fs on fs.id = s.session_id
