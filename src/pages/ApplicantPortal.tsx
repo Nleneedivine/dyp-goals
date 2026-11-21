@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 type PortalState = {
   valid: boolean;
   submissionId?: string;
-  sessionToken?: string;
   submittedAt?: string;
   paymentStatus?: string;
   fundingType?: "self_paid" | "sponsored";
@@ -65,7 +64,7 @@ export default function ApplicantPortal() {
       const { data, error: portalError } = await supabase.functions.invoke("applicant-portal", { body: { token } });
       if (portalError) throw portalError;
       const resolved = data as PortalState | null;
-      if (!resolved?.valid || !resolved.sessionToken) {
+      if (!resolved?.valid) {
         setPortal({ valid: false });
         setPayment(null);
         return;
@@ -73,18 +72,19 @@ export default function ApplicantPortal() {
       setPortal(resolved);
       setReferralCode(null);
       if (resolved.admissionStatus === "admitted") {
-        const { data: issuedCode, error: referralError } = await supabase.rpc("get_program_referral_code", {
-          p_session_token: resolved.sessionToken,
+        const { data: referralData, error: referralError } = await supabase.functions.invoke("applicant-portal", {
+          body: { token, action: "referral-code" },
         });
-        if (!referralError && typeof issuedCode === "string" && issuedCode.length > 0) {
-          setReferralCode(issuedCode);
+        if (referralError) throw referralError;
+        if (typeof referralData?.referralCode === "string" && referralData.referralCode.length > 0) {
+          setReferralCode(referralData.referralCode);
         }
       }
-      const { data: paymentData, error: paymentError } = await supabase.rpc("get_program_payment_state", {
-        p_session_token: resolved.sessionToken,
+      const { data: paymentData, error: paymentError } = await supabase.functions.invoke("applicant-portal", {
+        body: { token, action: "payment-state" },
       });
       if (paymentError) throw paymentError;
-      setPayment((paymentData ?? null) as PaymentState | null);
+      setPayment((paymentData?.payment ?? null) as PaymentState | null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The application could not be loaded.");
       setPortal({ valid: false });
@@ -96,7 +96,7 @@ export default function ApplicantPortal() {
   useEffect(() => { void load(); }, [load]);
 
   const submitProof = async () => {
-    if (!portal?.sessionToken || !proof || reference.trim().length < 3) {
+    if (!token || !proof || reference.trim().length < 3) {
       setError("Enter your transfer reference and choose your payment proof.");
       return;
     }
@@ -108,19 +108,22 @@ export default function ApplicantPortal() {
     setError("");
     try {
       const { data: upload, error: uploadError } = await supabase.functions.invoke("program-payment", {
-        body: { action: "prepare-proof-upload", sessionToken: portal.sessionToken, fileName: proof.name, contentType: proof.type },
+        body: { action: "prepare-proof-upload", portalToken: token, fileName: proof.name, contentType: proof.type },
       });
       if (uploadError || upload?.error || !upload?.path || !upload?.token) throw new Error(upload?.error ?? uploadError?.message ?? "Could not prepare the proof upload.");
       const { error: storageError } = await supabase.storage.from("payment-proofs").uploadToSignedUrl(upload.path, upload.token, proof, { contentType: proof.type });
       if (storageError) throw storageError;
-      const { data, error: submitError } = await supabase.rpc("submit_manual_program_payment_with_proof", {
-        p_session_token: portal.sessionToken,
-        p_manual_reference: reference.trim(),
-        p_proof_path: upload.path,
-        p_proof_content_type: proof.type,
+      const { data, error: submitError } = await supabase.functions.invoke("program-payment", {
+        body: {
+          action: "submit-proof",
+          portalToken: token,
+          manualReference: reference.trim(),
+          proofPath: upload.path,
+          contentType: proof.type,
+        },
       });
-      if (submitError) throw submitError;
-      setPayment((data ?? null) as PaymentState | null);
+      if (submitError || data?.error) throw new Error(data?.error ?? submitError?.message ?? "The proof could not be submitted.");
+      setPayment((data?.payment ?? null) as PaymentState | null);
       setProof(null);
       setReference("");
     } catch (err) {
@@ -131,12 +134,12 @@ export default function ApplicantPortal() {
   };
 
   const startPaystack = async () => {
-    if (!portal?.sessionToken) return;
+    if (!token) return;
     setBusy(true);
     setError("");
     try {
       const { data, error: invokeError } = await supabase.functions.invoke("program-payment", {
-        body: { action: "initialize", sessionToken: portal.sessionToken, returnUrl: window.location.href },
+        body: { action: "initialize", portalToken: token, returnUrl: window.location.href },
       });
       if (invokeError || data?.error || !data?.authorizationUrl) throw new Error(data?.error ?? invokeError?.message ?? "Payment could not be started.");
       window.location.assign(data.authorizationUrl);
