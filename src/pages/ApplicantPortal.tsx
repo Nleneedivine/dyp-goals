@@ -108,7 +108,7 @@ export default function ApplicantPortal() {
     setError("");
     try {
       const { data: upload, error: uploadError } = await supabase.functions.invoke("program-payment", {
-        body: { action: "prepare-proof-upload", portalToken: token, fileName: proof.name, contentType: proof.type },
+        body: { action: "prepare-proof-upload", portalToken: token, fileName: proof.name, contentType: proof.type, fileSize: proof.size },
       });
       if (uploadError || upload?.error || !upload?.path || !upload?.token) throw new Error(upload?.error ?? uploadError?.message ?? "Could not prepare the proof upload.");
       const { error: storageError } = await supabase.storage.from("payment-proofs").uploadToSignedUrl(upload.path, upload.token, proof, { contentType: proof.type });
