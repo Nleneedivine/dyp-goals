@@ -89,8 +89,6 @@ export default function AdminApplications() {
         .filter((id) => paymentById.get(id)?.status !== "paid" && claimById.get(id)?.status !== "approved"));
       const visibleIds = new Set([...admissionById.keys(), ...recoveryIds]);
       const visibleSubmissions = submissions.filter((item) => visibleIds.has(item.id));
-      const newAdmissionRows = admissions.filter((item: any) => visibleIds.has(item.submission_id));
-      const admissionById = new Map(newAdmissionRows.map((item: any) => [item.submission_id, item]));
       setRows(visibleSubmissions.map((submission) => ({
         submission,
         fields: fields.filter((field) => field.form_id === submission.form_id),
