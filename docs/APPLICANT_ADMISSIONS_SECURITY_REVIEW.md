@@ -105,7 +105,7 @@ The branch now changes the design as follows:
 This closes the identified browser session-token escape in the code path, but **must still be tested** against deployed function versions and SQL grants. A previously exposed session token remains a valid credential for any legacy RPCs that still accept it; revoke/restrict those RPC grants or rotate the underlying form session token as part of production rollout if the old token may already have been exposed.
 
 ### Token lifecycle
-The user confirmed a **180-day** applicant portal lifetime. The database token column already defaults to `now() + interval '180 days'`; no duration change is required. The admin UI still needs to display the returned expiry date clearly.
+The user confirmed a **180-day** applicant portal lifetime. The database token column already defaults to `now() + interval '180 days'`; no duration change is required. The admin UI now displays the expiry date in the link-created confirmation.
 
 ## Workstream 5 — Consolidated SQL/release review
 
