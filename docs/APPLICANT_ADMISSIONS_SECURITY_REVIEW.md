@@ -133,3 +133,8 @@ The user confirmed a **180-day** applicant portal lifetime. The database token c
 - Branch-only changes committed; no SQL applied, no deployment, no merge.
 - Automated tests/build have not been run in this review.
 - The session-token escape and 180-day expiry decision remain release blockers.
+
+### GOALS-only administrative enforcement (2026-11-21)
+- The Applications & Admissions admin query now restricts submissions to forms whose cohort has `program_key = 'goals'`, so legacy admission rows created by the earlier broad trigger cannot appear in this workspace.
+- Added `20261121230000_enforce_goals_scope_for_admission_admin_rpcs.sql` to enforce the same GOALS cohort check inside both `admin_set_program_application_admission` and `admin_create_applicant_portal_token`. This protects against direct RPC calls and does not modify other programme records.
+- This migration is branch-only and has not been applied. Verify the `program_forms.cohort_id` / `program_cohorts.program_key` relationship against the live schema before applying.
