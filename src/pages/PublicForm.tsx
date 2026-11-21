@@ -171,6 +171,7 @@ export default function PublicForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [applicantPortalUrl, setApplicantPortalUrl] = useState("");
   const [ownReferralCode, setOwnReferralCode] = useState("");
   const [referrerQuery, setReferrerQuery] = useState("");
   const [referrerResults, setReferrerResults] = useState<Array<{ referral_code: string; display_name: string }>>([]);
@@ -733,6 +734,11 @@ export default function PublicForm() {
     window.localStorage.setItem(`dyp-program-session:${form.slug}`, sessionToken);
     await loadPaymentState(sessionToken);
     setSubmitting(false);
+    if (data.applicantPortalToken) {
+      const portalUrl = new URL("/applicant-portal", window.location.origin);
+      portalUrl.searchParams.set("token", data.applicantPortalToken);
+      setApplicantPortalUrl(portalUrl.toString());
+    }
     setSuccess(data.confirmationMessage ?? form.confirmation_message);
   };
 
@@ -955,6 +961,16 @@ export default function PublicForm() {
                 <h1 className="text-3xl font-bold">Registration received</h1>
                 <p className="mt-4 text-muted-foreground">{success}</p>
               </div>
+              {applicantPortalUrl && (
+                <div className="mx-auto mt-6 max-w-xl rounded-xl border bg-muted/30 p-5">
+                  <h2 className="font-semibold">Your applicant portal link</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Save this link. You can reopen your application from another device to check funding and admission progress. Anyone with this link can view and continue this application, so keep it private.</p>
+                  <div className="mt-3 break-all rounded-md bg-background p-3 text-sm">{applicantPortalUrl}</div>
+                  <Button className="mt-3 w-full" onClick={() => void navigator.clipboard.writeText(applicantPortalUrl)}>
+                    <Copy className="mr-2 h-4 w-4" />Copy applicant portal link
+                  </Button>
+                </div>
+              )}
 
               {paymentState?.available && (
                 <div className="mx-auto mt-7 max-w-xl rounded-2xl border p-5">
