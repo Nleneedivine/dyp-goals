@@ -145,3 +145,40 @@ The user confirmed a **180-day** applicant portal lifetime. The database token c
 - The public form now passes the applicant portal token to Paystack initialization and verification, includes it in the Paystack return URL, and uses the applicant-portal/payment Edge Function for new portal-based payment-state and manual-proof actions. The old session-token payment-state lookup remains only as a compatibility fallback for existing pre-portal sessions; payment mutations require the portal token.
 - No portal token is returned by the payment function. The token remains a bearer credential and must not be logged or exposed to third parties.
 - These code changes are branch-only. Live Edge Function deployment, database grants, and full Paystack callback testing remain outstanding.
+
+## Work completed in the four follow-up areas (2026-11-21)
+
+### 1. Payment-proof storage verification
+- `program-payment` now requires the declared file size when requesting a signed upload URL and enforces the private bucket's 20 KB–8 MB range server-side.
+- Before recording proof, the Edge Function resolves the portal token to the applicant submission, requires an object path under that exact submission folder with a UUID filename and approved extension, downloads the object from the private bucket, checks actual size and MIME metadata, and validates JPEG/PNG/WebP file signatures.
+- The database proof RPC also locks the existing payment row and refuses to replace evidence after a payment is marked paid.
+- The existing bucket remains private, capped at 8 MB, and restricted to JPEG/PNG/WebP. Admin-only read policy is preserved.
+- Orphaned uploads can still occur if upload succeeds but proof submission fails. A scheduled cleanup job is a future operational improvement, not implemented here.
+
+### 2. Legacy session-token RPC containment
+- Added `20261121250000_scope_legacy_session_rpcs_to_portal.sql`.
+- For submissions that have a row in `program_application_admissions` (the new GOALS-only workflow), direct anon/authenticated calls using the underlying session UUID are blocked for payment-state lookup, manual proof submission, legacy manual payment submission, and participant referral-code lookup.
+- The protected applicant-portal and program-payment Edge Functions continue to call these functions server-side with the service-role key after resolving the revocable portal bearer token.
+- Legacy submissions without admission rows and other programme form sessions retain their prior RPC behavior. This is intentionally scoped so the shared form/payment system is not globally broken.
+- Independent promoter codes, referral attribution, earnings and payouts remain untouched.
+
+### 3. Programme-entitlement coverage
+- Added `20261121240000_gate_accountability_until_admission.sql`.
+- `join_current_accountability_lab`, `assign_current_user_to_accountability_group`, and `current_user_accountability_chat` now check `program_application_access_allowed` before allowing new applicants into Accountability Lab or its group chat.
+- The existing grandfathering helper still permits historical submissions without an admission row.
+- WhatsApp links remain withheld from new applicants until admitted; certificate issuance already has the admission check.
+- UI copy in the admin payment panel now clarifies that funding verification does not itself grant WhatsApp access.
+- This review covers the known applicant-facing entitlement surfaces in the current codebase. Live database policies, other integrations and production Edge Function versions still require verification.
+
+### 4. CI/build validation
+- Updated `.github/workflows/ci.yml` so pushes to `feature/applicant-portal-admissions` run ESLint and the production Vite build, in addition to the existing main-branch/PR workflow.
+- `package.json` has no automated test script; the configured validation commands are `npm run lint` and `npm run build`.
+- The GitHub connector cannot execute a local build in this environment, and the runner result must be checked from GitHub Actions after the branch push. No test/build result is claimed in this review.
+
+## Updated rollout blockers
+- Apply the migrations in timestamp order only after confirming live schema compatibility; none has been applied from this session.
+- Verify the current deployed Edge Function code and `verify_jwt = false` settings are consistent with the portal-token enforcement.
+- Verify actual database function grants and storage policies in Supabase.
+- Complete an end-to-end test with a new GOALS application: portal link, manual proof upload, Paystack initialize/return/verify, funding approval, admission decision, referral-code reveal, Accountability Lab access, WhatsApp link, and certificate issuance.
+- Test that rejected/pending applicants cannot access those entitlements, and that legacy participants and independent promoters continue to work.
+- Check GitHub Actions lint/build result before release.
