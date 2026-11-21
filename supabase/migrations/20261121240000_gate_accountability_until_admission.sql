@@ -251,6 +251,43 @@ begin
 end;
 $function$;
 
+
+-- Enforce the admission rule for every writer, including admin bulk assignment.
+create or replace function public.guard_accountability_membership_admission()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_submission_id uuid;
+begin
+  if new.status = 'active' then
+    select e.source_submission_id
+    into v_submission_id
+    from public.program_enrollments e
+    join public.program_cohorts c on c.id = e.cohort_id
+    where e.id = new.enrollment_id
+      and c.program_key = 'goals';
+
+    if v_submission_id is not null
+       and not public.program_application_access_allowed(v_submission_id) then
+      raise exception 'Admission must be confirmed before activating Accountability Lab membership';
+    end if;
+  end if;
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists guard_accountability_membership_admission on public.program_accountability_memberships;
+create trigger guard_accountability_membership_admission
+before insert or update of enrollment_id, status
+on public.program_accountability_memberships
+for each row execute function public.guard_accountability_membership_admission();
+
+revoke all on function public.guard_accountability_membership_admission() from public, anon, authenticated;
+
 revoke all on function public.join_current_accountability_lab(text[]) from public, anon;
 grant execute on function public.join_current_accountability_lab(text[]) to authenticated, service_role;
 revoke all on function public.assign_current_user_to_accountability_group() from public, anon;
