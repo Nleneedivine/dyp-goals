@@ -4,12 +4,15 @@ import { z } from "npm:zod@3";
 import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const RequestSchema = z.object({
-  action: z.enum(["initialize", "verify", "prepare-proof-upload"]),
+  action: z.enum(["initialize", "verify", "prepare-proof-upload", "submit-proof"]),
+  portalToken: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
   sessionToken: z.string().uuid().optional(),
   reference: z.string().min(6).max(120).optional(),
   returnUrl: z.string().url().optional(),
   fileName: z.string().min(1).max(180).optional(),
-  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),\n  proofPath: z.string().min(1).max(300).optional(),\n  manualReference: z.string().min(3).max(180).optional(),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
+  proofPath: z.string().min(1).max(300).optional(),
+  manualReference: z.string().min(3).max(180).optional(),
 });
 
 const respond = (body: unknown, status = 200) =>
@@ -116,12 +119,12 @@ Deno.serve(async (req) => {
       return respond({ error: "Invalid payment request." }, 400);
     }
 
-    if (!secret) {
+    if (!secret && (parsed.data.action === "initialize" || parsed.data.action === "verify")) {
       return respond({ error: "Paystack is not configured yet." }, 503);
     }
 
     const body = parsed.data;
-    let sessionToken = sessionToken;
+    let sessionToken = body.sessionToken;
 
     if (body.portalToken) {
       const tokenDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body.portalToken.toLowerCase()));
