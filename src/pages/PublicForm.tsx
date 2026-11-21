@@ -172,7 +172,6 @@ export default function PublicForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [applicantPortalUrl, setApplicantPortalUrl] = useState("");
-  const [ownReferralCode, setOwnReferralCode] = useState("");
   const [referrerQuery, setReferrerQuery] = useState("");
   const [referrerResults, setReferrerResults] = useState<Array<{ referral_code: string; display_name: string }>>([]);
   const [selectedReferralCode, setSelectedReferralCode] = useState("");
@@ -502,10 +501,6 @@ export default function PublicForm() {
         ) {
           setSessionToken(storedToken);
           setSuccess(formData.confirmation_message);
-          const { data: referralCode } = await supabase.rpc("get_program_referral_code", {
-            p_session_token: storedToken,
-          });
-          if (referralCode) setOwnReferralCode(referralCode);
           setLoading(false);
           return;
         }
@@ -516,10 +511,6 @@ export default function PublicForm() {
         if (state?.available) {
           setSessionToken(storedToken);
           setSuccess(formData.confirmation_message);
-          const { data: referralCode } = await supabase.rpc("get_program_referral_code", {
-            p_session_token: storedToken,
-          });
-          if (referralCode) setOwnReferralCode(referralCode);
           setLoading(false);
           return;
         }
