@@ -17,17 +17,23 @@ as $function$
 declare
   v_form_id uuid;
 begin
-  if new.status = 'admitted'
-     and (
-       tg_op = 'INSERT'
-       or (tg_op = 'UPDATE' and old.status is distinct from 'admitted')
-     ) then
-    select form_id into v_form_id
-    from public.program_form_submissions
-    where id = new.submission_id;
+  if new.status = 'admitted' then
+    if tg_op = 'INSERT' then
+      select form_id into v_form_id
+      from public.program_form_submissions
+      where id = new.submission_id;
 
-    if v_form_id is not null then
-      perform public.ensure_program_referral_code(new.submission_id, v_form_id);
+      if v_form_id is not null then
+        perform public.ensure_program_referral_code(new.submission_id, v_form_id);
+      end if;
+    elsif tg_op = 'UPDATE' and old.status is distinct from 'admitted' then
+      select form_id into v_form_id
+      from public.program_form_submissions
+      where id = new.submission_id;
+
+      if v_form_id is not null then
+        perform public.ensure_program_referral_code(new.submission_id, v_form_id);
+      end if;
     end if;
   end if;
   return new;
