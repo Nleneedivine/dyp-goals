@@ -26,6 +26,24 @@ const hex = (buffer: ArrayBuffer) =>
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 
+const hasExpectedImageSignature = async (blob: Blob, contentType: string) => {
+  const bytes = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+  if (contentType === "image/jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (contentType === "image/png") {
+    return bytes.length >= 8 &&
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+      bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+  }
+  if (contentType === "image/webp") {
+    return bytes.length >= 12 &&
+      String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+      String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+  }
+  return false;
+};
+
 const verifyPaystackSignature = async (
   rawBody: Uint8Array,
   signature: string,
@@ -257,7 +275,8 @@ Deno.serve(async (req) => {
         proofObject.size < 20 * 1024 ||
         proofObject.size > 8 * 1024 * 1024 ||
         proofObject.type !== body.contentType ||
-        actualExtension !== expectedExtension
+        actualExtension !== expectedExtension ||
+        !(await hasExpectedImageSignature(proofObject, body.contentType))
       ) {
         return respond({ error: "Uploaded proof does not match the allowed file type or size." }, 400);
       }
