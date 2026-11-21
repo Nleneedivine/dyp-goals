@@ -225,8 +225,20 @@ Deno.serve(async (req) => {
         "image/png": "png",
         "image/webp": "webp",
       };
+      const { data: proofSession, error: proofSessionError } = await admin
+        .from("program_form_sessions")
+        .select("id")
+        .eq("session_token", sessionToken)
+        .maybeSingle();
+      if (proofSessionError) throw proofSessionError;
+      const { data: proofSubmission, error: proofSubmissionError } = proofSession
+        ? await admin.from("program_form_submissions").select("id").eq("session_id", proofSession.id).maybeSingle()
+        : { data: null, error: null };
+      if (proofSubmissionError) throw proofSubmissionError;
+      if (!proofSubmission) return respond({ error: "Registration submission not found." }, 404);
+
       const expectedPath = new RegExp(
-        "^" + submissionIdPattern(sessionToken) + "/[0-9a-f-]{36}\\.(jpg|png|webp)$",
+        "^" + proofSubmission.id + "/[0-9a-f-]{36}\\.(jpg|png|webp)$",
         "i",
       );
       if (!expectedPath.test(body.proofPath)) {
