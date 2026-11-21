@@ -69,7 +69,7 @@ export default function AdminApplications() {
         supabase.from("program_sponsorship_claims").select("submission_id,status"),
         (supabase as any).from("program_application_admissions").select("submission_id,status,decision_reason,decided_at"),
         supabase.from("program_form_answers").select("submission_id,field_id,answer"),
-        supabase.from("program_enrollments").select("id,source_submission_id,status,first_name,last_name,email").eq("status", "payment_pending").not("source_submission_id", "is", null),
+        supabase.from("program_enrollments").select("id,source_submission_id,status,first_name,last_name,email,cohort:program_cohorts!inner(program_key)").eq("cohort.program_key", "goals").eq("status", "payment_pending").not("source_submission_id", "is", null),
       ]);
       const error = submissionsResult.error || fieldsResult.error || paymentsResult.error || sponsorshipsResult.error || admissionsResult.error || answersResult.error || enrollmentsResult.error;
       if (error) throw error;
