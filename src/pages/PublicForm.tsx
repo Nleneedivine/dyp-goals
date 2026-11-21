@@ -613,6 +613,7 @@ export default function PublicForm() {
           portalToken: applicantPortalToken,
           fileName: manualProof.name,
           contentType: manualProof.type,
+          fileSize: manualProof.size,
         },
       },
     );
