@@ -92,18 +92,20 @@ Apply the migration files in timestamp order. The final GOALS-only trigger-scope
 - The resolver checks token hash, revocation and expiry, and the Edge Function rate-limits by IP and token hash.
 - Resolver responses use `Cache-Control: no-store`.
 
-### Critical unresolved issue — session-token escape
-The resolver currently returns the original `program_form_sessions.session_token` to the browser. The portal then uses it directly for payment-state, proof-submission, and referral-code RPCs. This means a user who has already obtained that session token may continue using those session-token RPCs after the admin revokes/reissues the portal link. Revocation of the portal token does not revoke the exposed session token.
+### Session-token escape — implementation committed, verification pending
+The original resolver returned the underlying `program_form_sessions.session_token` to the browser. This was a revocation bypass because the applicant could continue using legacy session-token RPCs after the portal link was rotated.
 
-**Do not describe portal-link revocation as complete until this is fixed.** Recommended architecture:
-- Never return the underlying form session token to the browser.
-- Have the applicant-portal Edge Function return payment state and (only after admission) the referral code while retaining the session token server-side.
-- Have payment actions accept the portal bearer token, validate its hash/revocation/expiry on every request, and resolve the session token server-side.
-- Keep Paystack verification bound to the payment record/reference and validate amount/currency/reference as it does now.
-- Add tests proving a reissued/revoked portal token cannot perform any later payment or referral action.
+The branch now changes the design as follows:
+- The applicant portal resolver strips `sessionToken` from its browser response.
+- Payment-state and referral-code lookups run through the `applicant-portal` Edge Function; the session token stays server-side.
+- Payment initialization and proof upload/submission now require the revocable portal bearer token. The Edge Function resolves its hash and expiry/revocation state server-side before using the session token.
+- Direct `sessionToken` input has been removed from the payment Edge Function request schema.
+- Payment responses use `Cache-Control: no-store`; portal-token payment actions are rate-limited.
 
-### Token lifecycle decision still needed
-The database default is 180 days. That duration was not explicitly confirmed by the user. Decide the intended lifetime before applying the admissions SQL. The admin UI also does not currently surface the returned expiry date.
+This closes the identified browser session-token escape in the code path, but **must still be tested** against deployed function versions and SQL grants. A previously exposed session token remains a valid credential for any legacy RPCs that still accept it; revoke/restrict those RPC grants or rotate the underlying form session token as part of production rollout if the old token may already have been exposed.
+
+### Token lifecycle
+The user confirmed a **180-day** applicant portal lifetime. The database token column already defaults to `now() + interval '180 days'`; no duration change is required. The admin UI still needs to display the returned expiry date clearly.
 
 ## Workstream 5 — Consolidated SQL/release review
 
