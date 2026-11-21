@@ -33,10 +33,11 @@ export async function getCurrentGoalEnrollment(
   // New applications must pass the separate admission decision before programme access.
   // Historical enrollments have no source submission/admission row and remain grandfathered.
   if (enrollment.source_submission_id) {
-    const { data: accessAllowed, error: admissionError } = await (supabase as any).rpc(
-      "program_application_access_allowed",
-      { p_submission_id: enrollment.source_submission_id },
-    );
+    const accessResult = await supabase.rpc(
+      "program_application_access_allowed" as never,
+      { p_submission_id: enrollment.source_submission_id } as never,
+    ) as unknown as { data: boolean | null; error: { message: string } | null };
+    const { data: accessAllowed, error: admissionError } = accessResult;
     if (admissionError || accessAllowed !== true) return null;
   }
 
