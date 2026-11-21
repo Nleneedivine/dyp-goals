@@ -22,13 +22,25 @@ export async function getCurrentGoalEnrollment(
 
   const { data: enrollment, error: enrollmentError } = await supabase
     .from("program_enrollments")
-    .select("id,status")
+    .select("id,status,source_submission_id")
     .eq("cohort_id", cohort.id)
     .eq("user_id", userId)
     .in("status", ["active", "completed"])
     .maybeSingle();
 
   if (enrollmentError || !enrollment) return null;
+
+  // New applications must pass the separate admission decision before programme access.
+  // Historical enrollments have no source submission/admission row and remain grandfathered.
+  if (enrollment.source_submission_id) {
+    const { data: admission, error: admissionError } = await (supabase as any)
+      .from("program_application_admissions")
+      .select("status")
+      .eq("submission_id", enrollment.source_submission_id)
+      .maybeSingle();
+    if (admissionError) return null;
+    if (admission && admission.status !== "admitted") return null;
+  }
 
   return {
     id: enrollment.id,
