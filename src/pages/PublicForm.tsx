@@ -444,9 +444,12 @@ export default function PublicForm() {
 
       const storageKey = `dyp-program-session:${formData.slug}`;
       const storedToken = window.localStorage.getItem(storageKey);
+      const portalStorageKey = `dyp-applicant-portal:${formData.slug}`;
       const callbackPortalToken = new URLSearchParams(window.location.search).get("portal_token");
-      if (callbackPortalToken) setApplicantPortalToken(callbackPortalToken);
-      const paymentStateToken = callbackPortalToken ?? storedToken;
+      const storedPortalToken = callbackPortalToken ?? window.localStorage.getItem(portalStorageKey);
+      if (callbackPortalToken) window.localStorage.setItem(portalStorageKey, callbackPortalToken);
+      if (storedPortalToken) setApplicantPortalToken(storedPortalToken);
+      const paymentStateToken = storedPortalToken ?? storedToken;
       const attributionKey = `dyp-referral-attribution:${formData.slug}`;
 
       let referralCodeForSession = incomingReferralCode;
@@ -742,7 +745,10 @@ export default function PublicForm() {
     }
 
     window.localStorage.setItem(`dyp-program-session:${form.slug}`, sessionToken);
-    if (data.applicantPortalToken) setApplicantPortalToken(data.applicantPortalToken);
+    if (data.applicantPortalToken) {
+      setApplicantPortalToken(data.applicantPortalToken);
+      window.localStorage.setItem(`dyp-applicant-portal:${form.slug}`, data.applicantPortalToken);
+    }
     await loadPaymentState(data.applicantPortalToken ?? sessionToken);
     setSubmitting(false);
     if (data.applicantPortalToken) {
