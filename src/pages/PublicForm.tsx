@@ -1017,7 +1017,7 @@ export default function PublicForm() {
                         {paymentState.sponsorshipRejectionReason || "You can continue with the regular registration payment below."}
                       </p>
                     </div>
-                  ) : paymentState.paymentStatus === "paid" ? (
+                   ) : paymentState.paymentStatus === "paid" ? (
                     <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
                       <div className="text-center">
                         <CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
@@ -1026,35 +1026,16 @@ export default function PublicForm() {
                           Your funding is verified. The programme team will make a separate admission decision before participant access is enabled.
                         </p>
                       </div>
-
                       <div className="mt-5 rounded-xl border bg-background p-4 text-center text-sm text-muted-foreground">
                         Your applicant portal will show the admission decision. Programme and WhatsApp access remain unavailable until admission is confirmed.
                       </div>
-
-                        <Button
-                          asChild
-                          size="lg"
-                          variant="outline"
-                          className="min-h-14 w-full whitespace-normal text-center leading-snug"
-                        >
-                          <a href="/auth?mode=activate&next=%2Fjourney">
-                            <UserRound className="mr-2 h-4 w-4 shrink-0" />
-                            Open My GOALS Dashboard
-                          </a>
-                        </Button>
-                      </div>
-
-`,
-                              )
-                            }
-                          >
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy referral link
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
+                      <Button asChild size="lg" variant="outline" className="mt-3 min-h-14 w-full whitespace-normal text-center leading-snug">
+                        <a href="/auth?mode=activate&next=%2Fjourney">
+                          <UserRound className="mr-2 h-4 w-4 shrink-0" />
+                          Open My GOALS Dashboard
+                        </a>
+                      </Button>
+                    </div>) : (
                     <>
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         {paymentState.paystackEnabled && (
