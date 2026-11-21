@@ -18,7 +18,10 @@ declare
   v_form_id uuid;
 begin
   if new.status = 'admitted'
-     and (tg_op = 'INSERT' or old.status is distinct from 'admitted') then
+     and (
+       tg_op = 'INSERT'
+       or (tg_op = 'UPDATE' and old.status is distinct from 'admitted')
+     ) then
     select form_id into v_form_id
     from public.program_form_submissions
     where id = new.submission_id;
