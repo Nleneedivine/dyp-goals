@@ -19,7 +19,7 @@ begin
   end if;
 
   if v_submission_id is null then
-    return coalesce(new, old);
+    return new;
   end if;
 
   select exists (
