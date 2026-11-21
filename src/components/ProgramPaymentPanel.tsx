@@ -157,7 +157,7 @@ export function ProgramPaymentPanel({
             : "Payment returned to pending",
       description:
         status === "paid"
-          ? "The participant can now access the configured WhatsApp group link."
+          ? "Funding is verified. Programme WhatsApp access is available only after the separate admission decision."
           : undefined,
     });
   };
