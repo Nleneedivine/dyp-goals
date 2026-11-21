@@ -3,7 +3,7 @@ import { Fragment } from "react";
 const normalizeAIFormatting = (value: string) =>
   value
     .replace(/\\([*_])/g, "$1")
-    .replace(/\\`/g, "`");
+    .replace(/`/g, "`");
 
 export const stripAIFormatting = (value: string) =>
   normalizeAIFormatting(value)
