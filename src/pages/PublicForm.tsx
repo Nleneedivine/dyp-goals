@@ -1001,31 +1001,20 @@ export default function PublicForm() {
                     <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
                       <div className="text-center">
                         <CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
-                        <p className="mt-2 text-lg font-semibold">DIT-sponsored seat approved — you’re in</p>
+                        <p className="mt-2 text-lg font-semibold">DIT-sponsored funding verified</p>
                         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-                          Participant contribution: ₦0. Your seat is sponsored by {paymentState.sponsorName ?? "DIT"}.
+                          Participant contribution: ₦0. Your seat is sponsored by {paymentState.sponsorName ?? "DIT"}. Your application is now awaiting a separate admission decision.
                         </p>
                       </div>
-                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                        {paymentState.whatsappGroupUrl ? (
-                          <Button asChild size="lg" className="min-h-14 w-full whitespace-normal text-center leading-snug">
-                            <a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">
-                              Join WhatsApp Group
-                              <ExternalLink className="ml-2 h-4 w-4 shrink-0" />
-                            </a>
-                          </Button>
-                        ) : (
-                          <div className="flex min-h-14 items-center justify-center rounded-xl border bg-background px-4 py-3 text-center text-sm text-muted-foreground">
-                            WhatsApp link will appear once configured.
-                          </div>
-                        )}
-                        <Button asChild size="lg" variant="outline" className="min-h-14 w-full whitespace-normal text-center leading-snug">
-                          <a href="/auth?mode=activate&next=%2Fprofile">
-                            <UserRound className="mr-2 h-4 w-4 shrink-0" />
-                            Open My GOALS Profile
-                          </a>
-                        </Button>
+                      <div className="mt-5 rounded-xl border bg-background p-4 text-center text-sm text-muted-foreground">
+                        Your applicant portal will show the admission decision. Programme and WhatsApp access remain unavailable until admission is confirmed.
                       </div>
+                      <Button asChild size="lg" variant="outline" className="mt-3 min-h-14 w-full whitespace-normal text-center leading-snug">
+                        <a href="/auth?mode=activate&next=%2Fprofile">
+                          <UserRound className="mr-2 h-4 w-4 shrink-0" />
+                          Open My GOALS Profile
+                        </a>
+                      </Button>
                     </div>
                   ) : paymentState.fundingType === "sponsored" && paymentState.sponsorshipStatus === "rejected" ? (
                     <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
@@ -1038,25 +1027,15 @@ export default function PublicForm() {
                     <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
                       <div className="text-center">
                         <CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
-                        <p className="mt-2 text-lg font-semibold">Payment confirmed — you’re in</p>
+                        <p className="mt-2 text-lg font-semibold">Payment verified</p>
                         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-                          Choose what you want to do now. Both options remain available later from your GOALS dashboard.
+                          Your funding is verified. The programme team will make a separate admission decision before participant access is enabled.
                         </p>
                       </div>
 
-                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                        {paymentState.whatsappGroupUrl ? (
-                          <Button asChild size="lg" className="min-h-14 w-full whitespace-normal text-center leading-snug">
-                            <a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">
-                              Join WhatsApp Group
-                              <ExternalLink className="ml-2 h-4 w-4 shrink-0" />
-                            </a>
-                          </Button>
-                        ) : (
-                          <div className="flex min-h-14 items-center justify-center rounded-xl border bg-background px-4 py-3 text-center text-sm text-muted-foreground">
-                            WhatsApp link will appear here once Admin configures it.
-                          </div>
-                        )}
+                      <div className="mt-5 rounded-xl border bg-background p-4 text-center text-sm text-muted-foreground">
+                        Your applicant portal will show the admission decision. Programme and WhatsApp access remain unavailable until admission is confirmed.
+                      </div>
 
                         <Button
                           asChild
