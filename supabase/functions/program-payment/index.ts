@@ -147,6 +147,17 @@ Deno.serve(async (req) => {
         return respond({ error: "Registration submission not found." }, 404);
       }
 
+      const { data: existingPayment, error: existingPaymentError } = await admin
+        .from("program_payments")
+        .select("status")
+        .eq("submission_id", submission.id)
+        .maybeSingle();
+
+      if (existingPaymentError) throw existingPaymentError;
+      if (existingPayment?.status === "paid") {
+        return respond({ error: "This payment has already been verified; proof cannot be replaced." }, 409);
+      }
+
       const { data: settings } = await admin
         .from("program_payment_settings")
         .select("manual_enabled")
