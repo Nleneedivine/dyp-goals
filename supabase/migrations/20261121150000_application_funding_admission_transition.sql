@@ -230,5 +230,5 @@ begin
 end;
 $$;
 
-revoke all on function public.get_applicant_portal_state(text) from public;
-grant execute on function public.get_applicant_portal_state(text) to anon, authenticated, service_role;
+revoke all on function public.get_applicant_portal_state(text) from public, anon, authenticated;
+grant execute on function public.get_applicant_portal_state(text) to service_role;
