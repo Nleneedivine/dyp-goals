@@ -128,7 +128,7 @@ export default function AdminApplications() {
       const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
       const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
       const tokenHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-      const { error } = await (supabase as any).rpc("admin_create_applicant_portal_token", {
+      const { data: tokenResult, error } = await (supabase as any).rpc("admin_create_applicant_portal_token", {
         p_submission_id: submissionId,
         p_token_hash: tokenHash,
       });
@@ -136,7 +136,8 @@ export default function AdminApplications() {
       const url = new URL("/applicant-portal", window.location.origin);
       url.searchParams.set("token", token);
       await navigator.clipboard.writeText(url.toString());
-      toast({ title: "Applicant portal link copied", description: "Share this link manually. It will not be emailed automatically." });
+      const expiry = tokenResult?.expiresAt ? new Date(tokenResult.expiresAt).toLocaleDateString() : "180 days after creation";
+      toast({ title: "Applicant portal link copied", description: `Share this link manually. It expires on ${expiry}. It will not be emailed automatically.` });
       await load();
     } catch (error: any) {
       toast({ title: "Could not create portal link", description: error.message, variant: "destructive" });
