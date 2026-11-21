@@ -167,6 +167,7 @@ export default function PublicForm() {
   const [fields, setFields] = useState<ProgramField[]>([]);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [applicantPortalToken, setApplicantPortalToken] = useState<string | null>(() => new URLSearchParams(window.location.search).get("portal_token"));
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -481,11 +482,14 @@ export default function PublicForm() {
       const referralJourney = Boolean(referralCodeForSession);
       const sponsorshipJourney = Boolean(incomingSponsorshipCode);
 
-      if (paymentReference && storedToken) {
+      const callbackPortalToken = new URLSearchParams(window.location.search).get("portal_token");
+      if (callbackPortalToken) setApplicantPortalToken(callbackPortalToken);
+
+      if (paymentReference && callbackPortalToken) {
         setPaymentLoading(true);
         const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
           "program-payment",
-          { body: { action: "verify", reference: paymentReference } },
+          { body: { action: "verify", portalToken: callbackPortalToken, reference: paymentReference } },
         );
         setPaymentLoading(false);
         if (verifyError || verifyData?.error) {
@@ -547,6 +551,18 @@ export default function PublicForm() {
 
 
   const loadPaymentState = async (token: string) => {
+    if (token.length === 64) {
+      const { data, error } = await supabase.functions.invoke("applicant-portal", {
+        body: { token, action: "payment-state" },
+      });
+      const state = data?.payment as PaymentState | null;
+      if (!error && state && typeof state === "object") {
+        setPaymentState(state);
+        return state;
+      }
+      return null;
+    }
+    // Existing pre-portal sessions retain their legacy payment-state lookup.
     const { data, error } = await supabase.rpc("get_program_payment_state", {
       p_session_token: token,
     });
@@ -594,7 +610,7 @@ export default function PublicForm() {
       {
         body: {
           action: "prepare-proof-upload",
-          sessionToken,
+          portalToken: applicantPortalToken,
           fileName: manualProof.name,
           contentType: manualProof.type,
         },
@@ -619,11 +635,14 @@ export default function PublicForm() {
       return;
     }
 
-    const { data, error } = await supabase.rpc("submit_manual_program_payment_with_proof", {
-      p_session_token: sessionToken,
-      p_manual_reference: manualReference.trim(),
-      p_proof_path: upload.path,
-      p_proof_content_type: manualProof.type,
+    const { data, error } = await supabase.functions.invoke("program-payment", {
+      body: {
+        action: "submit-proof",
+        portalToken: applicantPortalToken,
+        manualReference: manualReference.trim(),
+        proofPath: upload.path,
+        contentType: manualProof.type,
+      },
     });
 
     setPaymentLoading(false);
@@ -638,14 +657,19 @@ export default function PublicForm() {
   };
 
   const startPaystackPayment = async () => {
-    if (!sessionToken || !form) return;
+    if (!sessionToken || !applicantPortalToken || !form) {
+      setPaymentError("Your secure applicant portal link is not ready yet. Refresh your application status or contact the programme team.");
+      return;
+    }
     setPaymentLoading(true);
     setPaymentError("");
+    const callbackUrl = new URL(`/apply/${form.slug}`, window.location.origin);
+    callbackUrl.searchParams.set("portal_token", applicantPortalToken);
     const { data, error } = await supabase.functions.invoke("program-payment", {
       body: {
         action: "initialize",
-        sessionToken,
-        returnUrl: `${window.location.origin}/apply/${form.slug}`,
+        portalToken: applicantPortalToken,
+        returnUrl: callbackUrl.toString(),
       },
     });
     setPaymentLoading(false);
@@ -720,6 +744,7 @@ export default function PublicForm() {
     await loadPaymentState(sessionToken);
     setSubmitting(false);
     if (data.applicantPortalToken) {
+      setApplicantPortalToken(data.applicantPortalToken);
       const portalUrl = new URL("/applicant-portal", window.location.origin);
       portalUrl.searchParams.set("token", data.applicantPortalToken);
       setApplicantPortalUrl(portalUrl.toString());
