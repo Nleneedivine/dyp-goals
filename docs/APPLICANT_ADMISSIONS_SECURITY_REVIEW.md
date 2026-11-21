@@ -116,10 +116,10 @@ The user confirmed a **180-day** applicant portal lifetime. The database token c
 4. `20261121200000_gate_whatsapp_and_certificate_until_admission.sql`
 5. `20261121210000_prevent_replacing_verified_payment_proof.sql`
 6. `20261121220000_scope_admissions_to_goals_forms.sql`
+7. `20261121230000_enforce_goals_scope_for_admission_admin_rpcs.sql`
 
 ### Pre-production checks still required
-- Confirm the intended portal-token expiry duration.
-- Fix the session-token escape before relying on portal-link revocation.
+- Verify the portal-token/session-token boundary against deployed Edge Function versions and database grants before relying on portal-link revocation. The branch code strips the underlying session token from browser responses, but production verification is still outstanding.
 - Verify all remaining programme-content and WhatsApp access paths at the database/API layer.
 - Run SQL migrations against a non-production Supabase environment first.
 - Run SQL checks for trigger scope, RLS, grants, function definitions, and existing data preservation.
@@ -132,7 +132,7 @@ The user confirmed a **180-day** applicant portal lifetime. The database token c
 ## Current status
 - Branch-only changes committed; no SQL applied, no deployment, no merge.
 - Automated tests/build have not been run in this review.
-- The session-token escape and 180-day expiry decision remain release blockers.
+- The 180-day expiry is confirmed and displayed in the admin link-created confirmation. The session-token boundary is implemented in branch code but remains a release blocker until verified against deployed functions and live SQL grants.
 
 ### GOALS-only administrative enforcement (2026-11-21)
 - The Applications & Admissions admin query now restricts submissions to forms whose cohort has `program_key = 'goals'`, so legacy admission rows created by the earlier broad trigger cannot appear in this workspace.
