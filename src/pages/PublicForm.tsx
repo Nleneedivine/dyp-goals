@@ -725,12 +725,6 @@ export default function PublicForm() {
       }
     }
 
-    const { data: referralCode, error: referralCodeError } = await supabase.rpc(
-      "get_program_referral_code",
-      { p_session_token: sessionToken },
-    );
-    if (!referralCodeError && referralCode) setOwnReferralCode(referralCode);
-
     window.localStorage.setItem(`dyp-program-session:${form.slug}`, sessionToken);
     await loadPaymentState(sessionToken);
     setSubmitting(false);
@@ -994,7 +988,7 @@ export default function PublicForm() {
                     <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-amber-950">
                       <p className="font-semibold">DIT sponsorship pending verification</p>
                       <p className="mt-2 text-sm">
-                        You do not need to pay now. An Admin will verify your DIT sponsorship request. Once approved, WhatsApp and dashboard access will open automatically.
+                        You do not need to pay now. An Admin will verify your DIT sponsorship request. If approved, your application will move to the separate admission decision stage.
                       </p>
                     </div>
                   ) : paymentState.fundingType === "sponsored" && paymentState.sponsorshipStatus === "approved" ? (
@@ -1050,22 +1044,7 @@ export default function PublicForm() {
                         </Button>
                       </div>
 
-                      {ownReferralCode && (
-                        <div className="mt-5 border-t pt-4 text-center">
-                          <p className="text-sm font-medium">Start referring immediately</p>
-                          <p className="mt-1 break-all font-mono text-sm text-primary">
-                            {ownReferralCode}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() =>
-                              void navigator.clipboard.writeText(
-                                `${window.location.origin}/r/${encodeURIComponent(
-                                  ownReferralCode.replace(/^DYPGL-/i, ""),
-                                )}`,
+`,
                               )
                             }
                           >
