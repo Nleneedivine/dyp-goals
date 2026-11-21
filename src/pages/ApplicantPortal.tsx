@@ -13,8 +13,8 @@ type PortalState = {
   sessionToken?: string;
   submittedAt?: string;
   paymentStatus?: string;
-  fundingType?: string;
-  sponsorshipStatus?: string | null;
+  fundingType?: "self_paid" | "sponsored";
+  sponsorshipStatus?: "pending" | "approved" | "rejected" | "revoked" | null;
   admissionStatus?: string | null;
   admissionReason?: string | null;
 };
@@ -29,8 +29,13 @@ type PaymentState = {
   accountName?: string;
   accountNumber?: string;
   manualInstructions?: string;
-  paymentStatus?: string;
-  sponsorshipStatus?: string | null;
+  paymentStatus?: "unpaid" | "pending" | "paid" | "rejected";
+  fundingType?: "self_paid" | "sponsored";
+  sponsorshipStatus?: "pending" | "approved" | "rejected" | "revoked" | null;
+  financiallySatisfied?: boolean;
+  proofUploaded?: boolean;
+  paymentReference?: string | null;
+  whatsappGroupUrl?: string;
   sponsorName?: string | null;
   rejectionReason?: string | null;
   sponsorshipRejectionReason?: string | null;
@@ -91,8 +96,8 @@ export default function ApplicantPortal() {
       setError("Enter your transfer reference and choose your payment proof.");
       return;
     }
-    if (!["image/jpeg", "image/png", "image/webp"].includes(proof.type) || proof.size > 8 * 1024 * 1024) {
-      setError("Choose a JPG, PNG or WebP image smaller than 8 MB.");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(proof.type) || proof.size > 8 * 1024 * 1024 || proof.size < 20 * 1024) {
+      setError("Choose a clear JPG, PNG or WebP image between 20 KB and 8 MB.");
       return;
     }
     setBusy(true);
@@ -155,7 +160,7 @@ export default function ApplicantPortal() {
       {money && <p className="text-2xl font-bold">{money}</p>}
       {payment.manualInstructions && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{payment.manualInstructions}</p>}
       {payment.bankName && <div className="rounded-lg border p-4 text-sm"><p><strong>Bank:</strong> {payment.bankName}</p><p><strong>Account name:</strong> {payment.accountName}</p><p><strong>Account number:</strong> {payment.accountNumber}</p></div>}
-      {payment.rejectionReason && <p className="text-sm text-destructive">Previous proof was not approved: {payment.rejectionReason}</p>}
+      {payment.rejectionReason && <p className="text-sm text-destructive">Previous proof was not approved: {payment.rejectionReason}</p>}{payment.proofUploaded && payment.paymentStatus === "pending" && <p className="text-sm text-muted-foreground">Your proof is awaiting review. You can submit a replacement below if needed.</p>}{payment.sponsorshipRejectionReason && <p className="text-sm text-destructive">Sponsorship update: {payment.sponsorshipRejectionReason}</p>}
       {payment.manualEnabled && <div className="space-y-3 rounded-lg border p-4"><h2 className="font-semibold">Submit or replace transfer proof</h2><div className="space-y-2"><Label htmlFor="portal-reference">Transfer reference</Label><Input id="portal-reference" value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Enter your bank transfer reference" /></div><div className="space-y-2"><Label htmlFor="portal-proof">Payment proof (JPG, PNG or WebP)</Label><Input id="portal-proof" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setProof(event.target.files?.[0] ?? null)} /></div><Button onClick={() => void submitProof()} disabled={busy || !proof}><Upload className="mr-2 h-4 w-4" />Submit payment proof</Button></div>}
       {payment.paystackEnabled && <Button variant="outline" onClick={() => void startPaystack()} disabled={busy}>Pay securely online</Button>}
     </CardContent></Card>}
