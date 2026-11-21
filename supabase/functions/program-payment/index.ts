@@ -9,7 +9,7 @@ const RequestSchema = z.object({
   reference: z.string().min(6).max(120).optional(),
   returnUrl: z.string().url().optional(),
   fileName: z.string().min(1).max(180).optional(),
-  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),\n  proofPath: z.string().min(1).max(300).optional(),\n  manualReference: z.string().min(3).max(180).optional(),
 });
 
 const respond = (body: unknown, status = 200) =>
@@ -121,16 +121,30 @@ Deno.serve(async (req) => {
     }
 
     const body = parsed.data;
+    let sessionToken = sessionToken;
+
+    if (body.portalToken) {
+      const tokenDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body.portalToken.toLowerCase()));
+      const tokenHash = hex(tokenDigest);
+      const { data: portal, error: portalError } = await admin.rpc("get_applicant_portal_state", { p_token_hash: tokenHash });
+      if (portalError) throw portalError;
+      if (!portal?.valid || !portal?.sessionToken) return respond({ error: "Applicant portal link is invalid, expired or revoked." }, 401);
+      sessionToken = portal.sessionToken;
+    }
+
+    if (body.action !== "verify" && !sessionToken) {
+      return respond({ error: "A valid applicant portal token is required." }, 400);
+    }
 
     if (body.action === "prepare-proof-upload") {
-      if (!body.sessionToken || !body.fileName || !body.contentType) {
+      if (!sessionToken || !body.fileName || !body.contentType) {
         return respond({ error: "Missing payment proof upload details." }, 400);
       }
 
       const { data: session } = await admin
         .from("program_form_sessions")
         .select("id,form_id,completed_at")
-        .eq("session_token", body.sessionToken)
+        .eq("session_token", sessionToken)
         .maybeSingle();
 
       if (!session?.completed_at) {
@@ -193,15 +207,29 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (body.action === "submit-proof") {
+      if (!body.proofPath || !body.manualReference || !body.contentType) {
+        return respond({ error: "Missing payment proof details." }, 400);
+      }
+      const { data: result, error: submitError } = await admin.rpc("submit_manual_program_payment_with_proof", {
+        p_session_token: sessionToken,
+        p_manual_reference: body.manualReference,
+        p_proof_path: body.proofPath,
+        p_proof_content_type: body.contentType,
+      });
+      if (submitError) return respond({ error: submitError.message }, 400);
+      return respond({ payment: result ?? null });
+    }
+
     if (body.action === "initialize") {
-      if (!body.sessionToken || !body.returnUrl) {
+      if (!sessionToken || !body.returnUrl) {
         return respond({ error: "Missing registration payment details." }, 400);
       }
 
       const { data: session } = await admin
         .from("program_form_sessions")
         .select("id,form_id,completed_at")
-        .eq("session_token", body.sessionToken)
+        .eq("session_token", sessionToken)
         .maybeSingle();
 
       if (!session?.completed_at) {
