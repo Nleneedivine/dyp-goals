@@ -1178,31 +1178,7 @@ export default function PublicForm() {
                 </div>
               )}
 
-              {ownReferralCode && paymentState?.paymentStatus !== "paid" && (
-                <div className="mx-auto mt-7 max-w-xl rounded-2xl border bg-muted/20 p-5 text-center">
-                  <div className="flex items-center justify-center gap-2 text-primary">
-                    <Share2 className="h-5 w-5" />
-                    <p className="font-semibold">Your referral code</p>
-                  </div>
-                  <p className="mt-3 font-mono text-2xl font-bold tracking-wider">{ownReferralCode}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Share this code or your referral link. A referral counts toward the campaign leaderboard only after that participant completes the program and receives a certificate.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-4 gap-2"
-                    onClick={() =>
-                      void navigator.clipboard.writeText(
-                        `${window.location.origin}/r/${encodeURIComponent(ownReferralCode.replace(/^DYPGL-/i, ""))}`,
-                      )
-                    }
-                  >
-                    <Copy className="h-4 w-4" />
-                    Copy referral link
-                  </Button>
-                </div>
-              )}
+
             </CardContent>
           </Card>
         ) : (
