@@ -444,6 +444,9 @@ export default function PublicForm() {
 
       const storageKey = `dyp-program-session:${formData.slug}`;
       const storedToken = window.localStorage.getItem(storageKey);
+      const callbackPortalToken = new URLSearchParams(window.location.search).get("portal_token");
+      if (callbackPortalToken) setApplicantPortalToken(callbackPortalToken);
+      const paymentStateToken = callbackPortalToken ?? storedToken;
       const attributionKey = `dyp-referral-attribution:${formData.slug}`;
 
       let referralCodeForSession = incomingReferralCode;
@@ -482,9 +485,6 @@ export default function PublicForm() {
       const referralJourney = Boolean(referralCodeForSession);
       const sponsorshipJourney = Boolean(incomingSponsorshipCode);
 
-      const callbackPortalToken = new URLSearchParams(window.location.search).get("portal_token");
-      if (callbackPortalToken) setApplicantPortalToken(callbackPortalToken);
-
       if (paymentReference && callbackPortalToken) {
         setPaymentLoading(true);
         const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
@@ -498,7 +498,7 @@ export default function PublicForm() {
       }
 
       if (storedToken && sponsorshipJourney) {
-        const sponsoredState = await loadPaymentState(storedToken);
+        const sponsoredState = await loadPaymentState(paymentStateToken ?? storedToken);
         if (
           sponsoredState?.available &&
           sponsoredState.fundingType === "sponsored"
@@ -511,7 +511,7 @@ export default function PublicForm() {
       }
 
       if (storedToken && ((!referralJourney && !sponsorshipJourney) || Boolean(paymentReference))) {
-        const state = await loadPaymentState(storedToken);
+        const state = await loadPaymentState(paymentStateToken ?? storedToken);
         if (state?.available) {
           setSessionToken(storedToken);
           setSuccess(formData.confirmation_message);
