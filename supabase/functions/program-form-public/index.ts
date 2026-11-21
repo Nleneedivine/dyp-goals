@@ -110,7 +110,21 @@ Deno.serve(async (req) => {
     const completedAt = new Date().toISOString();
     await admin.from("program_form_sessions").update({ completed_at: completedAt, last_activity_at: completedAt }).eq("id", session.id);
     await admin.from("program_form_events").insert({ form_id: form.id, session_id: session.id, event_type: "submit", elapsed_ms: completionTime });
-    return respond({ success: true, confirmationMessage: form.confirmation_message });
+
+    // Issue a one-time applicant portal bearer token for this newly submitted application.
+    // Only the SHA-256 hash is persisted; the raw token is returned once to the applicant.
+    let applicantPortalToken: string | null = null;
+    const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
+    const rawToken = Array.from(tokenBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const tokenDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawToken));
+    const tokenHash = Array.from(new Uint8Array(tokenDigest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const { error: portalTokenError } = await admin.from("program_applicant_portal_tokens").insert({
+      submission_id: submission.id,
+      token_hash: tokenHash,
+    });
+    if (!portalTokenError) applicantPortalToken = rawToken;
+
+    return respond({ success: true, confirmationMessage: form.confirmation_message, applicantPortalToken });
   } catch (error) {
     return respond({ error: error instanceof Error ? error.message : "Unable to process this form." }, 500);
   }
