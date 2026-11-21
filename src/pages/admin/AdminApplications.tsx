@@ -105,8 +105,8 @@ export default function AdminApplications() {
         admission: admissionById.get(submission.id) ?? null,
         recoveryEligible: recoveryIds.has(submission.id),
       })));
-    } catch (error: any) {
-      toast({ title: "Applications could not load", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Applications could not load", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -146,8 +146,8 @@ export default function AdminApplications() {
       const expiry = tokenResult?.expiresAt ? new Date(tokenResult.expiresAt).toLocaleDateString() : "180 days after creation";
       toast({ title: "Applicant portal link copied", description: `Share this link manually. It expires on ${expiry}. It will not be emailed automatically.` });
       await load();
-    } catch (error: any) {
-      toast({ title: "Could not create portal link", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Could not create portal link", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
       setBusyId(null);
     }
@@ -164,8 +164,8 @@ export default function AdminApplications() {
       if (error) throw error;
       toast({ title: decision === "admitted" ? "Applicant admitted" : "Admission decision saved" });
       await load();
-    } catch (error: any) {
-      toast({ title: "Admission decision failed", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Admission decision failed", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
       setBusyId(null);
     }
