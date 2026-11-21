@@ -365,11 +365,20 @@ Deno.serve(async (req) => {
       })
       .eq("submission_id", payment.submission_id);
 
-    const { data: settings } = await admin
-      .from("program_payment_settings")
-      .select("whatsapp_group_url")
-      .eq("form_id", payment.form_id)
+    const { data: admission } = await admin
+      .from("program_application_admissions")
+      .select("status")
+      .eq("submission_id", payment.submission_id)
       .maybeSingle();
+
+    const mayReceiveProgrammeAccess = !admission || admission.status === "admitted";
+    const { data: settings } = mayReceiveProgrammeAccess
+      ? await admin
+          .from("program_payment_settings")
+          .select("whatsapp_group_url")
+          .eq("form_id", payment.form_id)
+          .maybeSingle()
+      : { data: null };
 
     return respond({
       paid: true,
