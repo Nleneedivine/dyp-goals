@@ -60,7 +60,7 @@ interface BookItem {
   addedAt: string;
 }
 
-const categoryIcons: Record<string, any> = {
+const categoryIcons: Record<string, LucideIcon> = {
   work: Briefcase,
   study: Book,
   exercise: Dumbbell,
@@ -131,16 +131,16 @@ export default function TodoPage() {
     const savedRecurring = localStorage.getItem(`${STORAGE_KEY}-recurring`);
 
     if (savedTodos) {
-      try { setTodoItemsByDate(JSON.parse(savedTodos)); } catch { }
+      try { setTodoItemsByDate(JSON.parse(savedTodos)); } catch { /* Ignore invalid locally stored data. */ }
     }
     if (savedArchives) {
-      try { setArchives(JSON.parse(savedArchives)); } catch { }
+      try { setArchives(JSON.parse(savedArchives)); } catch { /* Ignore invalid locally stored data. */ }
     }
     if (savedBooks) {
-      try { setBooks(JSON.parse(savedBooks)); } catch { }
+      try { setBooks(JSON.parse(savedBooks)); } catch { /* Ignore invalid locally stored data. */ }
     }
     if (savedRecurring) {
-      try { setRecurringTasks(JSON.parse(savedRecurring)); } catch { }
+      try { setRecurringTasks(JSON.parse(savedRecurring)); } catch { /* Ignore invalid locally stored data. */ }
     }
   }, []);
 
