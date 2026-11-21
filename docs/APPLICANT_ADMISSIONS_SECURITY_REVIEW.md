@@ -165,6 +165,8 @@ The user confirmed a **180-day** applicant portal lifetime. The database token c
 ### 3. Programme-entitlement coverage
 - Added `20261121240000_gate_accountability_until_admission.sql`.
 - `join_current_accountability_lab`, `assign_current_user_to_accountability_group`, and `current_user_accountability_chat` now check `program_application_access_allowed` before allowing new applicants into Accountability Lab or its group chat.
+
+- The Accountability Lab migration also removes any pre-existing group-chat membership for applicants whose new admission status is still pending/rejected, and adds a database trigger preventing any writer (including admin bulk assignment) from activating a new GOALS applicant's accountability membership before admission. Legacy membership rows without an admission record are preserved.
 - The existing grandfathering helper still permits historical submissions without an admission row.
 - WhatsApp links remain withheld from new applicants until admitted; certificate issuance already has the admission check.
 - UI copy in the admin payment panel now clarifies that funding verification does not itself grant WhatsApp access.
