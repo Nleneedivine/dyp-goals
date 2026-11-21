@@ -3,7 +3,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3";
 import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
-const RequestSchema = z.object({\n  token: z.string().regex(/^[a-f0-9]{64}$/i),\n  action: z.enum(["resolve", "payment-state", "referral-code"]).default("resolve"),\n});
+const RequestSchema = z.object({
+  token: z.string().regex(/^[a-f0-9]{64}$/i),
+  action: z.enum(["resolve", "payment-state", "referral-code"]).default("resolve"),
+});
 const respond = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
