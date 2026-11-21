@@ -1,6 +1,31 @@
 -- Keep Accountability Lab membership and chat unavailable to new applicants until admitted.
 -- Existing legacy enrollments without an admission row remain grandfathered by the helper.
 
+-- Remove any group-chat membership that may have been assigned to a new
+-- applicant before the admission gate was introduced. Legacy participants are untouched.
+delete from public.chat_group_members cgm
+using public.chat_groups cg,
+      public.program_accountability_memberships m,
+      public.program_enrollments e,
+      public.program_application_admissions a
+where cg.id = cgm.group_id
+  and cg.accountability_group_id = m.group_id
+  and e.id = m.enrollment_id
+  and a.submission_id = e.source_submission_id
+  and a.status <> 'admitted'
+  and e.user_id = cgm.user_id;
+
+update public.program_accountability_memberships m
+set status = 'removed',
+    left_at = coalesce(m.left_at, now()),
+    updated_at = now()
+from public.program_enrollments e,
+     public.program_application_admissions a
+where e.id = m.enrollment_id
+  and a.submission_id = e.source_submission_id
+  and a.status <> 'admitted'
+  and m.status = 'active';
+
 create or replace function public.join_current_accountability_lab(
   p_availability text[]
 )
