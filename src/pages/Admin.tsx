@@ -932,9 +932,15 @@ const Admin = () => {
                   </Link>
                 </Button>
                 <Button asChild variant="outline">
+                  <Link to="/admin/applications">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Applications & Admissions
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
                   <Link to="/admin/forms">
                     <FileText className="mr-2 h-4 w-4" />
-                    Forms & Applications
+                    Form Builder & Analytics
                   </Link>
                 </Button>
                 <Button asChild variant="outline">
@@ -965,9 +971,9 @@ const Admin = () => {
             </p>
             <div className="mt-6 flex justify-center">
               <Button asChild size="lg" variant="outline">
-                <Link to="/admin/forms">
+                <Link to="/admin/applications">
                   <FileText className="mr-2 h-5 w-5" />
-                  Forms & Applications
+                  Applications & Admissions
                 </Link>
               </Button>
             </div>
