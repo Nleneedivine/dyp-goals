@@ -6,7 +6,6 @@ import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 const RequestSchema = z.object({
   action: z.enum(["initialize", "verify", "prepare-proof-upload", "submit-proof"]),
   portalToken: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
-  sessionToken: z.string().uuid().optional(),
   reference: z.string().min(6).max(120).optional(),
   returnUrl: z.string().url().optional(),
   fileName: z.string().min(1).max(180).optional(),
@@ -124,7 +123,7 @@ Deno.serve(async (req) => {
     }
 
     const body = parsed.data;
-    let sessionToken = body.sessionToken;
+    let sessionToken: string | undefined;
 
     if (body.portalToken) {
       const tokenDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body.portalToken.toLowerCase()));
