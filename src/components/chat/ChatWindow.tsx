@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import MessageBubble from "./MessageBubble";
+import { getErrorMessage } from "@/lib/errorMessage";
 import { 
   Send, 
   Smile, 
@@ -178,8 +179,8 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
           .update({ read_at: new Date().toISOString() })
           .in('id', unreadIds);
       }
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -267,8 +268,8 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
 
       setNewMessage("");
       setReplyingTo(null);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     }
   };
 
@@ -288,8 +289,8 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
           .from('message_reactions')
           .insert({ message_id: messageId, user_id: currentUserId, emoji });
       }
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     }
   };
 
@@ -307,8 +308,8 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
       
       setMessages(prev => prev.filter(m => m.id !== messageId));
       toast({ title: "Message deleted" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     }
   };
 
