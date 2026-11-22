@@ -101,8 +101,8 @@ begin
     where c.submission_id = p_submission_id and c.status = 'approved'
   ) into v_sponsorship_approved;
 
-  if not (v_payment_paid or v_sponsorship_approved) then
-    raise exception 'Funding must be verified before an admission decision';
+  if p_decision = 'admitted' and not (v_payment_paid or v_sponsorship_approved) then
+    raise exception 'Funding must be verified before admission';
   end if;
 
   if p_decision = 'rejected' and char_length(trim(coalesce(p_reason,''))) < 3 then
