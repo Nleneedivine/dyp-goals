@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Sparkles, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 interface EditSectionModalProps {
   isOpen: boolean;
@@ -87,11 +88,11 @@ export const EditSectionModal = ({
         setFeedback("");
         onClose();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error regenerating section:', error);
       toast({
         title: "Regeneration Failed",
-        description: error.message || "Unable to regenerate section. Please try again.",
+        description: getErrorMessage(error) || "Unable to regenerate section. Please try again.",
         variant: "destructive",
       });
     } finally {
