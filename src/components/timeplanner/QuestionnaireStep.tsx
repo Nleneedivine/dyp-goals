@@ -135,9 +135,9 @@ export function QuestionnaireStep({
     return data[currentQuestion.key as keyof QuestionnaireData];
   };
 
-  const handleChange = (value: any) => {
+  const handleChange = (value: string | number | Partial<QuestionnaireData>) => {
     if (currentQuestion.key === 'schedule') {
-      onDataChange(value);
+      onDataChange(value as Partial<QuestionnaireData>);
     } else {
       onDataChange({ [currentQuestion.key]: value });
     }
