@@ -18,10 +18,10 @@ interface EditSectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   sectionType: 'yearly' | 'monthly' | 'weekly' | 'daily';
-  currentData: any;
+  currentData: unknown;
   planId: string;
   goal: string;
-  onUpdate: (sectionType: string, newData: any) => void;
+  onUpdate: (sectionType: string, newData: unknown) => void;
 }
 
 export const EditSectionModal = ({
@@ -75,7 +75,7 @@ export const EditSectionModal = ({
         const updateField = `${sectionType}_plan`;
         await supabase
           .from('time_plans')
-          .update({ [updateField]: data.sectionData } as any)
+          .update({ [updateField]: data.sectionData } as unknown as import('@/integrations/supabase/types').TablesUpdate<'time_plans'>)
           .eq('id', planId);
 
         onUpdate(sectionType, data.sectionData);
