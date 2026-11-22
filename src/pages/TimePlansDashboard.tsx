@@ -30,6 +30,7 @@ import {
 import { TimePlanPDFDocument } from "@/components/timeplanner/TimePlanPDFDocument";
 import { pdf } from "@react-pdf/renderer";
 import { Tables } from "@/integrations/supabase/types";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 type TimePlan = Tables<'time_plans'>;
 
@@ -56,7 +57,7 @@ const TimePlansDashboard = () => {
 
       if (error) throw error;
       setPlans(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching plans:', error);
       toast({
         title: "Error",
@@ -97,7 +98,7 @@ const TimePlansDashboard = () => {
         title: "Plan Deleted",
         description: "Time plan has been removed.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting plan:', error);
       toast({
         title: "Error",
