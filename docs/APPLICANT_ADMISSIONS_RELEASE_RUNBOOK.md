@@ -16,6 +16,8 @@
 3. Preserved NULL MIME-type rejection in the final legacy-session RPC replacement (`20261121250000`). This migration replaces the proof RPC from the earlier proof-hardening migration, so the NULL check must exist in the final replacement too.
 4. Made admission funding validation apply to the `admitted` decision only. An administrator can reject an unfunded application with a reason; a positive admission still requires verified payment or approved sponsorship.
 5. Made the referral-code-on-admission trigger branch safely on INSERT versus UPDATE before accessing OLD row values.
+6. Preserved the shared referral-answer trigger for non-GOALS programmes and legacy submissions; only new GOALS submissions with a non-admitted admission row are prevented from receiving a referral code.
+7. Added a separate database trigger on `chat_group_members`. That table has its own admin/group-admin insert policy, so guarding only `program_accountability_memberships` was insufficient to stop a direct chat-membership insert from bypassing the admission rule. The added trigger blocks new, non-admitted GOALS participants while preserving admitted/legacy users.
 
 ## Migration sequence
 
