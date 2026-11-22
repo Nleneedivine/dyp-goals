@@ -286,7 +286,43 @@ before insert or update of enrollment_id, status
 on public.program_accountability_memberships
 for each row execute function public.guard_accountability_membership_admission();
 
+-- Chat-group membership has its own admin INSERT policy. Guard it separately
+-- so a direct admin/group-admin insert cannot bypass the accountability gate.
+create or replace function public.guard_accountability_chat_group_member_admission()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $function$
+begin
+  if exists (
+    select 1
+    from public.chat_groups cg
+    join public.accountability_groups ag on ag.id = cg.accountability_group_id
+    join public.program_cohorts c on c.id = ag.cohort_id
+    join public.program_enrollments e
+      on e.cohort_id = ag.cohort_id
+     and e.user_id = new.user_id
+     and e.status in ('active','completed')
+    where cg.id = new.group_id
+      and c.program_key = 'goals'
+      and not public.program_application_access_allowed(e.source_submission_id)
+  ) then
+    raise exception 'Admission must be confirmed before joining an Accountability Lab chat group';
+  end if;
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists guard_accountability_chat_group_member_admission on public.chat_group_members;
+create trigger guard_accountability_chat_group_member_admission
+before insert or update of group_id, user_id
+on public.chat_group_members
+for each row execute function public.guard_accountability_chat_group_member_admission();
+
 revoke all on function public.guard_accountability_membership_admission() from public, anon, authenticated;
+revoke all on function public.guard_accountability_chat_group_member_admission() from public, anon, authenticated;
 
 revoke all on function public.join_current_accountability_lab(text[]) from public, anon;
 grant execute on function public.join_current_accountability_lab(text[]) to authenticated, service_role;
