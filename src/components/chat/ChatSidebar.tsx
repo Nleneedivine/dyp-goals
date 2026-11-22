@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface ChatSidebarProps {
   currentUserId: string;
@@ -47,7 +48,7 @@ const ChatSidebar = ({ currentUserId, onSelectChat, selectedChatId }: ChatSideba
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
-          const msg = payload.new as any;
+          const msg = payload.new as Tables<"chat_messages">;
           setChats(prev => prev.map(chat => {
             if (chat.type === 'global' && !msg.group_id) {
               return { 
