@@ -152,7 +152,7 @@ const TimePlanner = () => {
         const { data: insertedPlan } = await supabase.from('time_plans').insert([{
           user_id: user.id,
           goal,
-          questionnaire_data: questionnaireData as any,
+          questionnaire_data: questionnaireData as unknown as import("@/integrations/supabase/types").Json,
           yearly_plan: data.timePlan.yearlyPlan,
           monthly_plan: data.timePlan.monthlyPlan,
           weekly_plan: data.timePlan.weeklyPlan,
@@ -241,7 +241,7 @@ const TimePlanner = () => {
     navigate('/time-plans');
   };
 
-  const handleSectionUpdate = (sectionType: string, newData: any) => {
+  const handleSectionUpdate = (sectionType: string, newData: unknown) => {
     if (!timePlan) return;
     
     const updatedPlan = { ...timePlan };
