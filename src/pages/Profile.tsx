@@ -13,6 +13,7 @@ import { ProgramNotificationSettings } from "@/components/ProgramNotificationSet
 import { ProgramCalendarSync } from "@/components/ProgramCalendarSync";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 const Profile = () => {
   const [loading, setLoading] = useState(true);
@@ -61,10 +62,10 @@ const Profile = () => {
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading profile",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -122,10 +123,10 @@ const Profile = () => {
           ? "A confirmation was requested for the new account email. Until it is confirmed, GOALS will continue using your current sign-in email for account and execution emails."
           : "Your profile has been saved successfully.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error saving profile",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -166,10 +167,10 @@ const Profile = () => {
       });
       setNewPassword("");
       setConfirmPassword("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error changing password",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
