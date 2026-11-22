@@ -376,7 +376,7 @@ const TimePlansDashboard = () => {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {(plan.questionnaire_data as any)?.hoursPerWeek || 0}h/week
+                        {(plan.questionnaire_data as { hoursPerWeek?: number } | null)?.hoursPerWeek || 0}h/week
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
