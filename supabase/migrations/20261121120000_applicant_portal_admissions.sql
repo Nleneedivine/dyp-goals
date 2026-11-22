@@ -56,7 +56,7 @@ revoke all on public.program_applicant_portal_audit from anon, authenticated;
 grant select on public.program_application_admissions, public.program_applicant_portal_audit to authenticated;
 grant all on public.program_application_admissions, public.program_applicant_portal_tokens, public.program_applicant_portal_audit to service_role;
 
--- Only submissions created after this trigger is installed receive a new admission stage.
+-- Only new submissions for DYP GOALS receive an admission row.
 create or replace function public.initialize_program_application_admission()
 returns trigger
 language plpgsql
@@ -64,14 +64,11 @@ security definer
 set search_path = public
 as $$
 begin
-  -- The submissions table is shared across programmes. Scope the trigger from
-  -- its first installation so there is no migration-window exposure for others.
   if exists (
     select 1
     from public.program_forms f
     join public.program_cohorts c on c.id = f.cohort_id
-    where f.id = new.form_id
-      and c.program_key = 'goals'
+    where f.id = new.form_id and c.program_key = 'goals'
   ) then
     insert into public.program_application_admissions (submission_id, status)
     values (new.id, 'awaiting_funding')
@@ -97,46 +94,46 @@ security definer
 set search_path = public
 as $$
 declare
-  v_payment_status text;
-  v_sponsorship_status text;
+  v_payment_paid boolean := false;
+  v_sponsorship_approved boolean := false;
   v_row public.program_application_admissions;
 begin
-  if auth.uid() is null
-     or not public.has_role(auth.uid(), 'admin'::public.app_role) then
+  if auth.uid() is null or not public.has_role(auth.uid(), 'admin'::public.app_role) then
     raise exception 'Admin access required';
   end if;
-
   if p_decision not in ('admitted','rejected') then
     raise exception 'Invalid admission decision';
   end if;
-
   if not exists (
     select 1
     from public.program_form_submissions s
     join public.program_forms f on f.id = s.form_id
     join public.program_cohorts c on c.id = f.cohort_id
-    where s.id = p_submission_id
-      and c.program_key = 'goals'
+    where s.id = p_submission_id and c.program_key = 'goals'
   ) then
     raise exception 'Admission decisions are only available for DYP GOALS applications';
   end if;
 
-  select p.status into v_payment_status
-  from public.program_payments p
-  where p.submission_id = p_submission_id;
-
-  select c.status into v_sponsorship_status
-  from public.program_sponsorship_claims c
-  where c.submission_id = p_submission_id
-  order by c.updated_at desc
-  limit 1;
-
-  if p_decision = 'admitted'
-     and coalesce(v_payment_status <> 'paid', true)
-     and coalesce(v_sponsorship_status <> 'approved', true) then
-    raise exception 'Funding must be verified before admission';
+  select * into v_row
+  from public.program_application_admissions
+  where submission_id = p_submission_id
+  for update;
+  if not found then
+    raise exception 'This application is not in the new admission workflow';
   end if;
 
+  select exists (
+    select 1 from public.program_payments
+    where submission_id = p_submission_id and status = 'paid'
+  ) into v_payment_paid;
+  select exists (
+    select 1 from public.program_sponsorship_claims
+    where submission_id = p_submission_id and status = 'approved'
+  ) into v_sponsorship_approved;
+
+  if p_decision = 'admitted' and not (v_payment_paid or v_sponsorship_approved) then
+    raise exception 'Funding must be verified before admission';
+  end if;
   if p_decision = 'rejected' and char_length(trim(coalesce(p_reason,''))) < 3 then
     raise exception 'A reason is required when rejecting an application';
   end if;
@@ -150,15 +147,10 @@ begin
   where submission_id = p_submission_id
   returning * into v_row;
 
-  if not found then
-    raise exception 'This application is not in the new admission workflow';
-  end if;
-
   insert into public.program_applicant_portal_audit
     (submission_id, actor_id, action, details)
-  values
-    (p_submission_id, auth.uid(), 'admission_decision',
-     jsonb_build_object('decision', p_decision, 'reason', coalesce(p_reason,'')));
+  values (p_submission_id, auth.uid(), 'admission_decision',
+    jsonb_build_object('decision', p_decision, 'reason', coalesce(p_reason,'')));
 
   return jsonb_build_object(
     'submissionId', v_row.submission_id,
@@ -171,8 +163,6 @@ $$;
 revoke all on function public.admin_set_program_application_admission(uuid,text,text) from public, anon;
 grant execute on function public.admin_set_program_application_admission(uuid,text,text) to authenticated, service_role;
 
--- Admin generates a random bearer token in the browser, sends only its SHA-256 hash here,
--- and receives the token row ID. The raw token is never stored in Postgres.
 create or replace function public.admin_create_applicant_portal_token(
   p_submission_id uuid,
   p_token_hash text
@@ -185,109 +175,10 @@ as $$
 declare
   v_token public.program_applicant_portal_tokens;
 begin
-  if auth.uid() is null
-     or not public.has_role(auth.uid(), 'admin'::public.app_role) then
+  if auth.uid() is null or not public.has_role(auth.uid(), 'admin'::public.app_role) then
     raise exception 'Admin access required';
   end if;
-  if p_token_hash is null or p_token_hash !~ '^[a-f0-9]{64}
-  set revoked_at = now()
-  where submission_id = p_submission_id and revoked_at is null;
-
-  insert into public.program_applicant_portal_tokens
-    (submission_id, token_hash, created_by)
-  values (p_submission_id, lower(p_token_hash), auth.uid())
-  returning * into v_token;
-
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, actor_id, action)
-  values (p_submission_id, v_token.id, auth.uid(), 'rotated');
-
-  return jsonb_build_object(
-    'tokenId', v_token.id,
-    'expiresAt', v_token.expires_at
-  );
-end;
-$$;
-
-create or replace function public.get_applicant_portal_state(p_token_hash text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_token public.program_applicant_portal_tokens;
-  v_submission public.program_form_submissions;
-  v_payment public.program_payments;
-  v_claim public.program_sponsorship_claims;
-  v_admission public.program_application_admissions;
-  v_session_token uuid;
-begin
-  if p_token_hash !~ '^[a-f0-9]{64}$' then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select * into v_token
-  from public.program_applicant_portal_tokens
-  where token_hash = lower(p_token_hash)
-    and revoked_at is null
-    and expires_at > now();
-
-  if not found then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select s, fs.session_token
-  into v_submission, v_session_token
-  from public.program_form_submissions s
-  join public.program_form_sessions fs on fs.id = s.session_id
-  where s.id = v_token.submission_id;
-
-  if not found then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select * into v_payment from public.program_payments
-  where submission_id = v_submission.id;
-
-  select * into v_claim from public.program_sponsorship_claims
-  where submission_id = v_submission.id
-  order by updated_at desc limit 1;
-
-  select * into v_admission from public.program_application_admissions
-  where submission_id = v_submission.id;
-
-  update public.program_applicant_portal_tokens
-  set last_used_at = now() where id = v_token.id;
-
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, action)
-  values (v_submission.id, v_token.id, 'opened');
-
-  return jsonb_build_object(
-    'valid', true,
-    'submissionId', v_submission.id,
-    'sessionToken', v_session_token,
-    'submittedAt', v_submission.submitted_at,
-    'paymentStatus', coalesce(v_payment.status, 'unpaid'),
-    'fundingType', case when v_claim.id is not null then 'sponsored' else 'self_paid' end,
-    'sponsorshipStatus', v_claim.status,
-    'admissionStatus', v_admission.status,
-    'admissionReason', v_admission.decision_reason
-  );
-end;
-$$;
-
-revoke all on function public.admin_create_applicant_portal_token(uuid,text) from public, anon;
-grant execute on function public.admin_create_applicant_portal_token(uuid,text) to authenticated, service_role;
-revoke all on function public.get_applicant_portal_state(text) from public;
-grant execute on function public.get_applicant_portal_state(text) to anon, authenticated, service_role;
-
-comment on table public.program_application_admissions is
-  'Separate admission decisions for applications submitted after this migration; historical applications are not backfilled.';
-comment on table public.program_applicant_portal_tokens is
-  'Hashed, expiring bearer tokens for persistent applicant portal access. Raw tokens are never stored.';
- then
+  if p_token_hash is null or p_token_hash !~ '^[a-f0-9]{64}$' then
     raise exception 'Invalid portal token hash';
   end if;
   if not exists (
@@ -295,8 +186,7 @@ comment on table public.program_applicant_portal_tokens is
     from public.program_form_submissions s
     join public.program_forms f on f.id = s.form_id
     join public.program_cohorts c on c.id = f.cohort_id
-    where s.id = p_submission_id
-      and c.program_key = 'goals'
+    where s.id = p_submission_id and c.program_key = 'goals'
   ) then
     raise exception 'Applicant portal links are only available for DYP GOALS applications';
   end if;
@@ -305,19 +195,14 @@ comment on table public.program_applicant_portal_tokens is
   set revoked_at = now()
   where submission_id = p_submission_id and revoked_at is null;
 
-  insert into public.program_applicant_portal_tokens
-    (submission_id, token_hash, created_by)
+  insert into public.program_applicant_portal_tokens (submission_id, token_hash, created_by)
   values (p_submission_id, lower(p_token_hash), auth.uid())
   returning * into v_token;
 
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, actor_id, action)
+  insert into public.program_applicant_portal_audit (submission_id, token_id, actor_id, action)
   values (p_submission_id, v_token.id, auth.uid(), 'rotated');
 
-  return jsonb_build_object(
-    'tokenId', v_token.id,
-    'expiresAt', v_token.expires_at
-  );
+  return jsonb_build_object('tokenId', v_token.id, 'expiresAt', v_token.expires_at);
 end;
 $$;
 
@@ -335,7 +220,7 @@ declare
   v_admission public.program_application_admissions;
   v_session_token uuid;
 begin
-  if p_token_hash !~ '^[a-f0-9]{64}$' then
+  if p_token_hash is null or p_token_hash !~ '^[a-f0-9]{64}$' then
     return jsonb_build_object('valid', false);
   end if;
 
@@ -344,7 +229,6 @@ begin
   where token_hash = lower(p_token_hash)
     and revoked_at is null
     and expires_at > now();
-
   if not found then
     return jsonb_build_object('valid', false);
   end if;
@@ -354,26 +238,19 @@ begin
   from public.program_form_submissions s
   join public.program_form_sessions fs on fs.id = s.session_id
   where s.id = v_token.submission_id;
-
   if not found then
     return jsonb_build_object('valid', false);
   end if;
 
-  select * into v_payment from public.program_payments
-  where submission_id = v_submission.id;
-
+  select * into v_payment from public.program_payments where submission_id = v_submission.id;
   select * into v_claim from public.program_sponsorship_claims
-  where submission_id = v_submission.id
-  order by updated_at desc limit 1;
-
+    where submission_id = v_submission.id order by updated_at desc limit 1;
   select * into v_admission from public.program_application_admissions
-  where submission_id = v_submission.id;
+    where submission_id = v_submission.id;
 
   update public.program_applicant_portal_tokens
   set last_used_at = now() where id = v_token.id;
-
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, action)
+  insert into public.program_applicant_portal_audit (submission_id, token_id, action)
   values (v_submission.id, v_token.id, 'opened');
 
   return jsonb_build_object(
@@ -392,234 +269,10 @@ $$;
 
 revoke all on function public.admin_create_applicant_portal_token(uuid,text) from public, anon;
 grant execute on function public.admin_create_applicant_portal_token(uuid,text) to authenticated, service_role;
-revoke all on function public.get_applicant_portal_state(text) from public;
-grant execute on function public.get_applicant_portal_state(text) to anon, authenticated, service_role;
+revoke all on function public.get_applicant_portal_state(text) from public, anon, authenticated;
+grant execute on function public.get_applicant_portal_state(text) to service_role;
 
 comment on table public.program_application_admissions is
-  'Separate admission decisions for applications submitted after this migration; historical applications are not backfilled.';
-comment on table public.program_applicant_portal_tokens is
-  'Hashed, expiring bearer tokens for persistent applicant portal access. Raw tokens are never stored.';
- then
-    raise exception 'Invalid portal token hash';
-  end if;
-  if not exists (
-    select 1
-    from public.program_form_submissions s
-    join public.program_forms f on f.id = s.form_id
-    join public.program_cohorts c on c.id = f.cohort_id
-    where s.id = p_submission_id
-      and c.program_key = 'goals'
-  ) then
-    raise exception 'Applicant portal links are only available for DYP GOALS applications';
-  end if;
-
-  update public.program_applicant_portal_tokens
-  set revoked_at = now()
-  where submission_id = p_submission_id and revoked_at is null;
-
-  insert into public.program_applicant_portal_tokens
-    (submission_id, token_hash, created_by)
-  values (p_submission_id, lower(p_token_hash), auth.uid())
-  returning * into v_token;
-
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, actor_id, action)
-  values (p_submission_id, v_token.id, auth.uid(), 'rotated');
-
-  return jsonb_build_object(
-    'tokenId', v_token.id,
-    'expiresAt', v_token.expires_at
-  );
-end;
-$$;
-
-create or replace function public.get_applicant_portal_state(p_token_hash text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_token public.program_applicant_portal_tokens;
-  v_submission public.program_form_submissions;
-  v_payment public.program_payments;
-  v_claim public.program_sponsorship_claims;
-  v_admission public.program_application_admissions;
-  v_session_token uuid;
-begin
-  if p_token_hash !~ '^[a-f0-9]{64}$' then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select * into v_token
-  from public.program_applicant_portal_tokens
-  where token_hash = lower(p_token_hash)
-    and revoked_at is null
-    and expires_at > now();
-
-  if not found then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select s, fs.session_token
-  into v_submission, v_session_token
-  from public.program_form_submissions s
-  join public.program_form_sessions fs on fs.id = s.session_id
-  where s.id = v_token.submission_id;
-
-  if not found then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select * into v_payment from public.program_payments
-  where submission_id = v_submission.id;
-
-  select * into v_claim from public.program_sponsorship_claims
-  where submission_id = v_submission.id
-  order by updated_at desc limit 1;
-
-  select * into v_admission from public.program_application_admissions
-  where submission_id = v_submission.id;
-
-  update public.program_applicant_portal_tokens
-  set last_used_at = now() where id = v_token.id;
-
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, action)
-  values (v_submission.id, v_token.id, 'opened');
-
-  return jsonb_build_object(
-    'valid', true,
-    'submissionId', v_submission.id,
-    'sessionToken', v_session_token,
-    'submittedAt', v_submission.submitted_at,
-    'paymentStatus', coalesce(v_payment.status, 'unpaid'),
-    'fundingType', case when v_claim.id is not null then 'sponsored' else 'self_paid' end,
-    'sponsorshipStatus', v_claim.status,
-    'admissionStatus', v_admission.status,
-    'admissionReason', v_admission.decision_reason
-  );
-end;
-$$;
-
-revoke all on function public.admin_create_applicant_portal_token(uuid,text) from public, anon;
-grant execute on function public.admin_create_applicant_portal_token(uuid,text) to authenticated, service_role;
-revoke all on function public.get_applicant_portal_state(text) from public;
-grant execute on function public.get_applicant_portal_state(text) to anon, authenticated, service_role;
-
-comment on table public.program_application_admissions is
-  'Separate admission decisions for applications submitted after this migration; historical applications are not backfilled.';
-comment on table public.program_applicant_portal_tokens is
-  'Hashed, expiring bearer tokens for persistent applicant portal access. Raw tokens are never stored.';
- then
-    raise exception 'Invalid portal token hash';
-  end if;
-  if not exists (
-    select 1
-    from public.program_form_submissions s
-    join public.program_forms f on f.id = s.form_id
-    join public.program_cohorts c on c.id = f.cohort_id
-    where s.id = p_submission_id
-      and c.program_key = 'goals'
-  ) then
-    raise exception 'Applicant portal links are only available for DYP GOALS applications';
-  end if;
-
-  update public.program_applicant_portal_tokens
-  set revoked_at = now()
-  where submission_id = p_submission_id and revoked_at is null;
-
-  insert into public.program_applicant_portal_tokens
-    (submission_id, token_hash, created_by)
-  values (p_submission_id, lower(p_token_hash), auth.uid())
-  returning * into v_token;
-
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, actor_id, action)
-  values (p_submission_id, v_token.id, auth.uid(), 'rotated');
-
-  return jsonb_build_object(
-    'tokenId', v_token.id,
-    'expiresAt', v_token.expires_at
-  );
-end;
-$$;
-
-create or replace function public.get_applicant_portal_state(p_token_hash text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_token public.program_applicant_portal_tokens;
-  v_submission public.program_form_submissions;
-  v_payment public.program_payments;
-  v_claim public.program_sponsorship_claims;
-  v_admission public.program_application_admissions;
-  v_session_token uuid;
-begin
-  if p_token_hash !~ '^[a-f0-9]{64}$' then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select * into v_token
-  from public.program_applicant_portal_tokens
-  where token_hash = lower(p_token_hash)
-    and revoked_at is null
-    and expires_at > now();
-
-  if not found then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select s, fs.session_token
-  into v_submission, v_session_token
-  from public.program_form_submissions s
-  join public.program_form_sessions fs on fs.id = s.session_id
-  where s.id = v_token.submission_id;
-
-  if not found then
-    return jsonb_build_object('valid', false);
-  end if;
-
-  select * into v_payment from public.program_payments
-  where submission_id = v_submission.id;
-
-  select * into v_claim from public.program_sponsorship_claims
-  where submission_id = v_submission.id
-  order by updated_at desc limit 1;
-
-  select * into v_admission from public.program_application_admissions
-  where submission_id = v_submission.id;
-
-  update public.program_applicant_portal_tokens
-  set last_used_at = now() where id = v_token.id;
-
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, action)
-  values (v_submission.id, v_token.id, 'opened');
-
-  return jsonb_build_object(
-    'valid', true,
-    'submissionId', v_submission.id,
-    'sessionToken', v_session_token,
-    'submittedAt', v_submission.submitted_at,
-    'paymentStatus', coalesce(v_payment.status, 'unpaid'),
-    'fundingType', case when v_claim.id is not null then 'sponsored' else 'self_paid' end,
-    'sponsorshipStatus', v_claim.status,
-    'admissionStatus', v_admission.status,
-    'admissionReason', v_admission.decision_reason
-  );
-end;
-$$;
-
-revoke all on function public.admin_create_applicant_portal_token(uuid,text) from public, anon;
-grant execute on function public.admin_create_applicant_portal_token(uuid,text) to authenticated, service_role;
-revoke all on function public.get_applicant_portal_state(text) from public;
-grant execute on function public.get_applicant_portal_state(text) to anon, authenticated, service_role;
-
-comment on table public.program_application_admissions is
-  'Separate admission decisions for applications submitted after this migration; historical applications are not backfilled.';
+  'Separate admission decisions for new DYP GOALS applications; historical applications are not backfilled.';
 comment on table public.program_applicant_portal_tokens is
   'Hashed, expiring bearer tokens for persistent applicant portal access. Raw tokens are never stored.';
