@@ -36,11 +36,11 @@ interface QuestionnaireData {
 }
 
 interface TimePlan {
-  yearlyPlan: any;
-  monthlyPlan: any;
-  weeklyPlan: any;
-  dailyPlan: any;
-  summary: any;
+  yearlyPlan: { quarters?: { quarter: number; focus: string; milestones?: string[] }[] };
+  monthlyPlan: { months?: { month: string; focus: string; goals?: string[] }[] };
+  weeklyPlan: { sampleWeeks?: { weekNumber: number; theme: string; tasks?: { day: string; activities?: string[]; hours?: number }[] }[] };
+  dailyPlan: { weekdayTemplate?: { timeBlocks?: { startTime: string; endTime: string; activity: string; category: string }[] }; weekendTemplate?: { timeBlocks?: { startTime: string; endTime: string; activity: string; category: string }[] } };
+  summary: { totalWeeklyCommitment?: number; estimatedCompletionDate?: string };
 }
 
 type Phase = 'goal-input' | 'questionnaire' | 'generating' | 'result';
