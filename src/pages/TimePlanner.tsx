@@ -21,6 +21,7 @@ import { TodaySection } from "@/components/timeplanner/TodaySection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pdf } from "@react-pdf/renderer";
 import { Tables } from "@/integrations/supabase/types";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 interface QuestionnaireData {
   specificOutcomes: string;
@@ -169,12 +170,12 @@ const TimePlanner = () => {
           description: "Your comprehensive time plan is ready.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error generating time plan:', error);
       setPhase('questionnaire');
       toast({
         title: "Generation Failed",
-        description: error.message || "Unable to generate time plan. Please try again.",
+        description: getErrorMessage(error) || "Unable to generate time plan. Please try again.",
         variant: "destructive",
       });
     } finally {
