@@ -29,6 +29,7 @@ import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
 import { pdf } from "@react-pdf/renderer";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 interface GoalAnalysisRecord {
   id: string;
@@ -111,10 +112,10 @@ const GoalHistory = () => {
       setAnalyses(analysisResult.data || []);
       setCohorts(cohortResult.data || []);
       setEnrollments(enrollmentResult.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading history",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -173,10 +174,10 @@ const GoalHistory = () => {
         title: "Deleted",
         description: "Goal analysis has been removed.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
