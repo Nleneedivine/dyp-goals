@@ -39,9 +39,11 @@ import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { getErrorMessage } from "@/lib/errorMessage";
 
-const getOverallScore = (analysis: any): number => {
+const getOverallScore = (analysis: unknown): number => {
   try {
-    return analysis?.overallScore || 0;
+    if (typeof analysis !== "object" || analysis === null || !("overallScore" in analysis)) return 0;
+    const score = analysis.overallScore;
+    return typeof score === "number" ? score : 0;
   } catch {
     return 0;
   }
@@ -61,7 +63,7 @@ interface GoalAnalysis {
   user_id: string | null;
   enrollment_id: string | null;
   original_goals: string;
-  ai_analysis?: any;
+  ai_analysis?: import("@/integrations/supabase/types").Json;
   refined_goals: string | null;
   created_at: string;
   profiles?: Profile | null;
