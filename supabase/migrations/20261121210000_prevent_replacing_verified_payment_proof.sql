@@ -50,7 +50,8 @@ begin
     raise exception 'Enter your transfer reference or payment note';
   end if;
 
-  if p_proof_content_type not in ('image/jpeg','image/png','image/webp') then
+  if p_proof_content_type is null
+     or p_proof_content_type not in ('image/jpeg','image/png','image/webp') then
     raise exception 'Upload a JPG, PNG or WebP payment proof image';
   end if;
 
