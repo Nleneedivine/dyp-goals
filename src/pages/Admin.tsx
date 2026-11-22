@@ -37,6 +37,7 @@ import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
 import { pdf } from "@react-pdf/renderer";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 const getOverallScore = (analysis: any): number => {
   try {
@@ -283,10 +284,10 @@ const Admin = () => {
           profiles: goal.user_id ? profileById.get(goal.user_id) ?? null : null,
         }))
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading admin data",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -325,7 +326,7 @@ const Admin = () => {
     if (error) {
       toast({
         title: "Goal details could not load",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
       return;
@@ -365,10 +366,10 @@ const Admin = () => {
       });
 
       loadAdminData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error assigning role",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -390,10 +391,10 @@ const Admin = () => {
       });
 
       loadAdminData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error removing role",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -477,10 +478,10 @@ const Admin = () => {
       });
 
       loadAdminData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error updating group",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -520,10 +521,10 @@ const Admin = () => {
       });
 
       await loadAdminData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting group",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -606,10 +607,10 @@ const Admin = () => {
 
       setNewGroupName("");
       await loadAdminData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error creating group",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -646,10 +647,10 @@ const Admin = () => {
       });
 
       await loadAdminData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error moving participant",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -731,10 +732,10 @@ const Admin = () => {
 
       setSelectedUsers(new Set());
       await loadAdminData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error assigning participants",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -757,10 +758,10 @@ const Admin = () => {
         title: "Sync complete",
         description: `${result?.createdChats ?? 0} chat group(s) created · ${result?.membershipsSynced ?? 0} memberships synchronized.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error syncing groups",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -1037,7 +1038,7 @@ const Admin = () => {
                   if (error) {
                     toast({
                       title: "Interface setting could not be saved",
-                      description: error.message,
+                      description: getErrorMessage(error),
                       variant: "destructive",
                     });
                     return;
