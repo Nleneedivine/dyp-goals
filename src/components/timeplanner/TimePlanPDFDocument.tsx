@@ -245,7 +245,7 @@ export const TimePlanPDFDocument = ({ plan, goal }: TimePlanPDFDocumentProps) =>
         </View>
 
         <View style={styles.monthGrid}>
-          {plan.monthlyPlan?.months?.slice(6, 12).map((month: any, idx: number) => (
+          {plan.monthlyPlan?.months?.slice(6, 12).map((month: PDFMonth, idx: number) => (
             <View key={idx} style={styles.monthCard}>
               <Text style={styles.monthTitle}>{month.month}</Text>
               <Text style={styles.monthFocus}>{month.focus}</Text>
@@ -292,7 +292,7 @@ export const TimePlanPDFDocument = ({ plan, goal }: TimePlanPDFDocumentProps) =>
         ))}
 
         <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#1F2937', marginBottom: 8, marginTop: 15 }}>Weekend Schedule</Text>
-        {plan.dailyPlan?.weekendTemplate?.timeBlocks?.slice(0, 8).map((block: any, idx: number) => (
+        {plan.dailyPlan?.weekendTemplate?.timeBlocks?.slice(0, 8).map((block: PDFTimeBlock, idx: number) => (
           <View key={idx} style={styles.timeBlock}>
             <Text style={styles.timeBlockTime}>{block.startTime} - {block.endTime}</Text>
             <Text style={styles.timeBlockActivity}>{block.activity}</Text>
