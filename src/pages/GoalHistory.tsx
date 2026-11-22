@@ -37,9 +37,9 @@ interface GoalAnalysisRecord {
   created_at: string;
   updated_at: string;
   original_goals: string;
-  ai_analysis: any;
+  ai_analysis: import("@/integrations/supabase/types").Json;
   refined_goals: string | null;
-  user_responses: any;
+  user_responses: import("@/integrations/supabase/types").Json;
 }
 
 interface HistoryCohort {
