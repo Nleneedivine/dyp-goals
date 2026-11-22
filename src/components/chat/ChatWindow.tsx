@@ -246,7 +246,7 @@ const ChatWindow = ({ currentUserId, chatId, chatType }: ChatWindowProps) => {
     if (!newMessage.trim()) return;
 
     try {
-      const messageData: any = {
+      const messageData: { user_id: string; message: string; reply_to_id?: string; group_id?: string } = {
         user_id: currentUserId,
         message: newMessage.trim(),
       };
