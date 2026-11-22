@@ -75,9 +75,12 @@ begin
 
   insert into public.program_applicant_portal_audit
     (submission_id, actor_id, action, details)
-  values
-    (p_submission_id, auth.uid(), 'admission_decision',
-     jsonb_build_object('decision', p_decision, 'reason', coalesce(p_reason,'')));
+  values (
+    p_submission_id,
+    auth.uid(),
+    'admission_decision',
+    jsonb_build_object('decision', p_decision, 'reason', coalesce(p_reason,''))
+  );
 
   return jsonb_build_object(
     'submissionId', v_row.submission_id,
@@ -104,46 +107,7 @@ begin
     raise exception 'Admin access required';
   end if;
 
-  if p_token_hash is null or p_token_hash !~ '^[a-f0-9]{64}
-    raise exception 'Invalid portal token hash';
-  end if;
-
-  if not exists (
-    select 1
-    from public.program_form_submissions s
-    join public.program_forms f on f.id = s.form_id
-    join public.program_cohorts c on c.id = f.cohort_id
-    where s.id = p_submission_id
-      and c.program_key = 'goals'
-  ) then
-    raise exception 'Applicant portal links are only available for DYP GOALS applications';
-  end if;
-
-  update public.program_applicant_portal_tokens
-  set revoked_at = now()
-  where submission_id = p_submission_id and revoked_at is null;
-
-  insert into public.program_applicant_portal_tokens
-    (submission_id, token_hash, created_by)
-  values (p_submission_id, lower(p_token_hash), auth.uid())
-  returning * into v_token;
-
-  insert into public.program_applicant_portal_audit
-    (submission_id, token_id, actor_id, action)
-  values (p_submission_id, v_token.id, auth.uid(), 'rotated');
-
-  return jsonb_build_object(
-    'tokenId', v_token.id,
-    'expiresAt', v_token.expires_at
-  );
-end;
-$$;
-
-revoke all on function public.admin_set_program_application_admission(uuid,text,text) from public, anon;
-grant execute on function public.admin_set_program_application_admission(uuid,text,text) to authenticated, service_role;
-revoke all on function public.admin_create_applicant_portal_token(uuid,text) from public, anon;
-grant execute on function public.admin_create_applicant_portal_token(uuid,text) to authenticated, service_role;
- then
+  if p_token_hash is null or p_token_hash !~ '^[a-f0-9]{64}$' then
     raise exception 'Invalid portal token hash';
   end if;
 
