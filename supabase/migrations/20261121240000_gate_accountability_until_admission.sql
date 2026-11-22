@@ -300,13 +300,24 @@ begin
     from public.chat_groups cg
     join public.accountability_groups ag on ag.id = cg.accountability_group_id
     join public.program_cohorts c on c.id = ag.cohort_id
-    join public.program_enrollments e
-      on e.cohort_id = ag.cohort_id
-     and e.user_id = new.user_id
-     and e.status in ('active','completed')
     where cg.id = new.group_id
       and c.program_key = 'goals'
-      and not public.program_application_access_allowed(e.source_submission_id)
+      and exists (
+        select 1
+        from public.program_enrollments pending_e
+        where pending_e.cohort_id = ag.cohort_id
+          and pending_e.user_id = new.user_id
+          and pending_e.status in ('active','completed')
+          and not public.program_application_access_allowed(pending_e.source_submission_id)
+      )
+      and not exists (
+        select 1
+        from public.program_enrollments allowed_e
+        where allowed_e.cohort_id = ag.cohort_id
+          and allowed_e.user_id = new.user_id
+          and allowed_e.status in ('active','completed')
+          and public.program_application_access_allowed(allowed_e.source_submission_id)
+      )
   ) then
     raise exception 'Admission must be confirmed before joining an Accountability Lab chat group';
   end if;
