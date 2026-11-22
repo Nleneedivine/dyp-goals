@@ -30,7 +30,7 @@ interface GoalAnalysisRecord {
   created_at: string;
   original_goals: string;
   refined_goals: string | null;
-  ai_analysis: any;
+  ai_analysis: import("@/integrations/supabase/types").Json;
 }
 
 interface GoalImportDialogProps {
