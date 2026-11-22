@@ -22,18 +22,17 @@ begin
       select form_id into v_form_id
       from public.program_form_submissions
       where id = new.submission_id;
-
-      if v_form_id is not null then
-        perform public.ensure_program_referral_code(new.submission_id, v_form_id);
+    elsif tg_op = 'UPDATE' then
+      if old.status is not distinct from 'admitted' then
+        return new;
       end if;
-    elsif tg_op = 'UPDATE' and old.status is distinct from 'admitted' then
       select form_id into v_form_id
       from public.program_form_submissions
       where id = new.submission_id;
+    end if;
 
-      if v_form_id is not null then
-        perform public.ensure_program_referral_code(new.submission_id, v_form_id);
-      end if;
+    if v_form_id is not null then
+      perform public.ensure_program_referral_code(new.submission_id, v_form_id);
     end if;
   end if;
   return new;
