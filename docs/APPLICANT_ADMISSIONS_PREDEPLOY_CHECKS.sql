@@ -122,14 +122,28 @@ where n.nspname = 'public'
   )
 order by p.proname;
 
--- 9. Verify portal token lifetime default remains 180 days.
+-- 9. After migration 20261121240000, verify both accountability guards exist.
+-- Expected: one trigger for memberships and one for chat_group_members.
+select c.relname as table_name, t.tgname as trigger_name
+from pg_trigger t
+join pg_class c on c.oid = t.tgrelid
+join pg_namespace n on n.oid = c.relnamespace
+where not t.tgisinternal
+  and n.nspname = 'public'
+  and t.tgname in (
+    'guard_accountability_membership_admission',
+    'guard_accountability_chat_group_member_admission'
+  )
+order by c.relname, t.tgname;
+
+-- 10. Verify portal token lifetime default remains 180 days.
 select column_default
 from information_schema.columns
 where table_schema = 'public'
   and table_name = 'program_applicant_portal_tokens'
   and column_name = 'expires_at';
 
--- 10. Check no unapproved admission rows accidentally expose programme access.
+-- 11. Check no unapproved admission rows accidentally expose programme access.
 -- Expected: zero rows from the access helper.
 select a.submission_id, a.status
 from public.program_application_admissions a
