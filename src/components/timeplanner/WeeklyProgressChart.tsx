@@ -14,10 +14,14 @@ import {
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, differenceInCalendarWeeks } from "date-fns";
 
+interface WeeklyTaskDay { day: string; activities?: string[]; }
+interface WeeklySample { tasks?: WeeklyTaskDay[]; }
+interface WeeklyPlanData { sampleWeeks?: WeeklySample[]; }
+
 interface WeeklyProgressChartProps {
   planId: string;
-  weeklyPlan: any;
-  dailyPlan: any;
+  weeklyPlan: WeeklyPlanData;
+  dailyPlan: unknown;
 }
 
 interface DayProgress {
@@ -58,7 +62,7 @@ export const WeeklyProgressChart = ({ planId, weeklyPlan, dailyPlan }: WeeklyPro
 
       // Track only the goal tasks from the weekly plan. The old implementation
       // counted meals, classes, leisure, and routines as goal progress.
-      const dayPlan = sampleWeek?.tasks?.find((task: any) => task.day === dayName);
+      const dayPlan = sampleWeek?.tasks?.find((task: WeeklyTaskDay) => task.day === dayName);
       const activities: string[] = dayPlan?.activities ?? [];
       const tasks = activities.map((activity: string, idx: number) => ({
         id: `${dateKey}-${idx}`,
