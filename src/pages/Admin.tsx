@@ -983,6 +983,26 @@ const Admin = () => {
           </div>
         )}
 
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold">Applicant Payment &amp; Portal Management</p>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                  Review DYP GOALS applications, distinguish sponsored and self-funded applicants,
+                  track funding and admission, and copy or reissue secure applicant portal links.
+                </p>
+              </div>
+            </div>
+            <Button asChild className="shrink-0">
+              <Link to="/admin/applications">Manage applicants</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card className="mb-6 border-primary/20">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
