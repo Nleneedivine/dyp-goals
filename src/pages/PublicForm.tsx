@@ -173,6 +173,7 @@ export default function PublicForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [applicantPortalUrl, setApplicantPortalUrl] = useState("");
+  const [portalLinkRequired, setPortalLinkRequired] = useState(false);
   const [referrerQuery, setReferrerQuery] = useState("");
   const [referrerResults, setReferrerResults] = useState<Array<{ referral_code: string; display_name: string }>>([]);
   const [selectedReferralCode, setSelectedReferralCode] = useState("");
@@ -682,6 +683,7 @@ export default function PublicForm() {
       return;
     }
     window.localStorage.setItem(`dyp-program-session:${form.slug}`, sessionToken);
+    setPortalLinkRequired(Boolean(data.portalLinkRequired));
     window.location.assign(data.authorizationUrl);
   };
 
@@ -978,6 +980,11 @@ export default function PublicForm() {
                 <h1 className="text-3xl font-bold">Registration received</h1>
                 <p className="mt-4 text-muted-foreground">{success}</p>
               </div>
+              {portalLinkRequired && (
+                <div role="alert" className="mx-auto mt-6 max-w-xl rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
+                  Your application was received, but we could not create your secure applicant portal link. Please contact the programme administrator and ask them to generate your portal link. Do not submit another application.
+                </div>
+              )}
               {applicantPortalUrl && (
                 <div className="mx-auto mt-6 max-w-xl rounded-xl border bg-muted/30 p-5">
                   <h2 className="font-semibold">Your applicant portal link</h2>
