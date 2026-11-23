@@ -1455,6 +1455,130 @@ export type Database = {
           },
         ]
       }
+      program_applicant_portal_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          id: number
+          submission_id: string
+          token_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: never
+          submission_id: string
+          token_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: never
+          submission_id?: string
+          token_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_applicant_portal_audit_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_applicant_portal_audit_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "program_applicant_portal_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_applicant_portal_tokens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          revoked_at: string | null
+          submission_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          submission_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          submission_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_applicant_portal_tokens_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_application_admissions: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string
+          status: string
+          submission_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string
+          status?: string
+          submission_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string
+          status?: string
+          submission_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_application_admissions_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "program_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_cohorts: {
         Row: {
           cohort_year: number
@@ -3007,6 +3131,10 @@ export type Database = {
         Args: { p_group_id: string; p_user_ids: string[] }
         Returns: Json
       }
+      admin_create_applicant_portal_token: {
+        Args: { p_submission_id: string; p_token_hash: string }
+        Returns: Json
+      }
       admin_create_referral_promoter: {
         Args: { p_display_name: string; p_form_id: string; p_phone: string }
         Returns: {
@@ -3117,6 +3245,10 @@ export type Database = {
           p_title: string
         }
         Returns: number
+      }
+      admin_set_program_application_admission: {
+        Args: { p_decision: string; p_reason?: string; p_submission_id: string }
+        Returns: Json
       }
       admin_set_program_participant_status: {
         Args: {
@@ -3336,6 +3468,10 @@ export type Database = {
         Args: { p_week_start: string }
         Returns: Json
       }
+      get_applicant_portal_state: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
       get_current_user_referral_dashboard: { Args: never; Returns: Json }
       get_goals_guide_context: { Args: never; Returns: Json }
       get_next_group_name: { Args: never; Returns: string }
@@ -3517,6 +3653,10 @@ export type Database = {
         Returns: string
       }
       normalize_sponsorship_code: { Args: { p_code: string }; Returns: string }
+      program_application_access_allowed: {
+        Args: { p_submission_id: string }
+        Returns: boolean
+      }
       queue_transactional_email: {
         Args: {
           p_action_label: string
