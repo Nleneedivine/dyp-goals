@@ -101,11 +101,12 @@ Deno.serve(async (req) => {
       const amount = Number(event?.data?.amount ?? 0);
       const currency = String(event?.data?.currency ?? "");
 
-      const { data: payment } = await admin
+      const { data: payment, error: paymentLookupError } = await admin
         .from("program_payments")
         .select("submission_id,amount_minor,currency,status")
         .eq("provider_reference", reference)
         .maybeSingle();
+      if (paymentLookupError) throw paymentLookupError;
 
       if (
         payment &&
@@ -113,7 +114,7 @@ Deno.serve(async (req) => {
         Number(payment.amount_minor) === amount &&
         payment.currency === currency
       ) {
-        await admin
+        const { error: webhookUpdateError } = await admin
           .from("program_payments")
           .update({
             status: "paid",
@@ -122,6 +123,7 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("submission_id", payment.submission_id);
+        if (webhookUpdateError) throw webhookUpdateError;
       }
 
       return respond({ received: true });
@@ -408,7 +410,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      await admin.from("program_payments").upsert(
+      const { error: paymentUpsertError } = await admin.from("program_payments").upsert(
         {
           submission_id: submission.id,
           form_id: submission.form_id,
@@ -422,6 +424,7 @@ Deno.serve(async (req) => {
         },
         { onConflict: "submission_id" },
       );
+      if (paymentUpsertError) throw paymentUpsertError;
 
       return respond({
         authorizationUrl: initPayload.data.authorization_url,
@@ -484,7 +487,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    await admin
+    const { error: verificationUpdateError } = await admin
       .from("program_payments")
       .update({
         status: "paid",
@@ -493,6 +496,7 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("submission_id", payment.submission_id);
+    if (verificationUpdateError) throw verificationUpdateError;
 
     const { data: admission } = await admin
       .from("program_application_admissions")
