@@ -37,13 +37,18 @@ begin
 
   if v_payment_paid or v_sponsorship_approved then
     update public.program_application_admissions
-    set status = case
-          when status = 'awaiting_funding' then 'awaiting_admission'
-          else status
-        end,
+    set status = 'awaiting_admission',
         updated_at = now()
     where submission_id = v_submission_id
       and status = 'awaiting_funding';
+  else
+    -- If the latest sponsorship claim is rejected/revoked and no payment is
+    -- verified, return an undecided application to the funding stage.
+    update public.program_application_admissions
+    set status = 'awaiting_funding',
+        updated_at = now()
+    where submission_id = v_submission_id
+      and status = 'awaiting_admission';
   end if;
 
   return new;
