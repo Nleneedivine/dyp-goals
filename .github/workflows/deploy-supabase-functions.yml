@@ -1,0 +1,57 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/applicant-portal/**"
+      - "supabase/functions/program-payment/**"
+      - "supabase/functions/program-form-public/**"
+      - "supabase/config.toml"
+      - ".github/workflows/deploy-supabase-functions.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-edge-functions-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy admissions Edge Functions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Verify required secret
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::GitHub repository secret SUPABASE_ACCESS_TOKEN is missing."
+            exit 1
+          fi
+
+      - name: Deploy applicant-portal
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy applicant-portal --project-ref oegmeazgcmmsucvikbka
+
+      - name: Deploy program-payment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy program-payment --project-ref oegmeazgcmmsucvikbka
+
+      - name: Deploy program-form-public
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy program-form-public --project-ref oegmeazgcmmsucvikbka
