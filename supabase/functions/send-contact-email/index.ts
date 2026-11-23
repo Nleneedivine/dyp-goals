@@ -69,8 +69,8 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
-    console.error("Error sending contact email:", error);
+  } catch (error: unknown) {
+    console.error("Error sending contact email:", error instanceof Error ? error.message : String(error));
     return new Response(JSON.stringify({ error: "Unable to send your message. Please email discoverpurpose1@gmail.com directly." }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },

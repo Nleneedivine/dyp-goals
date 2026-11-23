@@ -135,8 +135,8 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
-    console.error("Error sending reminder email:", error);
+  } catch (error: unknown) {
+    console.error("Error sending reminder email:", error instanceof Error ? error.message : String(error));
     return new Response(
       JSON.stringify({ error: error.message }),
       {

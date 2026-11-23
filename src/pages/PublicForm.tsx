@@ -167,11 +167,13 @@ export default function PublicForm() {
   const [fields, setFields] = useState<ProgramField[]>([]);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [applicantPortalToken, setApplicantPortalToken] = useState<string | null>(() => new URLSearchParams(window.location.search).get("portal_token"));
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [ownReferralCode, setOwnReferralCode] = useState("");
+  const [applicantPortalUrl, setApplicantPortalUrl] = useState("");
+  const [portalLinkRequired, setPortalLinkRequired] = useState(false);
   const [referrerQuery, setReferrerQuery] = useState("");
   const [referrerResults, setReferrerResults] = useState<Array<{ referral_code: string; display_name: string }>>([]);
   const [selectedReferralCode, setSelectedReferralCode] = useState("");
@@ -443,6 +445,12 @@ export default function PublicForm() {
 
       const storageKey = `dyp-program-session:${formData.slug}`;
       const storedToken = window.localStorage.getItem(storageKey);
+      const portalStorageKey = `dyp-applicant-portal:${formData.slug}`;
+      const callbackPortalToken = new URLSearchParams(window.location.search).get("portal_token");
+      const storedPortalToken = callbackPortalToken ?? window.localStorage.getItem(portalStorageKey);
+      if (callbackPortalToken) window.localStorage.setItem(portalStorageKey, callbackPortalToken);
+      if (storedPortalToken) setApplicantPortalToken(storedPortalToken);
+      const paymentStateToken = storedPortalToken ?? storedToken;
       const attributionKey = `dyp-referral-attribution:${formData.slug}`;
 
       let referralCodeForSession = incomingReferralCode;
@@ -481,11 +489,11 @@ export default function PublicForm() {
       const referralJourney = Boolean(referralCodeForSession);
       const sponsorshipJourney = Boolean(incomingSponsorshipCode);
 
-      if (paymentReference && storedToken) {
+      if (paymentReference && callbackPortalToken) {
         setPaymentLoading(true);
         const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
           "program-payment",
-          { body: { action: "verify", reference: paymentReference } },
+          { body: { action: "verify", portalToken: callbackPortalToken, reference: paymentReference } },
         );
         setPaymentLoading(false);
         if (verifyError || verifyData?.error) {
@@ -494,31 +502,23 @@ export default function PublicForm() {
       }
 
       if (storedToken && sponsorshipJourney) {
-        const sponsoredState = await loadPaymentState(storedToken);
+        const sponsoredState = await loadPaymentState(paymentStateToken ?? storedToken);
         if (
           sponsoredState?.available &&
           sponsoredState.fundingType === "sponsored"
         ) {
           setSessionToken(storedToken);
           setSuccess(formData.confirmation_message);
-          const { data: referralCode } = await supabase.rpc("get_program_referral_code", {
-            p_session_token: storedToken,
-          });
-          if (referralCode) setOwnReferralCode(referralCode);
           setLoading(false);
           return;
         }
       }
 
       if (storedToken && ((!referralJourney && !sponsorshipJourney) || Boolean(paymentReference))) {
-        const state = await loadPaymentState(storedToken);
+        const state = await loadPaymentState(paymentStateToken ?? storedToken);
         if (state?.available) {
           setSessionToken(storedToken);
           setSuccess(formData.confirmation_message);
-          const { data: referralCode } = await supabase.rpc("get_program_referral_code", {
-            p_session_token: storedToken,
-          });
-          if (referralCode) setOwnReferralCode(referralCode);
           setLoading(false);
           return;
         }
@@ -555,6 +555,18 @@ export default function PublicForm() {
 
 
   const loadPaymentState = async (token: string) => {
+    if (token.length === 64) {
+      const { data, error } = await supabase.functions.invoke("applicant-portal", {
+        body: { token, action: "payment-state" },
+      });
+      const state = data?.payment as PaymentState | null;
+      if (!error && state && typeof state === "object") {
+        setPaymentState(state);
+        return state;
+      }
+      return null;
+    }
+    // Existing pre-portal sessions retain their legacy payment-state lookup.
     const { data, error } = await supabase.rpc("get_program_payment_state", {
       p_session_token: token,
     });
@@ -585,8 +597,8 @@ export default function PublicForm() {
   };
 
   const submitManualPayment = async () => {
-    if (!sessionToken || manualReference.trim().length < 3) {
-      setPaymentError("Enter your bank transfer reference or payment note.");
+    if (!sessionToken || !applicantPortalToken || manualReference.trim().length < 3) {
+      setPaymentError("Your secure applicant portal is not ready. Refresh the page or contact the programme team.");
       return;
     }
     if (!manualProof || !proofQuality?.ok) {
@@ -602,9 +614,10 @@ export default function PublicForm() {
       {
         body: {
           action: "prepare-proof-upload",
-          sessionToken,
+          portalToken: applicantPortalToken,
           fileName: manualProof.name,
           contentType: manualProof.type,
+          fileSize: manualProof.size,
         },
       },
     );
@@ -627,11 +640,14 @@ export default function PublicForm() {
       return;
     }
 
-    const { data, error } = await supabase.rpc("submit_manual_program_payment_with_proof", {
-      p_session_token: sessionToken,
-      p_manual_reference: manualReference.trim(),
-      p_proof_path: upload.path,
-      p_proof_content_type: manualProof.type,
+    const { data, error } = await supabase.functions.invoke("program-payment", {
+      body: {
+        action: "submit-proof",
+        portalToken: applicantPortalToken,
+        manualReference: manualReference.trim(),
+        proofPath: upload.path,
+        contentType: manualProof.type,
+      },
     });
 
     setPaymentLoading(false);
@@ -640,20 +656,25 @@ export default function PublicForm() {
       return;
     }
 
-    setPaymentState((data ?? null) as PaymentState | null);
+    setPaymentState((data?.payment ?? null) as PaymentState | null);
     setManualProof(null);
     setProofQuality(null);
   };
 
   const startPaystackPayment = async () => {
-    if (!sessionToken || !form) return;
+    if (!sessionToken || !applicantPortalToken || !form) {
+      setPaymentError("Your secure applicant portal link is not ready yet. Refresh your application status or contact the programme team.");
+      return;
+    }
     setPaymentLoading(true);
     setPaymentError("");
+    const callbackUrl = new URL(`/apply/${form.slug}`, window.location.origin);
+    callbackUrl.searchParams.set("portal_token", applicantPortalToken);
     const { data, error } = await supabase.functions.invoke("program-payment", {
       body: {
         action: "initialize",
-        sessionToken,
-        returnUrl: `${window.location.origin}/apply/${form.slug}`,
+        portalToken: applicantPortalToken,
+        returnUrl: callbackUrl.toString(),
       },
     });
     setPaymentLoading(false);
@@ -662,6 +683,7 @@ export default function PublicForm() {
       return;
     }
     window.localStorage.setItem(`dyp-program-session:${form.slug}`, sessionToken);
+    setPortalLinkRequired(Boolean(data.portalLinkRequired));
     window.location.assign(data.authorizationUrl);
   };
 
@@ -724,15 +746,18 @@ export default function PublicForm() {
       }
     }
 
-    const { data: referralCode, error: referralCodeError } = await supabase.rpc(
-      "get_program_referral_code",
-      { p_session_token: sessionToken },
-    );
-    if (!referralCodeError && referralCode) setOwnReferralCode(referralCode);
-
     window.localStorage.setItem(`dyp-program-session:${form.slug}`, sessionToken);
-    await loadPaymentState(sessionToken);
+    if (data.applicantPortalToken) {
+      setApplicantPortalToken(data.applicantPortalToken);
+      window.localStorage.setItem(`dyp-applicant-portal:${form.slug}`, data.applicantPortalToken);
+    }
+    await loadPaymentState(data.applicantPortalToken ?? sessionToken);
     setSubmitting(false);
+    if (data.applicantPortalToken) {
+      const portalUrl = new URL("/applicant-portal", window.location.origin);
+      portalUrl.searchParams.set("token", data.applicantPortalToken);
+      setApplicantPortalUrl(portalUrl.toString());
+    }
     setSuccess(data.confirmationMessage ?? form.confirmation_message);
   };
 
@@ -955,6 +980,21 @@ export default function PublicForm() {
                 <h1 className="text-3xl font-bold">Registration received</h1>
                 <p className="mt-4 text-muted-foreground">{success}</p>
               </div>
+              {portalLinkRequired && (
+                <div role="alert" className="mx-auto mt-6 max-w-xl rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
+                  Your application was received, but we could not create your secure applicant portal link. Please contact the programme administrator and ask them to generate your portal link. Do not submit another application.
+                </div>
+              )}
+              {applicantPortalUrl && (
+                <div className="mx-auto mt-6 max-w-xl rounded-xl border bg-muted/30 p-5">
+                  <h2 className="font-semibold">Your applicant portal link</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Save this link. You can reopen your application from another device to check funding and admission progress. Anyone with this link can view and continue this application, so keep it private.</p>
+                  <div className="mt-3 break-all rounded-md bg-background p-3 text-sm">{applicantPortalUrl}</div>
+                  <Button className="mt-3 w-full" onClick={() => void navigator.clipboard.writeText(applicantPortalUrl)}>
+                    <Copy className="mr-2 h-4 w-4" />Copy applicant portal link
+                  </Button>
+                </div>
+              )}
 
               {paymentState?.available && (
                 <div className="mx-auto mt-7 max-w-xl rounded-2xl border p-5">
@@ -978,38 +1018,27 @@ export default function PublicForm() {
                     <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-amber-950">
                       <p className="font-semibold">DIT sponsorship pending verification</p>
                       <p className="mt-2 text-sm">
-                        You do not need to pay now. An Admin will verify your DIT sponsorship request. Once approved, WhatsApp and dashboard access will open automatically.
+                        You do not need to pay now. An Admin will verify your DIT sponsorship request. If approved, your application will move to the separate admission decision stage.
                       </p>
                     </div>
                   ) : paymentState.fundingType === "sponsored" && paymentState.sponsorshipStatus === "approved" ? (
                     <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
                       <div className="text-center">
                         <CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
-                        <p className="mt-2 text-lg font-semibold">DIT-sponsored seat approved — you’re in</p>
+                        <p className="mt-2 text-lg font-semibold">DIT-sponsored funding verified</p>
                         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-                          Participant contribution: ₦0. Your seat is sponsored by {paymentState.sponsorName ?? "DIT"}.
+                          Participant contribution: ₦0. Your seat is sponsored by {paymentState.sponsorName ?? "DIT"}. Your application is now awaiting a separate admission decision.
                         </p>
                       </div>
-                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                        {paymentState.whatsappGroupUrl ? (
-                          <Button asChild size="lg" className="min-h-14 w-full whitespace-normal text-center leading-snug">
-                            <a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">
-                              Join WhatsApp Group
-                              <ExternalLink className="ml-2 h-4 w-4 shrink-0" />
-                            </a>
-                          </Button>
-                        ) : (
-                          <div className="flex min-h-14 items-center justify-center rounded-xl border bg-background px-4 py-3 text-center text-sm text-muted-foreground">
-                            WhatsApp link will appear once configured.
-                          </div>
-                        )}
-                        <Button asChild size="lg" variant="outline" className="min-h-14 w-full whitespace-normal text-center leading-snug">
-                          <a href="/auth?mode=activate&next=%2Fprofile">
-                            <UserRound className="mr-2 h-4 w-4 shrink-0" />
-                            Open My GOALS Profile
-                          </a>
-                        </Button>
+                      <div className="mt-5 rounded-xl border bg-background p-4 text-center text-sm text-muted-foreground">
+                        Your applicant portal will show the admission decision. Programme and WhatsApp access remain unavailable until admission is confirmed.
                       </div>
+                      <Button asChild size="lg" variant="outline" className="mt-3 min-h-14 w-full whitespace-normal text-center leading-snug">
+                        <a href="/auth?mode=activate&next=%2Fprofile">
+                          <UserRound className="mr-2 h-4 w-4 shrink-0" />
+                          Open My GOALS Profile
+                        </a>
+                      </Button>
                     </div>
                   ) : paymentState.fundingType === "sponsored" && paymentState.sponsorshipStatus === "rejected" ? (
                     <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
@@ -1018,69 +1047,25 @@ export default function PublicForm() {
                         {paymentState.sponsorshipRejectionReason || "You can continue with the regular registration payment below."}
                       </p>
                     </div>
-                  ) : paymentState.paymentStatus === "paid" ? (
+                   ) : paymentState.paymentStatus === "paid" ? (
                     <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
                       <div className="text-center">
                         <CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
-                        <p className="mt-2 text-lg font-semibold">Payment confirmed — you’re in</p>
+                        <p className="mt-2 text-lg font-semibold">Payment verified</p>
                         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-                          Choose what you want to do now. Both options remain available later from your GOALS dashboard.
+                          Your funding is verified. The programme team will make a separate admission decision before participant access is enabled.
                         </p>
                       </div>
-
-                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                        {paymentState.whatsappGroupUrl ? (
-                          <Button asChild size="lg" className="min-h-14 w-full whitespace-normal text-center leading-snug">
-                            <a href={paymentState.whatsappGroupUrl} target="_blank" rel="noreferrer">
-                              Join WhatsApp Group
-                              <ExternalLink className="ml-2 h-4 w-4 shrink-0" />
-                            </a>
-                          </Button>
-                        ) : (
-                          <div className="flex min-h-14 items-center justify-center rounded-xl border bg-background px-4 py-3 text-center text-sm text-muted-foreground">
-                            WhatsApp link will appear here once Admin configures it.
-                          </div>
-                        )}
-
-                        <Button
-                          asChild
-                          size="lg"
-                          variant="outline"
-                          className="min-h-14 w-full whitespace-normal text-center leading-snug"
-                        >
-                          <a href="/auth?mode=activate&next=%2Fjourney">
-                            <UserRound className="mr-2 h-4 w-4 shrink-0" />
-                            Open My GOALS Dashboard
-                          </a>
-                        </Button>
+                      <div className="mt-5 rounded-xl border bg-background p-4 text-center text-sm text-muted-foreground">
+                        Your applicant portal will show the admission decision. Programme and WhatsApp access remain unavailable until admission is confirmed.
                       </div>
-
-                      {ownReferralCode && (
-                        <div className="mt-5 border-t pt-4 text-center">
-                          <p className="text-sm font-medium">Start referring immediately</p>
-                          <p className="mt-1 break-all font-mono text-sm text-primary">
-                            {ownReferralCode}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() =>
-                              void navigator.clipboard.writeText(
-                                `${window.location.origin}/r/${encodeURIComponent(
-                                  ownReferralCode.replace(/^DYPGL-/i, ""),
-                                )}`,
-                              )
-                            }
-                          >
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy referral link
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
+                      <Button asChild size="lg" variant="outline" className="mt-3 min-h-14 w-full whitespace-normal text-center leading-snug">
+                        <a href="/auth?mode=activate&next=%2Fjourney">
+                          <UserRound className="mr-2 h-4 w-4 shrink-0" />
+                          Open My GOALS Dashboard
+                        </a>
+                      </Button>
+                    </div>) : (
                     <>
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         {paymentState.paystackEnabled && (
@@ -1223,31 +1208,7 @@ export default function PublicForm() {
                 </div>
               )}
 
-              {ownReferralCode && paymentState?.paymentStatus !== "paid" && (
-                <div className="mx-auto mt-7 max-w-xl rounded-2xl border bg-muted/20 p-5 text-center">
-                  <div className="flex items-center justify-center gap-2 text-primary">
-                    <Share2 className="h-5 w-5" />
-                    <p className="font-semibold">Your referral code</p>
-                  </div>
-                  <p className="mt-3 font-mono text-2xl font-bold tracking-wider">{ownReferralCode}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Share this code or your referral link. A referral counts toward the campaign leaderboard only after that participant completes the program and receives a certificate.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-4 gap-2"
-                    onClick={() =>
-                      void navigator.clipboard.writeText(
-                        `${window.location.origin}/r/${encodeURIComponent(ownReferralCode.replace(/^DYPGL-/i, ""))}`,
-                      )
-                    }
-                  >
-                    <Copy className="h-4 w-4" />
-                    Copy referral link
-                  </Button>
-                </div>
-              )}
+
             </CardContent>
           </Card>
         ) : (

@@ -166,7 +166,7 @@ export function ProgramAccessHub() {
               {data.formTitle ?? "My GOALS Program Hub"}
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              WhatsApp access, referral performance and earnings stay here after registration.
+              WhatsApp access and participant referral benefits become available after admission.
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => void load()}>
@@ -255,7 +255,7 @@ export function ProgramAccessHub() {
                     : `Payment: ${data.paymentStatus ?? "unpaid"}`}
                 </Badge>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  WhatsApp access appears automatically when payment is confirmed or a DIT sponsorship is approved.
+                  Funding verification is separate from admission. WhatsApp access is made available after your admission is confirmed.
                 </p>
               </div>
             )}

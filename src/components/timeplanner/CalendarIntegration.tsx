@@ -5,11 +5,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar, Download, ExternalLink, Check, Copy } from "lucide-react";
 import { format, addDays, parse, startOfWeek } from "date-fns";
 
+interface CalendarTimeBlock { activity: string; category?: string; startTime?: string; endTime?: string; notes?: string; }
+interface CalendarDayTemplate { timeBlocks?: CalendarTimeBlock[]; }
+interface CalendarDailyPlan { weekdayTemplate?: CalendarDayTemplate; weekendTemplate?: CalendarDayTemplate; }
+
 interface CalendarIntegrationProps {
   planId: string;
   goal: string;
-  dailyPlan: any;
-  weeklyPlan: any;
+  dailyPlan: CalendarDailyPlan;
+  weeklyPlan: unknown;
 }
 
 export const CalendarIntegration = ({ planId, goal, dailyPlan, weeklyPlan }: CalendarIntegrationProps) => {
@@ -31,7 +35,7 @@ export const CalendarIntegration = ({ planId, goal, dailyPlan, weeklyPlan }: Cal
         const template = isWeekend ? dailyPlan?.weekendTemplate : dailyPlan?.weekdayTemplate;
         const timeBlocks = template?.timeBlocks || [];
         
-        timeBlocks.forEach((block: any, index: number) => {
+        timeBlocks.forEach((block: CalendarTimeBlock, index: number) => {
           if (block.activity && block.category !== 'Sleep') {
             const startTime = block.startTime || '09:00';
             const endTime = block.endTime || '10:00';
@@ -104,7 +108,7 @@ export const CalendarIntegration = ({ planId, goal, dailyPlan, weeklyPlan }: Cal
     }
   };
 
-  const generateGoogleCalendarUrl = (block: any, date: Date) => {
+  const generateGoogleCalendarUrl = (block: CalendarTimeBlock, date: Date) => {
     const startTime = block.startTime || '09:00';
     const endTime = block.endTime || '10:00';
     
@@ -128,7 +132,7 @@ export const CalendarIntegration = ({ planId, goal, dailyPlan, weeklyPlan }: Cal
     const today = new Date();
     const isWeekend = today.getDay() === 0 || today.getDay() === 6;
     const template = isWeekend ? dailyPlan?.weekendTemplate : dailyPlan?.weekdayTemplate;
-    const firstBlock = template?.timeBlocks?.find((b: any) => b.activity && b.category !== 'Sleep');
+    const firstBlock = template?.timeBlocks?.find((b: CalendarTimeBlock) => b.activity && b.category !== 'Sleep');
     
     if (firstBlock) {
       const url = generateGoogleCalendarUrl(firstBlock, today);

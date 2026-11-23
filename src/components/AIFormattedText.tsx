@@ -9,12 +9,12 @@ export const stripAIFormatting = (value: string) =>
   normalizeAIFormatting(value)
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/__([^_]+)__/g, "$1")
-    .replace(/`([^\`]+)`/g, "$1")
+    .replace(/`([^\\`]+)`/g, "$1")
     .trim();
 
 export function AIFormattedText({ text, className = "" }: { text: string; className?: string }) {
   const normalized = normalizeAIFormatting(text);
-  const parts = normalized.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^\`]+`)/g).filter(Boolean);
+  const parts = normalized.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^\\`]+`)/g).filter(Boolean);
 
   return (
     <span className={className}>

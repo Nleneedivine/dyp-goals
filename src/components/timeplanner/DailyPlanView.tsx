@@ -29,7 +29,7 @@ interface DailyPlanViewProps {
   plan: DailyPlan;
 }
 
-const categoryIcons: Record<string, any> = {
+const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   work: Briefcase,
   study: Book,
   exercise: Dumbbell,

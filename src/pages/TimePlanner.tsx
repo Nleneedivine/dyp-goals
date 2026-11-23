@@ -21,6 +21,7 @@ import { TodaySection } from "@/components/timeplanner/TodaySection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pdf } from "@react-pdf/renderer";
 import { Tables } from "@/integrations/supabase/types";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 interface QuestionnaireData {
   specificOutcomes: string;
@@ -35,11 +36,11 @@ interface QuestionnaireData {
 }
 
 interface TimePlan {
-  yearlyPlan: any;
-  monthlyPlan: any;
-  weeklyPlan: any;
-  dailyPlan: any;
-  summary: any;
+  yearlyPlan: { quarters?: { quarter: number; focus: string; milestones?: string[] }[] };
+  monthlyPlan: { months?: { month: string; focus: string; goals?: string[] }[] };
+  weeklyPlan: { sampleWeeks?: { weekNumber: number; theme: string; tasks?: { day: string; activities?: string[]; hours?: number }[] }[] };
+  dailyPlan: { weekdayTemplate?: { timeBlocks?: { startTime: string; endTime: string; activity: string; category: string }[] }; weekendTemplate?: { timeBlocks?: { startTime: string; endTime: string; activity: string; category: string }[] } };
+  summary: { totalWeeklyCommitment?: number; estimatedCompletionDate?: string };
 }
 
 type Phase = 'goal-input' | 'questionnaire' | 'generating' | 'result';
@@ -151,7 +152,7 @@ const TimePlanner = () => {
         const { data: insertedPlan } = await supabase.from('time_plans').insert([{
           user_id: user.id,
           goal,
-          questionnaire_data: questionnaireData as any,
+          questionnaire_data: questionnaireData as unknown as import("@/integrations/supabase/types").Json,
           yearly_plan: data.timePlan.yearlyPlan,
           monthly_plan: data.timePlan.monthlyPlan,
           weekly_plan: data.timePlan.weeklyPlan,
@@ -169,12 +170,12 @@ const TimePlanner = () => {
           description: "Your comprehensive time plan is ready.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error generating time plan:', error);
       setPhase('questionnaire');
       toast({
         title: "Generation Failed",
-        description: error.message || "Unable to generate time plan. Please try again.",
+        description: getErrorMessage(error) || "Unable to generate time plan. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -240,7 +241,7 @@ const TimePlanner = () => {
     navigate('/time-plans');
   };
 
-  const handleSectionUpdate = (sectionType: string, newData: any) => {
+  const handleSectionUpdate = (sectionType: string, newData: unknown) => {
     if (!timePlan) return;
     
     const updatedPlan = { ...timePlan };

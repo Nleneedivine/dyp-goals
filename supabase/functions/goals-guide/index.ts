@@ -183,7 +183,7 @@ RULES:
 
     let raw: unknown;
     try {
-      raw = JSON.parse(text.replace(/\`\`\`json\n?|\n?\`\`\`/g, "").trim());
+      raw = JSON.parse(text.replace(/```json\n?|\n?```/g, "").trim());
     } catch {
       throw new Error("GOALS Guide returned invalid JSON");
     }

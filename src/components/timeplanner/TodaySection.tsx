@@ -103,7 +103,7 @@ interface TodaySectionProps {
   planId: string | null;
 }
 
-const categoryIcons: Record<string, any> = {
+const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   work: Briefcase,
   study: Book,
   exercise: Dumbbell,

@@ -4,24 +4,45 @@ import { z } from "npm:zod@3";
 import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const RequestSchema = z.object({
-  action: z.enum(["initialize", "verify", "prepare-proof-upload"]),
-  sessionToken: z.string().uuid().optional(),
+  action: z.enum(["initialize", "verify", "prepare-proof-upload", "submit-proof"]),
+  portalToken: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
   reference: z.string().min(6).max(120).optional(),
   returnUrl: z.string().url().optional(),
   fileName: z.string().min(1).max(180).optional(),
   contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
+  fileSize: z.number().int().positive().max(8 * 1024 * 1024).optional(),
+  proofPath: z.string().min(1).max(300).optional(),
+  manualReference: z.string().min(3).max(180).optional(),
 });
 
 const respond = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
 const hex = (buffer: ArrayBuffer) =>
   Array.from(new Uint8Array(buffer))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+
+const hasExpectedImageSignature = async (blob: Blob, contentType: string) => {
+  const bytes = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+  if (contentType === "image/jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (contentType === "image/png") {
+    return bytes.length >= 8 &&
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+      bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+  }
+  if (contentType === "image/webp") {
+    return bytes.length >= 12 &&
+      String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+      String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+  }
+  return false;
+};
 
 const verifyPaystackSignature = async (
   rawBody: Uint8Array,
@@ -80,11 +101,12 @@ Deno.serve(async (req) => {
       const amount = Number(event?.data?.amount ?? 0);
       const currency = String(event?.data?.currency ?? "");
 
-      const { data: payment } = await admin
+      const { data: payment, error: paymentLookupError } = await admin
         .from("program_payments")
         .select("submission_id,amount_minor,currency,status")
         .eq("provider_reference", reference)
         .maybeSingle();
+      if (paymentLookupError) throw paymentLookupError;
 
       if (
         payment &&
@@ -92,7 +114,7 @@ Deno.serve(async (req) => {
         Number(payment.amount_minor) === amount &&
         payment.currency === currency
       ) {
-        await admin
+        const { error: webhookUpdateError } = await admin
           .from("program_payments")
           .update({
             status: "paid",
@@ -101,6 +123,7 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("submission_id", payment.submission_id);
+        if (webhookUpdateError) throw webhookUpdateError;
       }
 
       return respond({ received: true });
@@ -116,21 +139,40 @@ Deno.serve(async (req) => {
       return respond({ error: "Invalid payment request." }, 400);
     }
 
-    if (!secret) {
+    if (!secret && (parsed.data.action === "initialize" || parsed.data.action === "verify")) {
       return respond({ error: "Paystack is not configured yet." }, 503);
     }
 
     const body = parsed.data;
+    let sessionToken: string | undefined;
+
+    if (body.portalToken) {
+      const tokenDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body.portalToken.toLowerCase()));
+      const tokenHash = hex(tokenDigest);
+      const { data: portal, error: portalError } = await admin.rpc("get_applicant_portal_state", { p_token_hash: tokenHash });
+      if (portalError) throw portalError;
+      if (!portal?.valid || !portal?.sessionToken) return respond({ error: "Applicant portal link is invalid, expired or revoked." }, 401);
+      sessionToken = portal.sessionToken;
+      const tokenLimit = await rateLimit(req, "program-payment-portal-token", 20, 60, tokenHash);
+      if (!tokenLimit.allowed) return rateLimitResponse(tokenLimit.retryAfterSeconds, corsHeaders);
+    }
+
+    if (!sessionToken) {
+      return respond({ error: "A valid applicant portal token is required." }, 400);
+    }
 
     if (body.action === "prepare-proof-upload") {
-      if (!body.sessionToken || !body.fileName || !body.contentType) {
+      if (!sessionToken || !body.fileName || !body.contentType || !body.fileSize) {
         return respond({ error: "Missing payment proof upload details." }, 400);
+      }
+      if (body.fileSize < 20 * 1024) {
+        return respond({ error: "Payment proof image must be at least 20 KB." }, 400);
       }
 
       const { data: session } = await admin
         .from("program_form_sessions")
         .select("id,form_id,completed_at")
-        .eq("session_token", body.sessionToken)
+        .eq("session_token", sessionToken)
         .maybeSingle();
 
       if (!session?.completed_at) {
@@ -145,6 +187,17 @@ Deno.serve(async (req) => {
 
       if (!submission) {
         return respond({ error: "Registration submission not found." }, 404);
+      }
+
+      const { data: existingPayment, error: existingPaymentError } = await admin
+        .from("program_payments")
+        .select("status")
+        .eq("submission_id", submission.id)
+        .maybeSingle();
+
+      if (existingPaymentError) throw existingPaymentError;
+      if (existingPayment?.status === "paid") {
+        return respond({ error: "This payment has already been verified; proof cannot be replaced." }, 409);
       }
 
       const { data: settings } = await admin
@@ -182,15 +235,73 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (body.action === "submit-proof") {
+      if (!body.proofPath || !body.manualReference || !body.contentType) {
+        return respond({ error: "Missing payment proof details." }, 400);
+      }
+
+      const extensionByType: Record<string, string> = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+      };
+      const { data: proofSession, error: proofSessionError } = await admin
+        .from("program_form_sessions")
+        .select("id")
+        .eq("session_token", sessionToken)
+        .maybeSingle();
+      if (proofSessionError) throw proofSessionError;
+      const { data: proofSubmission, error: proofSubmissionError } = proofSession
+        ? await admin.from("program_form_submissions").select("id").eq("session_id", proofSession.id).maybeSingle()
+        : { data: null, error: null };
+      if (proofSubmissionError) throw proofSubmissionError;
+      if (!proofSubmission) return respond({ error: "Registration submission not found." }, 404);
+
+      const expectedPath = new RegExp(
+        "^" + proofSubmission.id + "/[0-9a-f-]{36}\\.(jpg|png|webp)$",
+        "i",
+      );
+      if (!expectedPath.test(body.proofPath)) {
+        return respond({ error: "Invalid payment proof path." }, 400);
+      }
+
+      const { data: proofObject, error: proofDownloadError } = await admin.storage
+        .from("payment-proofs")
+        .download(body.proofPath);
+      if (proofDownloadError || !proofObject) {
+        return respond({ error: "Payment proof upload was not found. Please upload it again." }, 400);
+      }
+      const expectedExtension = extensionByType[body.contentType];
+      const actualExtension = body.proofPath.split(".").pop()?.toLowerCase();
+      if (
+        proofObject.size < 20 * 1024 ||
+        proofObject.size > 8 * 1024 * 1024 ||
+        proofObject.type !== body.contentType ||
+        actualExtension !== expectedExtension ||
+        !(await hasExpectedImageSignature(proofObject, body.contentType))
+      ) {
+        return respond({ error: "Uploaded proof does not match the allowed file type or size." }, 400);
+      }
+
+      const { data: result, error: submitError } = await admin.rpc("submit_manual_program_payment_with_proof", {
+        p_session_token: sessionToken,
+        p_manual_reference: body.manualReference,
+        p_proof_path: body.proofPath,
+        p_proof_content_type: body.contentType,
+      });
+      if (submitError) return respond({ error: submitError.message }, 400);
+      return respond({ payment: result ?? null });
+    }
+
     if (body.action === "initialize") {
-      if (!body.sessionToken || !body.returnUrl) {
+      if (!sessionToken || !body.returnUrl) {
         return respond({ error: "Missing registration payment details." }, 400);
       }
 
       const { data: session } = await admin
         .from("program_form_sessions")
         .select("id,form_id,completed_at")
-        .eq("session_token", body.sessionToken)
+        .eq("session_token", sessionToken)
         .maybeSingle();
 
       if (!session?.completed_at) {
@@ -299,7 +410,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      await admin.from("program_payments").upsert(
+      const { error: paymentUpsertError } = await admin.from("program_payments").upsert(
         {
           submission_id: submission.id,
           form_id: submission.form_id,
@@ -313,6 +424,7 @@ Deno.serve(async (req) => {
         },
         { onConflict: "submission_id" },
       );
+      if (paymentUpsertError) throw paymentUpsertError;
 
       return respond({
         authorizationUrl: initPayload.data.authorization_url,
@@ -324,14 +436,34 @@ Deno.serve(async (req) => {
       return respond({ error: "Missing Paystack reference." }, 400);
     }
 
-    const { data: payment } = await admin
+    const { data: verifiedSession, error: sessionError } = await admin
+      .from("program_form_sessions")
+      .select("id")
+      .eq("session_token", sessionToken)
+      .maybeSingle();
+
+    if (sessionError) throw sessionError;
+    if (!verifiedSession) return respond({ error: "Applicant registration could not be verified." }, 404);
+
+    const { data: verifiedSubmission, error: submissionError } = await admin
+      .from("program_form_submissions")
+      .select("id")
+      .eq("session_id", verifiedSession.id)
+      .maybeSingle();
+
+    if (submissionError) throw submissionError;
+    if (!verifiedSubmission) return respond({ error: "Applicant submission could not be verified." }, 404);
+
+    const { data: payment, error: paymentLookupError } = await admin
       .from("program_payments")
       .select("submission_id,form_id,amount_minor,currency,status")
       .eq("provider_reference", body.reference)
+      .eq("submission_id", verifiedSubmission.id)
       .maybeSingle();
 
+    if (paymentLookupError) throw paymentLookupError;
     if (!payment) {
-      return respond({ error: "Payment reference not found." }, 404);
+      return respond({ error: "Payment reference not found for this applicant." }, 404);
     }
 
     const verifyResponse = await fetch(
@@ -355,7 +487,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    await admin
+    const { error: verificationUpdateError } = await admin
       .from("program_payments")
       .update({
         status: "paid",
@@ -364,12 +496,22 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("submission_id", payment.submission_id);
+    if (verificationUpdateError) throw verificationUpdateError;
 
-    const { data: settings } = await admin
-      .from("program_payment_settings")
-      .select("whatsapp_group_url")
-      .eq("form_id", payment.form_id)
+    const { data: admission } = await admin
+      .from("program_application_admissions")
+      .select("status")
+      .eq("submission_id", payment.submission_id)
       .maybeSingle();
+
+    const mayReceiveProgrammeAccess = !admission || admission.status === "admitted";
+    const { data: settings } = mayReceiveProgrammeAccess
+      ? await admin
+          .from("program_payment_settings")
+          .select("whatsapp_group_url")
+          .eq("form_id", payment.form_id)
+          .maybeSingle()
+      : { data: null };
 
     return respond({
       paid: true,

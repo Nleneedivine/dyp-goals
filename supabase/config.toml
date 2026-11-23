@@ -36,6 +36,9 @@ verify_jwt = true
 [functions.send-execution-notifications]
 verify_jwt = true
 
+[functions.applicant-portal]
+verify_jwt = false
+
 [functions.program-payment]
 verify_jwt = false
 

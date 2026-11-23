@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Target, Upload, FileText, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 interface RefinedGoal {
   title: string;
@@ -29,7 +30,7 @@ interface GoalAnalysisRecord {
   created_at: string;
   original_goals: string;
   refined_goals: string | null;
-  ai_analysis: any;
+  ai_analysis: import("@/integrations/supabase/types").Json;
 }
 
 interface GoalImportDialogProps {
@@ -65,10 +66,10 @@ export function GoalImportDialog({ isOpen, onClose, onImport }: GoalImportDialog
 
       if (error) throw error;
       setAnalyses(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading goals",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {

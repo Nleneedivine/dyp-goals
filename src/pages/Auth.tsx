@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { linkAuthenticatedEnrollments, safeNextPath } from "@/lib/authOnboarding";
 import { lovable } from "@/integrations/lovable/index";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -115,7 +116,7 @@ const Auth = () => {
       setGoogleLoading(false);
       toast({
         title: "Google sign-in could not start",
-        description: result.error.message,
+        description: result.getErrorMessage(error),
         variant: "destructive",
       });
       return;
@@ -150,10 +151,10 @@ const Auth = () => {
       });
 
       navigate(nextPath, { replace: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Login failed",
-        description: error.message || "Invalid email or password",
+        description: getErrorMessage(error) || "Invalid email or password",
         variant: "destructive",
       });
     } finally {
@@ -218,10 +219,10 @@ const Auth = () => {
           description: "Use the confirmation link we sent to finish activating your DYP account.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Signup failed",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error) || "Please try again",
         variant: "destructive",
       });
     } finally {

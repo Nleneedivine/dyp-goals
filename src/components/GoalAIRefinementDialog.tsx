@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json, Tables } from "@/integrations/supabase/types";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 type Goal = Tables<"goals">;
 type GoalMilestone = Tables<"goal_milestones">;
@@ -221,10 +222,10 @@ export function GoalAIRefinementDialog({
       setAnswers(result.questions.map(() => ""));
       setEssentialRounds(result.questions.length ? 1 : 0);
       setDeeperRounds(0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "AI review failed",
-        description: error?.message || "Unable to review this goal.",
+        description: getErrorMessage(error, "Unable to review this goal."),
         variant: "destructive",
       });
     } finally {
@@ -277,10 +278,10 @@ export function GoalAIRefinementDialog({
       setQuestionKind("essential");
       setAnswers(result.questions.map(() => ""));
       if (result.questions.length) setEssentialRounds(nextRound);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Could not continue clarification",
-        description: error?.message || "Please try again.",
+        description: getErrorMessage(error, "Please try again."),
         variant: "destructive",
       });
     } finally {
@@ -318,10 +319,10 @@ export function GoalAIRefinementDialog({
       setReview(result);
       setAnswers(result.questions.map(() => ""));
       setDeeperRounds(nextRound);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Could not open a deeper coaching round",
-        description: error?.message || "Please try again.",
+        description: getErrorMessage(error, "Please try again."),
         variant: "destructive",
       });
     } finally {
@@ -355,10 +356,10 @@ export function GoalAIRefinementDialog({
       const suggestedHours = result.estimatedHoursPerWeek ?? Number(goal.estimated_hours_per_week || 0);
       setEffortToSave(String(suggestedHours));
       setEffortConfirmed(result.effortSource === "user_confirmed");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Goal refinement failed",
-        description: error?.message || "Unable to create the refined plan.",
+        description: getErrorMessage(error, "Unable to create the refined plan."),
         variant: "destructive",
       });
     } finally {
@@ -614,7 +615,7 @@ export function GoalAIRefinementDialog({
       setOpen(false);
       reset();
       await onApplied();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Could not apply AI refinement",
         description: error?.message || (usedLegacyFallback

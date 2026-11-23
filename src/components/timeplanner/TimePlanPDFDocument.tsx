@@ -1,11 +1,16 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
+interface PDFQuarter { quarter: number; focus: string; milestones?: string[]; }
+interface PDFMonth { month: string; focus: string; goals?: string[]; }
+interface PDFWeekTask { day: string; activities?: string[]; hours?: number; }
+interface PDFWeek { weekNumber: number; theme: string; tasks?: PDFWeekTask[]; }
+interface PDFTimeBlock { startTime: string; endTime: string; activity: string; category: string; }
 interface TimePlan {
-  yearlyPlan: any;
-  monthlyPlan: any;
-  weeklyPlan: any;
-  dailyPlan: any;
-  summary: any;
+  yearlyPlan: { quarters?: PDFQuarter[] };
+  monthlyPlan: { months?: PDFMonth[] };
+  weeklyPlan: { sampleWeeks?: PDFWeek[] };
+  dailyPlan: { weekdayTemplate?: { timeBlocks?: PDFTimeBlock[] }; weekendTemplate?: { timeBlocks?: PDFTimeBlock[] } };
+  summary: { totalWeeklyCommitment?: number; estimatedCompletionDate?: string };
 }
 
 interface TimePlanPDFDocumentProps {
@@ -212,7 +217,7 @@ export const TimePlanPDFDocument = ({ plan, goal }: TimePlanPDFDocumentProps) =>
         </View>
 
         <Text style={styles.sectionTitle}>YEARLY PLAN</Text>
-        {plan.yearlyPlan?.quarters?.map((quarter: any, idx: number) => (
+        {plan.yearlyPlan?.quarters?.map((quarter: PDFQuarter, idx: number) => (
           <View key={idx} style={styles.quarterCard}>
             <Text style={styles.quarterTitle}>Q{quarter.quarter}: {quarter.focus}</Text>
             {quarter.milestones?.map((milestone: string, mIdx: number) => (
@@ -228,7 +233,7 @@ export const TimePlanPDFDocument = ({ plan, goal }: TimePlanPDFDocumentProps) =>
       <Page size="A4" style={styles.page}>
         <Text style={styles.sectionTitle}>MONTHLY PLAN</Text>
         <View style={styles.monthGrid}>
-          {plan.monthlyPlan?.months?.slice(0, 6).map((month: any, idx: number) => (
+          {plan.monthlyPlan?.months?.slice(0, 6).map((month: PDFMonth, idx: number) => (
             <View key={idx} style={styles.monthCard}>
               <Text style={styles.monthTitle}>{month.month}</Text>
               <Text style={styles.monthFocus}>{month.focus}</Text>
@@ -240,7 +245,7 @@ export const TimePlanPDFDocument = ({ plan, goal }: TimePlanPDFDocumentProps) =>
         </View>
 
         <View style={styles.monthGrid}>
-          {plan.monthlyPlan?.months?.slice(6, 12).map((month: any, idx: number) => (
+          {plan.monthlyPlan?.months?.slice(6, 12).map((month: PDFMonth, idx: number) => (
             <View key={idx} style={styles.monthCard}>
               <Text style={styles.monthTitle}>{month.month}</Text>
               <Text style={styles.monthFocus}>{month.focus}</Text>
@@ -257,10 +262,10 @@ export const TimePlanPDFDocument = ({ plan, goal }: TimePlanPDFDocumentProps) =>
       {/* Page 3: Weekly Plan */}
       <Page size="A4" style={styles.page}>
         <Text style={styles.sectionTitle}>WEEKLY PLAN SAMPLES</Text>
-        {plan.weeklyPlan?.sampleWeeks?.slice(0, 2).map((week: any, idx: number) => (
+        {plan.weeklyPlan?.sampleWeeks?.slice(0, 2).map((week: PDFWeek, idx: number) => (
           <View key={idx} style={styles.weekCard}>
             <Text style={styles.weekTitle}>Week {week.weekNumber}: {week.theme}</Text>
-            {week.tasks?.map((task: any, tIdx: number) => (
+            {week.tasks?.map((task: PDFWeekTask, tIdx: number) => (
               <View key={tIdx} style={styles.dayRow}>
                 <Text style={styles.dayName}>{task.day}</Text>
                 <Text style={styles.dayActivities}>{task.activities?.join(', ')}</Text>
@@ -278,7 +283,7 @@ export const TimePlanPDFDocument = ({ plan, goal }: TimePlanPDFDocumentProps) =>
         <Text style={styles.sectionTitle}>DAILY SCHEDULE TEMPLATE</Text>
         
         <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#1F2937', marginBottom: 8 }}>Weekday Schedule</Text>
-        {plan.dailyPlan?.weekdayTemplate?.timeBlocks?.slice(0, 10).map((block: any, idx: number) => (
+        {plan.dailyPlan?.weekdayTemplate?.timeBlocks?.slice(0, 10).map((block: PDFTimeBlock, idx: number) => (
           <View key={idx} style={styles.timeBlock}>
             <Text style={styles.timeBlockTime}>{block.startTime} - {block.endTime}</Text>
             <Text style={styles.timeBlockActivity}>{block.activity}</Text>
@@ -287,7 +292,7 @@ export const TimePlanPDFDocument = ({ plan, goal }: TimePlanPDFDocumentProps) =>
         ))}
 
         <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#1F2937', marginBottom: 8, marginTop: 15 }}>Weekend Schedule</Text>
-        {plan.dailyPlan?.weekendTemplate?.timeBlocks?.slice(0, 8).map((block: any, idx: number) => (
+        {plan.dailyPlan?.weekendTemplate?.timeBlocks?.slice(0, 8).map((block: PDFTimeBlock, idx: number) => (
           <View key={idx} style={styles.timeBlock}>
             <Text style={styles.timeBlockTime}>{block.startTime} - {block.endTime}</Text>
             <Text style={styles.timeBlockActivity}>{block.activity}</Text>

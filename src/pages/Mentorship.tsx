@@ -12,6 +12,7 @@ import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { formatProgramDate, usePlatformConfiguration } from "@/hooks/use-platform-configuration";
 import { getCurrentGoalEnrollment } from "@/lib/cohortScope";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 const Mentorship = () => {
   const [formData, setFormData] = useState({
@@ -149,11 +150,11 @@ const Mentorship = () => {
         experience: "",
       });
       setAcceptedRules(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting request:', error);
       toast({
         title: "Submission Failed",
-        description: error.message || "Please try again later.",
+        description: getErrorMessage(error) || "Please try again later.",
         variant: "destructive",
       });
     } finally {

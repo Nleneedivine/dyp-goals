@@ -39,7 +39,9 @@ import ProgressDashboard from "./pages/ProgressDashboard";
 import FormManager from "./pages/admin/FormManager";
 import FormBuilder from "./pages/admin/FormBuilder";
 import FormAnalytics from "./pages/admin/FormAnalytics";
+import AdminApplications from "./pages/admin/AdminApplications";
 import PublicForm from "./pages/PublicForm";
+import ApplicantPortal from "./pages/ApplicantPortal";
 import ReferralRedirect from "./pages/ReferralRedirect";
 import SponsorshipRedirect from "./pages/SponsorshipRedirect";
 import AdminAppearance from "./pages/admin/AdminAppearance";
@@ -70,6 +72,7 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/apply/:slug" element={<PublicForm />} />
+              <Route path="/applicant-portal" element={<ApplicantPortal />} />
               <Route path="/r/:code" element={<ReferralRedirect />} />
               <Route path="/s/:code" element={<SponsorshipRedirect />} />
               <Route path="/" element={<Home />} />
@@ -117,6 +120,7 @@ const App = () => (
               <Route path="/mentor-dashboard" element={<Navigate to="/coach-dashboard" replace />} />
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
               <Route path="/admin/forms" element={<AdminRoute><FormManager /></AdminRoute>} />
+              <Route path="/admin/applications" element={<AdminRoute><AdminApplications /></AdminRoute>} />
               <Route path="/admin/forms/:formId/edit" element={<AdminRoute><FormBuilder /></AdminRoute>} />
               <Route path="/admin/forms/:formId/analytics" element={<AdminRoute><FormAnalytics /></AdminRoute>} />
               <Route path="/admin/appearance" element={<AdminRoute><AdminAppearance /></AdminRoute>} />

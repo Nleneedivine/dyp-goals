@@ -12,6 +12,7 @@ import { pdf } from "@react-pdf/renderer";
 import { GoalsPDFDocument } from "@/components/GoalsPDFDocument";
 import { PrintableGoals } from "@/components/PrintableGoals";
 import { AIFormattedText } from "@/components/AIFormattedText";
+import { getErrorMessage } from "@/lib/errorMessage";
 import {
   Select,
   SelectContent,
@@ -97,7 +98,7 @@ const AIGoalsReview = () => {
           setResponses(data.user_responses as unknown as Record<number, string>);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading existing analysis:', error);
     }
   };
@@ -113,7 +114,7 @@ const AIGoalsReview = () => {
         .eq('id', analysisId);
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving responses:', error);
     } finally {
       setIsSavingResponse(false);
@@ -172,11 +173,11 @@ const AIGoalsReview = () => {
           description: "Your DYP AI Coach has reviewed your goals.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error analyzing goals:', error);
       toast({
         title: "Analysis Failed",
-        description: error.message || "Unable to analyze goals. Please try again.",
+        description: getErrorMessage(error) || "Unable to analyze goals. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -237,11 +238,11 @@ const AIGoalsReview = () => {
           description: "Your comprehensive action plan is ready.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error refining goals:', error);
       toast({
         title: "Refinement Failed",
-        description: error.message || "Unable to refine goals. Please try again.",
+        description: getErrorMessage(error) || "Unable to refine goals. Please try again.",
         variant: "destructive",
       });
     } finally {

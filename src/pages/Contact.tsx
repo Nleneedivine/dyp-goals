@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -33,7 +34,7 @@ const Contact = () => {
         description: "Thanks for contacting DYP. We'll review your message and respond as soon as we can.",
       });
       setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to send",
         description: error?.message ?? "Please try again later.",
