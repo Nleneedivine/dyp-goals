@@ -72,7 +72,7 @@ export default function AdminApplications() {
         supabase.from("program_form_submissions").select("id,form_id,session_id,submitted_at").order("submitted_at", { ascending: false }).limit(500),
         supabase.from("program_form_fields").select("id,form_id,label,field_type,display_order").order("display_order"),
         supabase.from("program_payments").select("submission_id,status"),
-        supabase.from("program_sponsorship_claims").select("submission_id,status"),
+        supabase.from("program_sponsorship_claims").select("submission_id,status,created_at").order("created_at", { ascending: false }),
         (supabase.from("program_application_admissions" as never).select("submission_id,status,decision_reason,decided_at") as unknown as Promise<{ data: AdmissionRecord[] | null; error: { message: string } | null }>),
         supabase.from("program_form_answers").select("submission_id,field_id,answer"),
         supabase.from("program_enrollments").select("id,source_submission_id,status,first_name,last_name,email,cohort:program_cohorts!inner(program_key)").eq("cohort.program_key", "goals").eq("status", "payment_pending").not("source_submission_id", "is", null),
@@ -88,7 +88,10 @@ export default function AdminApplications() {
       const admissions = admissionsResult.data ?? [];
       const pendingEnrollments = (enrollmentsResult.data ?? []) as Enrollment[];
       const paymentById = new Map(payments.map((item) => [item.submission_id, item]));
-      const claimById = new Map(claims.map((item) => [item.submission_id, item]));
+      const claimById = new Map<string, (typeof claims)[number]>();
+      for (const claim of claims) {
+        if (!claimById.has(claim.submission_id)) claimById.set(claim.submission_id, claim);
+      }
       const admissionById = new Map(admissions.map((item) => [item.submission_id, item]));
       const recoveryIds = new Set(pendingEnrollments
         .filter((enrollment) => enrollment.source_submission_id)
