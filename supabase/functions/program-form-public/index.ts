@@ -122,9 +122,20 @@ Deno.serve(async (req) => {
       submission_id: submission.id,
       token_hash: tokenHash,
     });
-    if (!portalTokenError) applicantPortalToken = rawToken;
+    if (portalTokenError) {
+      // The application itself is already safely submitted. Do not pretend its
+      // persistent portal link was created; direct the applicant to admin recovery.
+      console.error("Applicant portal token creation failed for submission:", submission.id, portalTokenError.message);
+      return respond({
+        success: true,
+        confirmationMessage: form.confirmation_message,
+        applicantPortalToken: null,
+        portalLinkRequired: true,
+      });
+    }
+    applicantPortalToken = rawToken;
 
-    return respond({ success: true, confirmationMessage: form.confirmation_message, applicantPortalToken });
+    return respond({ success: true, confirmationMessage: form.confirmation_message, applicantPortalToken, portalLinkRequired: false });
   } catch (error) {
     return respond({ error: error instanceof Error ? error.message : "Unable to process this form." }, 500);
   }
