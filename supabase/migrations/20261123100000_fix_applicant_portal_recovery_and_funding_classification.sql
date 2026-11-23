@@ -1,5 +1,7 @@
--- Correct funding classification: only an approved sponsorship claim
--- qualifies as sponsored. Pending/rejected claims remain self-funded until approved.
+-- Keep the migration aligned with the verified applicant portal recovery
+-- function: read the submission and session separately, use the claim's
+-- created_at ordering, and avoid writing an unverified portal-open audit row.
+-- Only an approved sponsorship claim qualifies as sponsored.
 create or replace function public.get_applicant_portal_state(p_token_hash text)
 returns jsonb
 language plpgsql
@@ -23,29 +25,44 @@ begin
   where token_hash = lower(p_token_hash)
     and revoked_at is null
     and expires_at > now();
+
   if not found then
     return jsonb_build_object('valid', false);
   end if;
 
-  select s, fs.session_token
-  into v_submission, v_session_token
-  from public.program_form_submissions s
-  join public.program_form_sessions fs on fs.id = s.session_id
-  where s.id = v_token.submission_id;
+  select * into v_submission
+  from public.program_form_submissions
+  where id = v_token.submission_id;
+
   if not found then
     return jsonb_build_object('valid', false);
   end if;
 
-  select * into v_payment from public.program_payments where submission_id = v_submission.id;
-  select * into v_claim from public.program_sponsorship_claims
-    where submission_id = v_submission.id order by updated_at desc limit 1;
-  select * into v_admission from public.program_application_admissions
-    where submission_id = v_submission.id;
+  select session_token into v_session_token
+  from public.program_form_sessions
+  where id = v_submission.session_id;
+
+  if not found then
+    return jsonb_build_object('valid', false);
+  end if;
+
+  select * into v_payment
+  from public.program_payments
+  where submission_id = v_submission.id;
+
+  select * into v_claim
+  from public.program_sponsorship_claims
+  where submission_id = v_submission.id
+  order by created_at desc
+  limit 1;
+
+  select * into v_admission
+  from public.program_application_admissions
+  where submission_id = v_submission.id;
 
   update public.program_applicant_portal_tokens
-  set last_used_at = now() where id = v_token.id;
-  insert into public.program_applicant_portal_audit (submission_id, token_id, action)
-  values (v_submission.id, v_token.id, 'opened');
+  set last_used_at = now()
+  where id = v_token.id;
 
   return jsonb_build_object(
     'valid', true,
