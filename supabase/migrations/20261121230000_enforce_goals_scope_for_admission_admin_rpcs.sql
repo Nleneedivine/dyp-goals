@@ -51,10 +51,13 @@ begin
     where p.submission_id = p_submission_id and p.status = 'paid'
   ) into v_payment_paid;
 
-  select exists (
-    select 1 from public.program_sponsorship_claims c
-    where c.submission_id = p_submission_id and c.status = 'approved'
-  ) into v_sponsorship_approved;
+  select (c.status = 'approved')
+  into v_sponsorship_approved
+  from public.program_sponsorship_claims c
+  where c.submission_id = p_submission_id
+  order by c.created_at desc
+  limit 1;
+  v_sponsorship_approved := coalesce(v_sponsorship_approved, false);
 
   if p_decision = 'admitted' and not (v_payment_paid or v_sponsorship_approved) then
     raise exception 'Funding must be verified before admission';
