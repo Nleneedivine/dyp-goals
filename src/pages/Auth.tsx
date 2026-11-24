@@ -116,7 +116,7 @@ const Auth = () => {
       setGoogleLoading(false);
       toast({
         title: "Google sign-in could not start",
-        description: result.getErrorMessage(error),
+        description: getErrorMessage(result.error),
         variant: "destructive",
       });
       return;

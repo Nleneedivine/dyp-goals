@@ -37,6 +37,7 @@ import {
   Tv,
   Bed,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface TodoItem {
   id: string;

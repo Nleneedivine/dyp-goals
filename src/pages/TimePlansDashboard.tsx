@@ -31,8 +31,66 @@ import { TimePlanPDFDocument } from "@/components/timeplanner/TimePlanPDFDocumen
 import { pdf } from "@react-pdf/renderer";
 import { Tables } from "@/integrations/supabase/types";
 import { getErrorMessage } from "@/lib/errorMessage";
+import { z } from "zod";
 
 type TimePlan = Tables<'time_plans'>;
+
+const PdfYearlyPlanSchema = z.object({
+  quarters: z.array(z.object({
+    quarter: z.number().default(0),
+    focus: z.string().default(""),
+    milestones: z.array(z.string()).optional(),
+  })).default([]),
+}).default({});
+
+const PdfMonthlyPlanSchema = z.object({
+  months: z.array(z.object({
+    month: z.string().default(""),
+    focus: z.string().default(""),
+    goals: z.array(z.string()).optional(),
+  })).default([]),
+}).default({});
+
+const PdfWeeklyPlanSchema = z.object({
+  sampleWeeks: z.array(z.object({
+    weekNumber: z.number().default(0),
+    theme: z.string().default(""),
+    tasks: z.array(z.object({
+      day: z.string().default(""),
+      activities: z.array(z.string()).optional(),
+      hours: z.number().optional(),
+    })).optional(),
+  })).default([]),
+}).default({});
+
+const PdfDailyPlanSchema = z.object({
+  weekdayTemplate: z.object({
+    timeBlocks: z.array(z.object({
+      startTime: z.string().default(""),
+      endTime: z.string().default(""),
+      activity: z.string().default(""),
+      category: z.string().default(""),
+    })).default([]),
+  }).optional(),
+  weekendTemplate: z.object({
+    timeBlocks: z.array(z.object({
+      startTime: z.string().default(""),
+      endTime: z.string().default(""),
+      activity: z.string().default(""),
+      category: z.string().default(""),
+    })).default([]),
+  }).optional(),
+}).default({});
+
+const PdfSummarySchema = z.object({
+  totalWeeklyCommitment: z.number().optional(),
+  estimatedCompletionDate: z.string().optional(),
+}).nullable().optional();
+
+const parsePdfSection = <T extends z.ZodTypeAny>(schema: T, value: unknown): z.infer<T> => {
+  const parsed = schema.safeParse(value);
+  return parsed.success ? parsed.data : schema.parse({});
+};
 
 const TimePlansDashboard = () => {
   const [plans, setPlans] = useState<TimePlan[]>([]);
@@ -114,10 +172,10 @@ const TimePlansDashboard = () => {
     setExportingId(plan.id);
     try {
       const timePlan = {
-        yearlyPlan: plan.yearly_plan,
-        monthlyPlan: plan.monthly_plan,
-        weeklyPlan: plan.weekly_plan,
-        dailyPlan: plan.daily_plan,
+        yearlyPlan: parsePdfSection(PdfYearlyPlanSchema, plan.yearly_plan),
+        monthlyPlan: parsePdfSection(PdfMonthlyPlanSchema, plan.monthly_plan),
+        weeklyPlan: parsePdfSection(PdfWeeklyPlanSchema, plan.weekly_plan),
+        dailyPlan: parsePdfSection(PdfDailyPlanSchema, plan.daily_plan),
         summary: null,
       };
       

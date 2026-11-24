@@ -49,6 +49,12 @@ const getOverallScore = (analysis: unknown): number => {
   }
 };
 
+const getGeneralAdvice = (analysis: unknown): string => {
+  if (typeof analysis !== "object" || analysis === null || !("generalAdvice" in analysis)) return "";
+  const advice = analysis.generalAdvice;
+  return typeof advice === "string" ? advice : "";
+};
+
 interface Profile {
   id: string;
   email: string;
@@ -1694,7 +1700,7 @@ const Admin = () => {
                     <p className="text-sm text-muted-foreground mb-2">
                       Overall Score: <span className="text-primary font-bold">{getOverallScore(selectedGoal.ai_analysis)}%</span>
                     </p>
-                    <p className="text-foreground">{selectedGoal.ai_analysis?.generalAdvice}</p>
+                    <p className="text-foreground">{getGeneralAdvice(selectedGoal.ai_analysis)}</p>
                   </div>
                 </div>
 

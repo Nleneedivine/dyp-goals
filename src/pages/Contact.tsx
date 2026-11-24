@@ -37,7 +37,7 @@ const Contact = () => {
     } catch (error: unknown) {
       toast({
         title: "Failed to send",
-        description: error?.message ?? "Please try again later.",
+        description: getErrorMessage(error, "Please try again later."),
         variant: "destructive",
       });
     } finally {

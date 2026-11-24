@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pdf } from "@react-pdf/renderer";
 import { Tables } from "@/integrations/supabase/types";
 import { getErrorMessage } from "@/lib/errorMessage";
+import { z } from "zod";
 
 interface QuestionnaireData {
   specificOutcomes: string;
@@ -35,17 +36,102 @@ interface QuestionnaireData {
   weekendPreference: 'light' | 'same' | 'intense';
 }
 
-interface TimePlan {
-  yearlyPlan: { quarters?: { quarter: number; focus: string; milestones?: string[] }[] };
-  monthlyPlan: { months?: { month: string; focus: string; goals?: string[] }[] };
-  weeklyPlan: { sampleWeeks?: { weekNumber: number; theme: string; tasks?: { day: string; activities?: string[]; hours?: number }[] }[] };
-  dailyPlan: { weekdayTemplate?: { timeBlocks?: { startTime: string; endTime: string; activity: string; category: string }[] }; weekendTemplate?: { timeBlocks?: { startTime: string; endTime: string; activity: string; category: string }[] } };
-  summary: { totalWeeklyCommitment?: number; estimatedCompletionDate?: string };
-}
+const TimeBlockSchema = z.object({
+  startTime: z.string().default(""),
+  endTime: z.string().default(""),
+  activity: z.string().default(""),
+  category: z.string().default("routine"),
+  notes: z.string().optional(),
+  isGoalWork: z.boolean().optional(),
+});
+
+const YearlyPlanSchema = z.object({
+  mainGoal: z.string().default(""),
+  quarters: z.array(z.object({
+    quarter: z.number().default(0),
+    period: z.string().optional(),
+    focus: z.string().default(""),
+    milestones: z.array(z.string()).default([]),
+    keyDeadlines: z.array(z.string()).default([]),
+  })).default([]),
+  annualTargets: z.array(z.string()).default([]),
+});
+
+const MonthlyPlanSchema = z.object({
+  months: z.array(z.object({
+    month: z.string().default(""),
+    focus: z.string().default(""),
+    goals: z.array(z.string()).default([]),
+    weeklyHours: z.number().default(0),
+    keyTasks: z.array(z.string()).default([]),
+  })).default([]),
+});
+
+const WeeklyPlanSchema = z.object({
+  totalHoursPerWeek: z.number().default(0),
+  weekdayHours: z.number().default(0),
+  weekendHours: z.number().default(0),
+  sampleWeeks: z.array(z.object({
+    weekNumber: z.number().default(0),
+    theme: z.string().default(""),
+    tasks: z.array(z.object({
+      day: z.string().default(""),
+      activities: z.array(z.string()).default([]),
+      hours: z.number().default(0),
+    })).default([]),
+    weeklyGoal: z.string().default(""),
+  })).default([]),
+});
+
+const DailyPlanSchema = z.object({
+  weekdayTemplate: z.object({
+    wakeTime: z.string().default(""),
+    sleepTime: z.string().default(""),
+    timeBlocks: z.array(TimeBlockSchema).default([]),
+  }).default({}),
+  weekendTemplate: z.object({
+    wakeTime: z.string().default(""),
+    sleepTime: z.string().default(""),
+    timeBlocks: z.array(TimeBlockSchema).default([]),
+  }).default({}),
+});
+
+const SummarySchema = z.object({
+  totalWeeklyCommitment: z.number().default(0),
+  estimatedCompletionDate: z.string().default("TBD"),
+  keySuccessFactors: z.array(z.string()).optional(),
+  potentialChallenges: z.array(z.string()).optional(),
+  recommendations: z.array(z.string()).optional(),
+});
+
+const TimePlanSchema = z.object({
+  yearlyPlan: YearlyPlanSchema,
+  monthlyPlan: MonthlyPlanSchema,
+  weeklyPlan: WeeklyPlanSchema,
+  dailyPlan: DailyPlanSchema,
+  summary: SummarySchema.nullish().transform((summary) => summary ?? null),
+});
+
+type TimePlan = z.infer<typeof TimePlanSchema>;
 
 type Phase = 'goal-input' | 'questionnaire' | 'generating' | 'result';
 
 type SavedTimePlan = Tables<'time_plans'>;
+
+const parseSavedTimePlan = (plan: SavedTimePlan): TimePlan => {
+  const yearlyPlan = YearlyPlanSchema.safeParse(plan.yearly_plan);
+  const monthlyPlan = MonthlyPlanSchema.safeParse(plan.monthly_plan);
+  const weeklyPlan = WeeklyPlanSchema.safeParse(plan.weekly_plan);
+  const dailyPlan = DailyPlanSchema.safeParse(plan.daily_plan);
+
+  return {
+    yearlyPlan: yearlyPlan.success ? yearlyPlan.data : YearlyPlanSchema.parse({}),
+    monthlyPlan: monthlyPlan.success ? monthlyPlan.data : MonthlyPlanSchema.parse({}),
+    weeklyPlan: weeklyPlan.success ? weeklyPlan.data : WeeklyPlanSchema.parse({}),
+    dailyPlan: dailyPlan.success ? dailyPlan.data : DailyPlanSchema.parse({}),
+    summary: null,
+  };
+};
 
 const TimePlanner = () => {
   const location = useLocation();
@@ -80,13 +166,7 @@ const TimePlanner = () => {
       const plan = state.viewPlan;
       setGoal(plan.goal);
       setCurrentPlanId(plan.id);
-      setTimePlan({
-        yearlyPlan: plan.yearly_plan,
-        monthlyPlan: plan.monthly_plan,
-        weeklyPlan: plan.weekly_plan,
-        dailyPlan: plan.daily_plan,
-        summary: null,
-      });
+        setTimePlan(parseSavedTimePlan(plan));
       setPhase('result');
       setIsViewingExisting(true);
       
@@ -146,17 +226,20 @@ const TimePlanner = () => {
       if (error) throw error;
 
       if (data?.timePlan) {
-        setTimePlan(data.timePlan);
+        const parsedTimePlan = TimePlanSchema.safeParse(data.timePlan);
+        if (!parsedTimePlan.success) throw new Error("The generated time plan had an unexpected format.");
+        const generatedTimePlan = parsedTimePlan.data;
+        setTimePlan(generatedTimePlan);
         
         // Save to database
         const { data: insertedPlan } = await supabase.from('time_plans').insert([{
           user_id: user.id,
           goal,
           questionnaire_data: questionnaireData as unknown as import("@/integrations/supabase/types").Json,
-          yearly_plan: data.timePlan.yearlyPlan,
-          monthly_plan: data.timePlan.monthlyPlan,
-          weekly_plan: data.timePlan.weeklyPlan,
-          daily_plan: data.timePlan.dailyPlan,
+          yearly_plan: generatedTimePlan.yearlyPlan,
+          monthly_plan: generatedTimePlan.monthlyPlan,
+          weekly_plan: generatedTimePlan.weeklyPlan,
+          daily_plan: generatedTimePlan.dailyPlan,
           status: 'completed',
         }]).select().single();
 
@@ -246,18 +329,26 @@ const TimePlanner = () => {
     
     const updatedPlan = { ...timePlan };
     switch (sectionType) {
-      case 'yearly':
-        updatedPlan.yearlyPlan = newData;
+      case 'yearly': {
+        const parsed = YearlyPlanSchema.safeParse(newData);
+        if (parsed.success) updatedPlan.yearlyPlan = parsed.data;
         break;
-      case 'monthly':
-        updatedPlan.monthlyPlan = newData;
+      }
+      case 'monthly': {
+        const parsed = MonthlyPlanSchema.safeParse(newData);
+        if (parsed.success) updatedPlan.monthlyPlan = parsed.data;
         break;
-      case 'weekly':
-        updatedPlan.weeklyPlan = newData;
+      }
+      case 'weekly': {
+        const parsed = WeeklyPlanSchema.safeParse(newData);
+        if (parsed.success) updatedPlan.weeklyPlan = parsed.data;
         break;
-      case 'daily':
-        updatedPlan.dailyPlan = newData;
+      }
+      case 'daily': {
+        const parsed = DailyPlanSchema.safeParse(newData);
+        if (parsed.success) updatedPlan.dailyPlan = parsed.data;
         break;
+      }
     }
     setTimePlan(updatedPlan);
   };

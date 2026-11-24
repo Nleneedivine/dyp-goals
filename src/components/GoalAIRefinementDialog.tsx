@@ -618,7 +618,7 @@ export function GoalAIRefinementDialog({
     } catch (error: unknown) {
       toast({
         title: "Could not apply AI refinement",
-        description: error?.message || (usedLegacyFallback
+        description: getErrorMessage(error, usedLegacyFallback
           ? "The temporary compatibility save did not finish. Review the goal before trying again."
           : "No partial atomic refinement was saved."),
         variant: "destructive",

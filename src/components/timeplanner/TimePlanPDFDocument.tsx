@@ -10,7 +10,7 @@ interface TimePlan {
   monthlyPlan: { months?: PDFMonth[] };
   weeklyPlan: { sampleWeeks?: PDFWeek[] };
   dailyPlan: { weekdayTemplate?: { timeBlocks?: PDFTimeBlock[] }; weekendTemplate?: { timeBlocks?: PDFTimeBlock[] } };
-  summary: { totalWeeklyCommitment?: number; estimatedCompletionDate?: string };
+  summary: { totalWeeklyCommitment?: number; estimatedCompletionDate?: string } | null;
 }
 
 interface TimePlanPDFDocumentProps {

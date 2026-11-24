@@ -30,6 +30,7 @@ import { pdf } from "@react-pdf/renderer";
 import { Ui2PageHeader } from "@/components/Ui2PageHeader";
 import { useUiMode } from "@/components/UiModeProvider";
 import { getErrorMessage } from "@/lib/errorMessage";
+import type { Json } from "@/integrations/supabase/types";
 
 interface GoalAnalysisRecord {
   id: string;
@@ -37,7 +38,7 @@ interface GoalAnalysisRecord {
   created_at: string;
   updated_at: string;
   original_goals: string;
-  ai_analysis: import("@/integrations/supabase/types").Json;
+  ai_analysis: Json;
   refined_goals: string | null;
   user_responses: import("@/integrations/supabase/types").Json;
 }
@@ -74,6 +75,11 @@ const GoalHistory = () => {
   const [exportingId, setExportingId] = useState<string | null>(null);
   const { toast } = useToast();
   const { isUi2 } = useUiMode();
+
+  const getAnalysisValue = (analysis: Json, key: string): Json | undefined => {
+    if (typeof analysis !== "object" || analysis === null || Array.isArray(analysis)) return undefined;
+    return analysis[key];
+  };
 
   useEffect(() => {
     loadAnalyses();
@@ -193,11 +199,13 @@ const GoalHistory = () => {
   };
 
   const getOverallScore = (analysis: GoalAnalysisRecord): number => {
-    try {
-      return analysis.ai_analysis?.overallScore || 0;
-    } catch {
-      return 0;
-    }
+    const score = getAnalysisValue(analysis.ai_analysis, "overallScore");
+    return typeof score === "number" ? score : 0;
+  };
+
+  const getGeneralAdvice = (analysis: GoalAnalysisRecord): string => {
+    const advice = getAnalysisValue(analysis.ai_analysis, "generalAdvice");
+    return typeof advice === "string" ? advice : "";
   };
 
   const handleDownloadPDF = async (analysis: GoalAnalysisRecord) => {
@@ -423,7 +431,7 @@ const GoalHistory = () => {
                     <p className="text-sm text-muted-foreground mb-2">
                       Overall Score: <span className="text-primary font-bold">{getOverallScore(selectedAnalysis)}%</span>
                     </p>
-                    <p className="text-foreground">{selectedAnalysis.ai_analysis?.generalAdvice}</p>
+                    <p className="text-foreground">{getGeneralAdvice(selectedAnalysis)}</p>
                   </div>
                 </div>
 
