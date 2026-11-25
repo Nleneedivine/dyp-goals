@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ComponentProps } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,62 +34,63 @@ import { getErrorMessage } from "@/lib/errorMessage";
 import { z } from "zod";
 
 type TimePlan = Tables<'time_plans'>;
+type PdfExportPlan = ComponentProps<typeof TimePlanPDFDocument>["plan"];
 
 const PdfYearlyPlanSchema = z.object({
   quarters: z.array(z.object({
-    quarter: z.number().default(0),
-    focus: z.string().default(""),
+    quarter: z.number(),
+    focus: z.string(),
     milestones: z.array(z.string()).optional(),
-  })).default([]),
-}).default({});
+  })).optional(),
+});
 
 const PdfMonthlyPlanSchema = z.object({
   months: z.array(z.object({
-    month: z.string().default(""),
-    focus: z.string().default(""),
+    month: z.string(),
+    focus: z.string(),
     goals: z.array(z.string()).optional(),
-  })).default([]),
-}).default({});
+  })).optional(),
+});
 
 const PdfWeeklyPlanSchema = z.object({
   sampleWeeks: z.array(z.object({
-    weekNumber: z.number().default(0),
-    theme: z.string().default(""),
+    weekNumber: z.number(),
+    theme: z.string(),
     tasks: z.array(z.object({
-      day: z.string().default(""),
+      day: z.string(),
       activities: z.array(z.string()).optional(),
       hours: z.number().optional(),
     })).optional(),
-  })).default([]),
-}).default({});
+  })).optional(),
+});
 
 const PdfDailyPlanSchema = z.object({
   weekdayTemplate: z.object({
     timeBlocks: z.array(z.object({
-      startTime: z.string().default(""),
-      endTime: z.string().default(""),
-      activity: z.string().default(""),
-      category: z.string().default(""),
-    })).default([]),
+      startTime: z.string(),
+      endTime: z.string(),
+      activity: z.string(),
+      category: z.string(),
+    })).optional(),
   }).optional(),
   weekendTemplate: z.object({
     timeBlocks: z.array(z.object({
-      startTime: z.string().default(""),
-      endTime: z.string().default(""),
-      activity: z.string().default(""),
-      category: z.string().default(""),
-    })).default([]),
+      startTime: z.string(),
+      endTime: z.string(),
+      activity: z.string(),
+      category: z.string(),
+    })).optional(),
   }).optional(),
-}).default({});
+});
 
 const PdfSummarySchema = z.object({
   totalWeeklyCommitment: z.number().optional(),
   estimatedCompletionDate: z.string().optional(),
 }).nullable().optional();
 
-const parsePdfSection = <T extends z.ZodTypeAny>(schema: T, value: unknown): z.infer<T> => {
+const parsePdfSection = <T extends z.ZodTypeAny, R>(schema: T, value: unknown): R => {
   const parsed = schema.safeParse(value);
-  return parsed.success ? parsed.data : schema.parse({});
+  return (parsed.success ? parsed.data : {}) as R;
 };
 
 const TimePlansDashboard = () => {
@@ -171,11 +172,11 @@ const TimePlansDashboard = () => {
   const handleExportPDF = async (plan: TimePlan) => {
     setExportingId(plan.id);
     try {
-      const timePlan = {
-        yearlyPlan: parsePdfSection(PdfYearlyPlanSchema, plan.yearly_plan),
-        monthlyPlan: parsePdfSection(PdfMonthlyPlanSchema, plan.monthly_plan),
-        weeklyPlan: parsePdfSection(PdfWeeklyPlanSchema, plan.weekly_plan),
-        dailyPlan: parsePdfSection(PdfDailyPlanSchema, plan.daily_plan),
+      const timePlan: PdfExportPlan = {
+        yearlyPlan: parsePdfSection<typeof PdfYearlyPlanSchema, PdfExportPlan["yearlyPlan"]>(PdfYearlyPlanSchema, plan.yearly_plan),
+        monthlyPlan: parsePdfSection<typeof PdfMonthlyPlanSchema, PdfExportPlan["monthlyPlan"]>(PdfMonthlyPlanSchema, plan.monthly_plan),
+        weeklyPlan: parsePdfSection<typeof PdfWeeklyPlanSchema, PdfExportPlan["weeklyPlan"]>(PdfWeeklyPlanSchema, plan.weekly_plan),
+        dailyPlan: parsePdfSection<typeof PdfDailyPlanSchema, PdfExportPlan["dailyPlan"]>(PdfDailyPlanSchema, plan.daily_plan),
         summary: null,
       };
       

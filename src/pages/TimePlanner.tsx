@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ComponentProps } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,7 +112,16 @@ const TimePlanSchema = z.object({
   summary: SummarySchema.nullish().transform((summary) => summary ?? null),
 });
 
-type TimePlan = z.infer<typeof TimePlanSchema>;
+type TimePlan = {
+  yearlyPlan: ComponentProps<typeof YearlyPlanView>["plan"];
+  monthlyPlan: ComponentProps<typeof MonthlyPlanView>["plan"];
+  weeklyPlan: ComponentProps<typeof WeeklyPlanView>["plan"];
+  dailyPlan: ComponentProps<typeof DailyPlanView>["plan"];
+  summary: ComponentProps<typeof TimePlanSummary>["summary"] | null;
+};
+
+const asDatabaseJson = (value: unknown): import("@/integrations/supabase/types").Json =>
+  value as import("@/integrations/supabase/types").Json;
 
 type Phase = 'goal-input' | 'questionnaire' | 'generating' | 'result';
 
@@ -125,10 +134,14 @@ const parseSavedTimePlan = (plan: SavedTimePlan): TimePlan => {
   const dailyPlan = DailyPlanSchema.safeParse(plan.daily_plan);
 
   return {
-    yearlyPlan: yearlyPlan.success ? yearlyPlan.data : YearlyPlanSchema.parse({}),
-    monthlyPlan: monthlyPlan.success ? monthlyPlan.data : MonthlyPlanSchema.parse({}),
-    weeklyPlan: weeklyPlan.success ? weeklyPlan.data : WeeklyPlanSchema.parse({}),
-    dailyPlan: dailyPlan.success ? dailyPlan.data : DailyPlanSchema.parse({}),
+    yearlyPlan: yearlyPlan.success ? yearlyPlan.data as TimePlan["yearlyPlan"] : YearlyPlanSchema.parse({}) as TimePlan["yearlyPlan"],
+    monthlyPlan: monthlyPlan.success ? monthlyPlan.data as TimePlan["monthlyPlan"] : MonthlyPlanSchema.parse({}) as TimePlan["monthlyPlan"],
+    weeklyPlan: weeklyPlan.success
+      ? weeklyPlan.data as TimePlan["weeklyPlan"]
+      : WeeklyPlanSchema.parse({}) as TimePlan["weeklyPlan"],
+    dailyPlan: dailyPlan.success
+      ? dailyPlan.data as TimePlan["dailyPlan"]
+      : DailyPlanSchema.parse({}) as TimePlan["dailyPlan"],
     summary: null,
   };
 };
@@ -228,18 +241,18 @@ const TimePlanner = () => {
       if (data?.timePlan) {
         const parsedTimePlan = TimePlanSchema.safeParse(data.timePlan);
         if (!parsedTimePlan.success) throw new Error("The generated time plan had an unexpected format.");
-        const generatedTimePlan = parsedTimePlan.data;
+        const generatedTimePlan = parsedTimePlan.data as TimePlan;
         setTimePlan(generatedTimePlan);
         
         // Save to database
         const { data: insertedPlan } = await supabase.from('time_plans').insert([{
           user_id: user.id,
           goal,
-          questionnaire_data: questionnaireData as unknown as import("@/integrations/supabase/types").Json,
-          yearly_plan: generatedTimePlan.yearlyPlan,
-          monthly_plan: generatedTimePlan.monthlyPlan,
-          weekly_plan: generatedTimePlan.weeklyPlan,
-          daily_plan: generatedTimePlan.dailyPlan,
+          questionnaire_data: asDatabaseJson(questionnaireData),
+          yearly_plan: asDatabaseJson(generatedTimePlan.yearlyPlan),
+          monthly_plan: asDatabaseJson(generatedTimePlan.monthlyPlan),
+          weekly_plan: asDatabaseJson(generatedTimePlan.weeklyPlan),
+          daily_plan: asDatabaseJson(generatedTimePlan.dailyPlan),
           status: 'completed',
         }]).select().single();
 
@@ -331,22 +344,22 @@ const TimePlanner = () => {
     switch (sectionType) {
       case 'yearly': {
         const parsed = YearlyPlanSchema.safeParse(newData);
-        if (parsed.success) updatedPlan.yearlyPlan = parsed.data;
+        if (parsed.success) updatedPlan.yearlyPlan = parsed.data as TimePlan["yearlyPlan"];
         break;
       }
       case 'monthly': {
         const parsed = MonthlyPlanSchema.safeParse(newData);
-        if (parsed.success) updatedPlan.monthlyPlan = parsed.data;
+        if (parsed.success) updatedPlan.monthlyPlan = parsed.data as TimePlan["monthlyPlan"];
         break;
       }
       case 'weekly': {
         const parsed = WeeklyPlanSchema.safeParse(newData);
-        if (parsed.success) updatedPlan.weeklyPlan = parsed.data;
+        if (parsed.success) updatedPlan.weeklyPlan = parsed.data as TimePlan["weeklyPlan"];
         break;
       }
       case 'daily': {
         const parsed = DailyPlanSchema.safeParse(newData);
-        if (parsed.success) updatedPlan.dailyPlan = parsed.data;
+        if (parsed.success) updatedPlan.dailyPlan = parsed.data as TimePlan["dailyPlan"];
         break;
       }
     }
